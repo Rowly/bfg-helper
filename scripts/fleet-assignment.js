@@ -1,6 +1,7 @@
 import { getShipData, getBaseActor } from "./ship-data.js";
 import { MODULE_ID, FLAG_KEY } from "./constants.js";
 import { getTurnState } from "./turn-manager.js";
+import { syncTokenRotationLock } from "./rotation-locking.js";
 
 function selectedShip() {
   const controlled = canvas.tokens.controlled;
@@ -93,6 +94,7 @@ export async function assignSelectedShipToFleet() {
 
   await token.document.setFlag(MODULE_ID, "fleetId", fleet.id);
   await token.document.setFlag(MODULE_ID, "fleetName", fleet.name);
+  await syncTokenRotationLock(token, state.battleStarted);
 
   ui.notifications.info(`${shipName} assigned to ${fleet.name}.`);
   Hooks.callAll("bfgHelperFleetAssignmentsChanged", token.document);
@@ -119,6 +121,7 @@ export async function clearSelectedShipFleet() {
 
   await token.document.unsetFlag(MODULE_ID, "fleetId");
   await token.document.unsetFlag(MODULE_ID, "fleetName");
+  await syncTokenRotationLock(token, false);
 
   ui.notifications.info(`${token.name} is no longer assigned to a fleet.`);
   Hooks.callAll("bfgHelperFleetAssignmentsChanged", token.document);

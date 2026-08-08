@@ -95,6 +95,19 @@
         </button>
       </div>
 
+      {{#if state.battleStarted}}
+        <div class="bfg-turn-secondary-actions">
+          <button type="button" data-bfg-action="lock-selected-rotation">
+            <i class="fa-solid fa-lock"></i>
+            Lock selected rotation
+          </button>
+          <button type="button" data-bfg-action="unlock-selected-rotation">
+            <i class="fa-solid fa-lock-open"></i>
+            GM correction unlock
+          </button>
+        </div>
+      {{/if}}
+
       <button type="button" data-bfg-action="reset" class="bfg-danger-button bfg-full-width">
         <i class="fa-solid fa-rotate-left"></i>
         Reset turn data

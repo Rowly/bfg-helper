@@ -1,135 +1,136 @@
 # Battlefleet Gothic Helper
 
-## 0.6.1
+Current version: **0.1.0**
 
-Added the first plotted Movement Planner. The existing `Move_Ship.js` wrapper now opens a persistent preview window instead of immediately moving a token. It reads the selected ship profile, current turn/fleet state, movement allowance, minimum distance before turning, and maximum turn angle.
+Battlefleet Gothic Helper is an early-development Foundry VTT 13 module containing tabletop aids for private Battlefleet Gothic games. It is not feature complete and should be treated as a development prototype.
 
-The planner draws a client-side route consisting of the first straight segment, optional port/starboard pivot, remaining segment, final circular base position, and final facing arrow. **It is preview-only in 0.6.1 and never updates the TokenDocument.** Closing the planner or clicking Clear Preview removes the route.
+The module supports ship profiles, per-token fleet assignment, a persistent Turn Manager, weapon-arc overlays, engine-plume effects, and plotted movement previews. It is intended to assist tabletop play rather than automate the entire game.
 
-To open it:
+## Scene and token scale
 
-```javascript
-await game.bfgHelper.movement.open();
-```
+Development currently uses a scene grid configured as:
 
-The existing compatibility call also works:
+- Grid size: 100 pixels
+- Grid distance: 1 cm
+- Scale: 100 pixels per centimetre
 
-```javascript
-await game.bfgHelper.movement.move();
-```
+Distances in ship profiles are stored in centimetres and converted using the current scene grid at runtime.
 
-A Gamemaster can preview out-of-phase or unassigned ships for testing and receives an on-screen warning. Players are restricted by the active fleet and phase state.
+A token's logical Foundry footprint represents the ship's tabletop base rather than the visible length of its artwork. Capital ships currently use a 6 x 6 footprint for a 60 mm base, while their artwork may extend beyond it.
 
-## 0.5.3
+## Ship profiles
 
-Fleet assignments now resolve to the source Actor even when placed Tokens are unlinked. Older synthetic-token assignments are migrated from tokens on the active canvas when possible.
- 0.5.1
+Reusable ship-class data is stored on the source Actor. This includes movement characteristics, weapons, base and texture presentation, engine effects, and other class-level rules.
 
-Prototype Battlefleet Gothic play aids for Foundry VTT.
+The current profiles are:
 
-## 0.5.1 changes
+- Imperial Navy Retribution-class Battleship
+- Chaos Despoiler-class Battleship
 
-- Added persistent fleet assignment to configured ship Actors.
-- The Turn Manager now lists ships assigned to each configured fleet.
-- Added **Assign selected ship** and **Clear assignment** buttons to the Turn Manager.
-- Added a Chaos **Despoiler-class Battleship** profile and configuration API/macro.
-- Split ship class profiles into separate files under `scripts/ship-profiles/` so the ship catalogue can grow without turning `ship-data.js` into one very large file.
-- Reconfiguring a ship now preserves its existing fleet assignment.
+Class definitions are kept separately under `scripts/ship-profiles/` so that the catalogue can grow without expanding the generic ship-data service.
 
-## Ship configuration macros
-
-Retribution:
+To configure the Actor used by exactly one selected token:
 
 ```javascript
 await game.bfgHelper.configureRetribution();
-```
-
-Despoiler:
-
-```javascript
 await game.bfgHelper.configureDespoiler();
 ```
 
-The equivalent wrapper files are included under `macros/`.
+Equivalent hotbar wrappers are available under `macros/`.
 
 ## Fleet assignment
 
-1. Open the Turn Manager and configure the two fleet names.
-2. Configure a ship using its class profile.
-3. Select the placed ship token.
-4. In the Turn Manager click **Assign selected ship**.
-5. Choose one of the two fleets.
+Fleet membership belongs to each deployed **TokenDocument**, not to its reusable Actor. Multiple tokens can therefore use the same Actor/profile while representing independently assigned ships.
 
-The assignment is stored on the Actor's BFG Helper ship-data flag, so additional tokens from the same Actor share that fleet membership.
+To assign a ship:
 
-A hotbar wrapper is also included:
+1. Open the Turn Manager and configure the two fleets.
+2. Configure the ship's Actor with a ship profile.
+3. Select exactly one deployed ship token.
+4. Click **Assign selected ship** in the Turn Manager and choose a fleet.
+
+The corresponding API calls are:
 
 ```javascript
 await game.bfgHelper.fleets.assign();
-```
-
-To clear the selected Actor's assignment:
-
-```javascript
 await game.bfgHelper.fleets.clearAssignment();
 ```
 
-## Despoiler profile
+The module includes a compatibility migration that copies legacy Actor-level fleet assignments to currently deployed tokens and then removes the old Actor assignment. Newly deployed tokens must be assigned independently.
 
-The starter Despoiler profile uses the classic Battlefleet Gothic values:
+## Turn Manager
 
-- Battleship, 12 hits
-- Speed 20 cm
-- 45 degree turn
-- 4 shields, 5+ armour, 4 turrets
-- Port Weapons Battery: 60 cm, Strength 10, left arc
-- Starboard Weapons Battery: 60 cm, Strength 10, right arc
-- Dorsal Lance Battery: 60 cm, Strength 3, left/front/right arc
-- Prow Launch Bays: 4 squadrons
-- Port Launch Bays: 2 squadrons
-- Starboard Launch Bays: 2 squadrons
-- Cannot use Come to New Heading
+The persistent Turn Manager tracks:
 
-Launch bays are stored in an `ordnance` section rather than the direct-fire `weapons` array because they will eventually be handled by the Ordnance phase system.
+- whether a battle has started;
+- the battle round;
+- two configurable fleets;
+- the active fleet;
+- Movement, Shooting, Ordnance, and End phases;
+- deployed ships assigned to each fleet.
 
-The Despoiler uses a 6 x 6 logical footprint for its 60 mm tabletop base. Its texture anchor and scale are neutral starter values; tune those to the specific token artwork in Foundry once you have the image positioned correctly.
+Gamemasters can configure and advance the battle. Other players receive a read-only view that rerenders when shared turn state changes.
 
-## Ship profile layout
-
-Class-specific data now lives here:
-
-```text
-scripts/ship-profiles/
-  index.js
-  retribution.js
-  despoiler.js
-```
-
-Future Imperial, Chaos, Ork, Eldar and other ship profiles can be added as separate files without expanding the generic ship-data service.
-
-## Existing APIs
+Open it with:
 
 ```javascript
-game.bfgHelper.weaponArcs.toggle();
-game.bfgHelper.weaponArcs.clearAll();
-game.bfgHelper.engines.refresh();
-game.bfgHelper.movement.move();
-game.bfgHelper.turnManager.open();
+await game.bfgHelper.turnManager.open();
 ```
 
+## Movement Planner
 
-## 0.5.1
+The Movement Planner is currently **preview only**. It does not update a token's position or rotation.
 
-- Fixed Turn Manager fleet roster population by iterating `game.actors.contents` explicitly.
-- Added an explicit `hasShips` template flag instead of relying on `ships.length` in Handlebars.
+It reads movement limits from the selected ship profile and plots:
 
-## 0.5.4 fleet membership change
+- the initial straight segment;
+- an optional turn after the required minimum distance;
+- the remaining movement segment;
+- the final logical base position;
+- the final facing.
 
-Fleet membership is now stored on each deployed TokenDocument rather than on the reusable Actor profile. This means two or more tokens using the same ship class/Actor are counted as independent ships in the Turn Manager and can later track independent battle state.
+The turn control is a signed slider: negative values turn to port, zero continues straight ahead, and positive values turn to starboard. Calculations also validate movement distance, minimum distance before turning, and the ship's maximum turn angle.
 
-When a 0.5.4 world first loads, any legacy Actor-level fleet assignments from 0.5.0-0.5.3 are copied to the currently deployed tokens and then removed from the Actor. Newly deployed tokens must be assigned to a fleet explicitly.
+Players can only plan movement for a ship in the active fleet during its Movement phase while a battle is running. Gamemasters receive a preview override for testing. When no battle is running, preview remains available for setup and testing.
 
+Open the planner with either call:
 
-## 0.6.1 movement slider
+```javascript
+await game.bfgHelper.movement.open();
+await game.bfgHelper.movement.move(); // Compatibility alias
+```
 
-The Movement Planner now uses a single signed turn slider. Its range is derived from each ship profile: maximum port turn on the left, straight ahead in the centre, and maximum starboard turn on the right. The slider advances in whole-degree steps and movement calculations clamp the supplied value to the ship's legal maximum.
+Closing the planner, clearing the preview, or leaving the canvas removes its temporary PIXI route.
+
+## Weapon arcs and engine effects
+
+Configured direct-fire weapons can display a manually toggled, range-scaled firing arc:
+
+```javascript
+await game.bfgHelper.weaponArcs.toggle();
+game.bfgHelper.weaponArcs.clearAll();
+```
+
+Configured ships can also display profile-driven engine plumes. Engine graphics follow token movement and rotation:
+
+```javascript
+game.bfgHelper.engines.refresh();
+```
+
+These graphics are client-side PIXI overlays and are not persistent scene documents.
+
+## Current development limitations
+
+- Movement can be previewed but not executed.
+- Manual token rotation is not yet locked during a battle.
+- Normal Foundry drag movement can bypass the planned movement workflow.
+- Per-token damage, shields, critical damage, special orders, and moved/fired state are not implemented.
+- Token Nameplates data is present only as a future optional integration.
+- The ship-profile catalogue is limited to two capital ships.
+- Automated tests are not yet configured.
+
+The next planned work is battle-time rotation locking, followed by executing the Movement Planner's calculated result.
+
+## Artwork
+
+Private token artwork with uncertain provenance is not part of the public repository. Ship profiles should remain usable with independently supplied artwork and must not require a particular copyrighted image.

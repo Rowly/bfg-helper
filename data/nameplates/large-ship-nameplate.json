@@ -1,0 +1,146 @@
+{
+  "enabled": true,
+  "version": "1.3.8",
+  "nameplates": [
+    {
+      "id": "HVfoi6x2kH7KUgSQ",
+      "enabled": true,
+      "sort": "0",
+      "position": "right",
+      "display": "always",
+      "value": "{name}",
+      "autoAnchor": false,
+      "anchor": {
+        "x": 0,
+        "y": 0
+      },
+      "padding": {
+        "x": 0,
+        "y": 0
+      },
+      "align": "left",
+      "fontDispositionColor": false,
+      "angle": 90,
+      "alpha": 1,
+      "style": {
+        "styleID": 40,
+        "align": "center",
+        "breakWords": false,
+        "dropShadow": true,
+        "dropShadowAlpha": 1,
+        "dropShadowAngle": 0,
+        "dropShadowBlur": 2,
+        "dropShadowColor": "#000000",
+        "dropShadowDistance": 0,
+        "fill": "#ffffff",
+        "fillGradientType": 0,
+        "fillGradientStops": [],
+        "fontFamily": "Signika",
+        "fontSize": 60,
+        "fontStyle": "normal",
+        "fontVariant": "normal",
+        "fontWeight": "normal",
+        "leading": 0,
+        "letterSpacing": 0,
+        "lineHeight": 0,
+        "lineJoin": "miter",
+        "miterLimit": 10,
+        "padding": 1,
+        "stroke": "#111111",
+        "strokeThickness": 1,
+        "textBaseline": "alphabetic",
+        "trim": false,
+        "whiteSpace": "pre",
+        "wordWrap": false,
+        "wordWrapWidth": 100
+      },
+      "effects": {
+        "glow": {
+          "enabled": false,
+          "useDispositionColor": false,
+          "alpha": 1,
+          "innerStrength": 0,
+          "outerStrength": 4,
+          "color": "#FFFFFF"
+        },
+        "outline": {
+          "enabled": false,
+          "useDispositionColor": false,
+          "alpha": 1,
+          "color": "#FFFFFF",
+          "thickness": 1
+        }
+      }
+    },
+    {
+      "id": "TypO3BRA6dddkbAl",
+      "enabled": true,
+      "sort": 0,
+      "position": "top",
+      "display": "default",
+      "value": "{tooltip}",
+      "autoAnchor": true,
+      "anchor": {
+        "x": 0.5,
+        "y": 0
+      },
+      "padding": {
+        "x": 0,
+        "y": 0
+      },
+      "align": "center",
+      "fontDispositionColor": false,
+      "angle": 0,
+      "alpha": 1,
+      "style": {
+        "styleID": 40,
+        "align": "center",
+        "breakWords": false,
+        "dropShadow": true,
+        "dropShadowAlpha": 1,
+        "dropShadowAngle": 0,
+        "dropShadowBlur": 2,
+        "dropShadowColor": "#000000",
+        "dropShadowDistance": 0,
+        "fill": "#ffffff",
+        "fillGradientType": 0,
+        "fillGradientStops": [],
+        "fontFamily": "Signika",
+        "fontSize": 24,
+        "fontStyle": "normal",
+        "fontVariant": "normal",
+        "fontWeight": "normal",
+        "leading": 0,
+        "letterSpacing": 0,
+        "lineHeight": 0,
+        "lineJoin": "miter",
+        "miterLimit": 10,
+        "padding": 1,
+        "stroke": "#111111",
+        "strokeThickness": 1,
+        "textBaseline": "alphabetic",
+        "trim": false,
+        "whiteSpace": "pre",
+        "wordWrap": false,
+        "wordWrapWidth": 100
+      },
+      "effects": {
+        "glow": {
+          "enabled": false,
+          "useDispositionColor": false,
+          "alpha": 1,
+          "innerStrength": 0,
+          "outerStrength": 4,
+          "color": "#FFFFFF"
+        },
+        "outline": {
+          "enabled": false,
+          "useDispositionColor": false,
+          "alpha": 1,
+          "color": "#FFFFFF",
+          "thickness": 1
+        }
+      }
+    }
+  ]
+}

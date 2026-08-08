@@ -1,0 +1,1 @@
+game.bfgHelper.weaponArcs.clearAll();

@@ -1,0 +1,23 @@
+{
+  "id": "bfg-helper",
+  "title": "Battlefleet Gothic Helper",
+  "description": "Battlefleet Gothic play aids for Foundry VTT, including ship profiles, per-token fleet assignment, weapon arcs, engine plumes, a persistent turn tracker, and plotted movement previews.",
+  "version": "0.6.1",
+  "authors": [
+    {
+      "name": "Mark and OpenAI"
+    }
+  ],
+  "compatibility": {
+    "minimum": "13",
+    "verified": "13"
+  },
+  "esmodules": [
+    "scripts/main.js"
+  ],
+  "styles": [
+    "styles/bfg-helper.css"
+  ],
+  "manifest": "",
+  "download": ""
+}

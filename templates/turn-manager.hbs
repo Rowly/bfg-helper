@@ -1,0 +1,108 @@
+<div class="bfg-turn-manager-panel">
+  <header class="bfg-turn-manager-heading">
+    <div>
+      <p class="bfg-turn-manager-kicker">Battle status</p>
+      <h2>{{battleStatus}}</h2>
+    </div>
+    <div class="bfg-turn-round-badge" title="Current battle round">
+      <span>Round</span>
+      <strong>{{state.round}}</strong>
+    </div>
+  </header>
+
+  <section class="bfg-turn-active-state" aria-label="Current turn state">
+    <div>
+      <span>Active fleet</span>
+      <strong>{{activeFleetName}}</strong>
+    </div>
+    <div>
+      <span>Current phase</span>
+      <strong>{{currentPhaseLabel}}</strong>
+    </div>
+  </section>
+
+  <ol class="bfg-turn-phases" aria-label="Battlefleet Gothic phase order">
+    {{#each phases}}
+      <li class="bfg-turn-phase{{#if active}} active{{/if}}">
+        <i class="fa-solid {{icon}}" aria-hidden="true"></i>
+        <span>{{label}}</span>
+      </li>
+    {{/each}}
+  </ol>
+
+  <section class="bfg-fleet-rosters" aria-label="Fleet assignments">
+    {{#each fleetCards}}
+      <article class="bfg-fleet-card{{#if active}} active{{/if}}">
+        <header>
+          <strong>{{name}}</strong>
+          <span>{{shipCount}} assigned</span>
+        </header>
+        {{#if hasShips}}
+          <ul>
+            {{#each ships}}
+              <li>
+                <span>{{actorName}}</span>
+                <small>{{shipClass}}</small>
+              </li>
+            {{/each}}
+          </ul>
+        {{else}}
+          <p class="notes">No ships assigned.</p>
+        {{/if}}
+      </article>
+    {{/each}}
+  </section>
+
+  {{#if canManage}}
+    <section class="bfg-turn-manager-controls" aria-label="Gamemaster turn controls">
+      {{#if state.battleStarted}}
+        <div class="bfg-turn-primary-actions">
+          <button type="button" data-bfg-action="previous">
+            <i class="fa-solid fa-backward-step"></i>
+            Previous
+          </button>
+          <button type="button" data-bfg-action="next" class="bfg-primary-button">
+            Next phase
+            <i class="fa-solid fa-forward-step"></i>
+          </button>
+        </div>
+
+        <div class="bfg-turn-secondary-actions">
+          <button type="button" data-bfg-action="setup">
+            <i class="fa-solid fa-pen-to-square"></i>
+            Configure battle
+          </button>
+          <button type="button" data-bfg-action="end">
+            <i class="fa-solid fa-flag-checkered"></i>
+            End battle
+          </button>
+        </div>
+      {{else}}
+        <button type="button" data-bfg-action="setup" class="bfg-primary-button bfg-full-width">
+          <i class="fa-solid fa-flag"></i>
+          Set up and start battle
+        </button>
+      {{/if}}
+
+      <div class="bfg-turn-secondary-actions">
+        <button type="button" data-bfg-action="assign-fleet">
+          <i class="fa-solid fa-people-group"></i>
+          Assign selected ship
+        </button>
+        <button type="button" data-bfg-action="clear-fleet">
+          <i class="fa-solid fa-link-slash"></i>
+          Clear assignment
+        </button>
+      </div>
+
+      <button type="button" data-bfg-action="reset" class="bfg-danger-button bfg-full-width">
+        <i class="fa-solid fa-rotate-left"></i>
+        Reset turn data
+      </button>
+    </section>
+  {{else}}
+    <p class="notes bfg-turn-viewer-note">
+      This tracker updates automatically. Only a Gamemaster can change the turn state.
+    </p>
+  {{/if}}
+</div>

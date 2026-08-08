@@ -1,0 +1,496 @@
+.bfg-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.bfg-dialog label {
+  font-weight: 600;
+}
+
+.bfg-dialog select,
+.bfg-dialog input {
+  width: 100%;
+}
+
+.bfg-turn-manager {
+  min-width: 360px;
+}
+
+.bfg-turn-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  padding: 0.65rem;
+  border: 1px solid var(--color-border-light-primary, #777);
+  border-radius: 4px;
+}
+
+.bfg-turn-summary div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.bfg-turn-summary span {
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+
+.bfg-turn-summary strong {
+  font-size: 1.05rem;
+}
+
+.bfg-turn-phases {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bfg-turn-phase {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 4px;
+  opacity: 0.65;
+}
+
+.bfg-turn-phase.active {
+  background: rgba(178, 124, 36, 0.24);
+  outline: 1px solid rgba(214, 166, 77, 0.7);
+  opacity: 1;
+  font-weight: 700;
+}
+
+.bfg-turn-phase i {
+  width: 1rem;
+  text-align: center;
+}
+
+/* --------------------------------------------------------- */
+/* Persistent Turn Manager ApplicationV2                     */
+/* --------------------------------------------------------- */
+
+.bfg-turn-manager-window .window-content {
+  padding: 0;
+  overflow: auto;
+}
+
+.bfg-turn-manager-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-width: 330px;
+  padding: 0.9rem;
+}
+
+.bfg-turn-manager-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.bfg-turn-manager-heading h2,
+.bfg-turn-manager-heading p {
+  margin: 0;
+}
+
+.bfg-turn-manager-heading h2 {
+  font-size: 1.2rem;
+}
+
+.bfg-turn-manager-kicker {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
+}
+
+.bfg-turn-round-badge {
+  display: grid;
+  min-width: 74px;
+  padding: 0.4rem 0.7rem;
+  text-align: center;
+  border: 1px solid rgba(214, 166, 77, 0.75);
+  border-radius: 6px;
+  background: rgba(178, 124, 36, 0.16);
+}
+
+.bfg-turn-round-badge span {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.bfg-turn-round-badge strong {
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+
+.bfg-turn-active-state {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+}
+
+.bfg-turn-active-state > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  padding: 0.6rem;
+  border: 1px solid var(--color-border-light-primary, #777);
+  border-radius: 5px;
+}
+
+.bfg-turn-active-state span {
+  font-size: 0.75rem;
+  opacity: 0.72;
+}
+
+.bfg-turn-active-state strong {
+  overflow: hidden;
+  font-size: 1rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bfg-turn-manager-controls {
+  display: grid;
+  gap: 0.55rem;
+  padding-top: 0.2rem;
+}
+
+.bfg-turn-primary-actions,
+.bfg-turn-secondary-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.bfg-turn-manager-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 34px;
+}
+
+.bfg-primary-button {
+  border-color: rgba(214, 166, 77, 0.9);
+  background: rgba(178, 124, 36, 0.28);
+  font-weight: 700;
+}
+
+.bfg-danger-button {
+  opacity: 0.82;
+}
+
+.bfg-full-width {
+  width: 100%;
+}
+
+.bfg-turn-viewer-note {
+  margin: 0;
+  padding: 0.65rem;
+  border: 1px solid var(--color-border-light-primary, #777);
+  border-radius: 5px;
+}
+
+/* --------------------------------------------------------- */
+/* Fleet assignment roster                                   */
+/* --------------------------------------------------------- */
+
+.bfg-fleet-rosters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+}
+
+.bfg-fleet-card {
+  min-width: 0;
+  padding: 0.55rem;
+  border: 1px solid var(--color-border-light-primary, #777);
+  border-radius: 5px;
+}
+
+.bfg-fleet-card.active {
+  border-color: rgba(214, 166, 77, 0.85);
+  background: rgba(178, 124, 36, 0.10);
+}
+
+.bfg-fleet-card > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin-bottom: 0.35rem;
+}
+
+.bfg-fleet-card > header span {
+  font-size: 0.72rem;
+  opacity: 0.7;
+  white-space: nowrap;
+}
+
+.bfg-fleet-card ul {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bfg-fleet-card li {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding-top: 0.25rem;
+  border-top: 1px solid rgba(127, 127, 127, 0.22);
+}
+
+.bfg-fleet-card li span,
+.bfg-fleet-card li small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bfg-fleet-card li small {
+  opacity: 0.67;
+}
+
+@media (max-width: 420px) {
+  .bfg-fleet-rosters {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --------------------------------------------------------- */
+/* Movement Planner                                           */
+/* --------------------------------------------------------- */
+
+.bfg-movement-planner-window .window-content {
+  padding: 0;
+  overflow: auto;
+}
+
+.bfg-movement-planner-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  min-width: 350px;
+  padding: 0.9rem;
+}
+
+.bfg-movement-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.bfg-movement-heading h2,
+.bfg-movement-heading p {
+  margin: 0;
+}
+
+.bfg-movement-speed-badge {
+  display: grid;
+  min-width: 84px;
+  padding: 0.4rem 0.65rem;
+  text-align: center;
+  border: 1px solid rgba(102, 204, 255, 0.8);
+  border-radius: 6px;
+  background: rgba(102, 204, 255, 0.10);
+}
+
+.bfg-movement-speed-badge span {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  opacity: 0.72;
+}
+
+.bfg-movement-speed-badge strong {
+  font-size: 1.1rem;
+}
+
+.bfg-movement-context {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.bfg-movement-context > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.5rem;
+  border: 1px solid var(--color-border-light-primary, #777);
+  border-radius: 5px;
+}
+
+.bfg-movement-context span {
+  font-size: 0.72rem;
+  opacity: 0.72;
+}
+
+.bfg-movement-warnings {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.55rem;
+  border: 1px solid rgba(255, 184, 77, 0.65);
+  border-radius: 5px;
+  background: rgba(255, 184, 77, 0.08);
+}
+
+.bfg-movement-warnings p {
+  margin: 0;
+}
+
+.bfg-movement-rules {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.4rem;
+}
+
+.bfg-movement-rules span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.45rem;
+  text-align: center;
+  border: 1px solid rgba(127, 127, 127, 0.35);
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
+
+.bfg-movement-rules strong {
+  font-size: 0.95rem;
+}
+
+.bfg-movement-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+}
+
+.bfg-movement-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-weight: 600;
+}
+
+.bfg-movement-fields input,
+.bfg-movement-fields select {
+  width: 100%;
+}
+
+.bfg-input-with-unit {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.bfg-input-with-unit > span {
+  min-width: 1rem;
+  font-weight: 700;
+}
+
+.bfg-movement-status {
+  margin: 0;
+  padding: 0.55rem;
+  border: 1px solid var(--color-border-light-primary, #777);
+  border-radius: 5px;
+}
+
+.bfg-movement-status[data-status="success"] {
+  border-color: rgba(102, 255, 153, 0.75);
+}
+
+.bfg-movement-status[data-status="error"] {
+  border-color: rgba(255, 102, 102, 0.8);
+}
+
+.bfg-movement-actions {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 0.5rem;
+}
+
+.bfg-movement-actions button,
+.bfg-movement-planner-panel > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 34px;
+}
+
+.bfg-movement-preview-note {
+  margin: 0;
+  text-align: center;
+}
+
+@media (max-width: 420px) {
+  .bfg-movement-fields,
+  .bfg-movement-context,
+  .bfg-movement-rules,
+  .bfg-movement-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Signed port/straight/starboard turn slider */
+.bfg-turn-slider-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid rgba(127, 127, 127, 0.35);
+  border-radius: 5px;
+}
+
+.bfg-turn-slider-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.bfg-turn-slider-heading > span {
+  font-weight: 700;
+}
+
+.bfg-turn-slider-heading strong {
+  text-align: right;
+}
+
+.bfg-turn-slider-labels,
+.bfg-turn-slider-scale {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  opacity: 0.78;
+}
+
+.bfg-turn-slider-labels span:nth-child(2),
+.bfg-turn-slider-scale span:nth-child(2) {
+  text-align: center;
+}
+
+.bfg-turn-slider-labels span:last-child,
+.bfg-turn-slider-scale span:last-child {
+  text-align: right;
+}
+
+.bfg-turn-slider {
+  width: 100%;
+  margin: 0.15rem 0;
+}

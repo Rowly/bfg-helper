@@ -1,0 +1,122 @@
+<div class="bfg-movement-planner-panel">
+  {{#if invalid}}
+    <p class="notification error">{{error}}</p>
+  {{else}}
+    <header class="bfg-movement-heading">
+      <div>
+        <p class="bfg-turn-manager-kicker">Movement preview</p>
+        <h2>{{tokenName}}</h2>
+        <p class="notes">{{shipClass}}</p>
+      </div>
+      <div class="bfg-movement-speed-badge">
+        <span>Speed</span>
+        <strong>{{speedCm}} cm</strong>
+      </div>
+    </header>
+
+    <section class="bfg-movement-context">
+      <div>
+        <span>Ship fleet</span>
+        <strong>{{fleetName}}</strong>
+      </div>
+      <div>
+        <span>Active fleet</span>
+        <strong>{{activeFleetName}}</strong>
+      </div>
+    </section>
+
+    {{#if hasWarnings}}
+      <section class="bfg-movement-warnings">
+        {{#each warnings}}
+          <p><i class="fa-solid fa-triangle-exclamation"></i> {{this}}</p>
+        {{/each}}
+      </section>
+    {{/if}}
+
+    <section class="bfg-movement-rules">
+      <span>Maximum movement <strong>{{speedCm}} cm</strong></span>
+      <span>Turn after <strong>{{minimumBeforeTurnCm}} cm</strong></span>
+      <span>Maximum turn <strong>{{maximumTurnDegrees}}°</strong></span>
+    </section>
+
+    <div class="bfg-movement-fields">
+      <label>
+        <span>Total movement (cm)</span>
+        <input
+          type="number"
+          name="distanceCm"
+          min="0"
+          max="{{speedCm}}"
+          value="{{defaultDistanceCm}}"
+          step="0.5"
+        >
+      </label>
+
+      <label>
+        <span>Distance before turn (cm)</span>
+        <input
+          type="number"
+          name="beforeTurnCm"
+          min="0"
+          max="{{speedCm}}"
+          value="{{defaultBeforeTurnCm}}"
+          step="0.5"
+        >
+      </label>
+    </div>
+
+    <section class="bfg-turn-slider-section">
+      <div class="bfg-turn-slider-heading">
+        <span>Turn</span>
+        <strong data-bfg-turn-slider-value data-direction="straight">Straight ahead</strong>
+      </div>
+
+      <div class="bfg-turn-slider-labels" aria-hidden="true">
+        <span>Port {{maximumTurnDegrees}}°</span>
+        <span>Straight</span>
+        <span>Starboard {{maximumTurnDegrees}}°</span>
+      </div>
+
+      <input
+        class="bfg-turn-slider"
+        type="range"
+        name="signedTurnDegrees"
+        min="-{{maximumTurnDegrees}}"
+        max="{{maximumTurnDegrees}}"
+        value="{{defaultSignedTurnDegrees}}"
+        step="1"
+        aria-label="Turn angle: port through straight ahead to starboard"
+      >
+
+      <div class="bfg-turn-slider-scale" aria-hidden="true">
+        <span>-{{maximumTurnDegrees}}°</span>
+        <span>0°</span>
+        <span>+{{maximumTurnDegrees}}°</span>
+      </div>
+    </section>
+
+    <p class="bfg-movement-status" data-bfg-movement-status data-status="normal">
+      {{previewSummary}}
+    </p>
+
+    <div class="bfg-movement-actions">
+      <button type="button" data-bfg-action="preview-movement" class="bfg-primary-button">
+        <i class="fa-solid fa-route"></i>
+        Preview movement
+      </button>
+      <button type="button" data-bfg-action="clear-movement-preview">
+        <i class="fa-solid fa-eraser"></i>
+        Clear preview
+      </button>
+    </div>
+
+    <button type="button" data-bfg-action="reset-movement" class="bfg-full-width">
+      <i class="fa-solid fa-arrow-rotate-left"></i>
+      Reset planner
+    </button>
+
+    <p class="notes bfg-movement-preview-note">
+      Preview only. This version does not move or rotate the ship. Closing the planner clears the plotted route.
+    </p>
+  {{/if}}
+</div>

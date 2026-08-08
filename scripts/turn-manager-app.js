@@ -8,6 +8,7 @@ import {
   openBattleSetup
 } from "./turn-manager.js";
 import { getFleetShips, assignSelectedShipToFleet, clearSelectedShipFleet } from "./fleet-assignment.js";
+import { lockSelectedShipRotation, unlockSelectedShipRotation } from "./rotation-locking.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -103,6 +104,14 @@ export class BFGTurnManagerApplication extends HandlebarsApplicationMixin(Applic
 
     bind('[data-bfg-action="clear-fleet"]', async () => {
       if (await clearSelectedShipFleet()) await this.render({ force: true });
+    });
+
+    bind('[data-bfg-action="lock-selected-rotation"]', async () => {
+      await lockSelectedShipRotation();
+    });
+
+    bind('[data-bfg-action="unlock-selected-rotation"]', async () => {
+      await unlockSelectedShipRotation();
     });
 
     bind('[data-bfg-action="end"]', async () => {

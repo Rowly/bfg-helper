@@ -122,14 +122,14 @@ These graphics are client-side PIXI overlays and are not persistent scene docume
 ## Current development limitations
 
 - Movement can be previewed but not executed.
-- Manual token rotation is not yet locked during a battle.
+- Starting a battle prevents manual rotation changes for configured, fleet-assigned ships, keeping token artwork and attached effects on the same heading. Ending or resetting the battle unlocks them, and the Turn Manager provides a GM correction override for a selected ship.
 - Normal Foundry drag movement can bypass the planned movement workflow.
 - Per-token damage, shields, critical damage, special orders, and moved/fired state are not implemented.
 - Token Nameplates data is present only as a future optional integration.
 - The ship-profile catalogue is limited to two capital ships.
 - Automated tests are not yet configured.
 
-The next planned work is battle-time rotation locking, followed by executing the Movement Planner's calculated result.
+The next planned work is executing the Movement Planner's calculated result.
 
 ## Artwork
 

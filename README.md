@@ -4,7 +4,7 @@ Current version: **0.1.0**
 
 Battlefleet Gothic Helper is an early-development Foundry VTT 13 module containing tabletop aids for private Battlefleet Gothic games. It is not feature complete and should be treated as a development prototype.
 
-The module supports ship profiles, per-token fleet assignment, a persistent Turn Manager, weapon-arc overlays, engine-plume effects, and plotted movement previews. It is intended to assist tabletop play rather than automate the entire game.
+The module supports ship profiles, per-token fleet assignment, a persistent Turn Manager, weapon-arc overlays, engine-plume effects, and planned movement preview and execution. It is intended to assist tabletop play rather than automate the entire game.
 
 ## Scene and token scale
 
@@ -79,7 +79,7 @@ await game.bfgHelper.turnManager.open();
 
 ## Movement Planner
 
-The Movement Planner is currently **preview only**. It does not update a token's position or rotation.
+The Movement Planner previews a legal route and can then execute that exact route by updating the token's position and rotation.
 
 It reads movement limits from the selected ship profile and plots:
 
@@ -91,6 +91,8 @@ It reads movement limits from the selected ship profile and plots:
 
 The turn control is a signed slider: negative values turn to port, zero continues straight ahead, and positive values turn to starboard. Calculations also validate movement distance, minimum distance before turning, and the ship's maximum turn angle.
 
+The minimum-before-turn value is profile driven. The current battleships must move 15 cm before turning; a future escort profile can set the value to 0 cm to rotate at its starting point or at any later point in its move.
+
 Players can only plan movement for a ship in the active fleet during its Movement phase while a battle is running. Gamemasters receive a preview override for testing. When no battle is running, preview remains available for setup and testing.
 
 Open the planner with either call:
@@ -101,6 +103,10 @@ await game.bfgHelper.movement.move(); // Compatibility alias
 ```
 
 Closing the planner, clearing the preview, or leaving the canvas removes its temporary PIXI route.
+
+Execution rechecks the current battle permissions and movement rules. It is refused if the ship moved or rotated, the Scene scale changed, the ship profile changed, or the planner inputs changed after the preview. The module's battle-time rotation lock permits this validated movement update while continuing to block manual rotation.
+
+The execution animation follows the plotted route in stages: the ship travels to the turn point on its current bearing, rotates in place, and then completes the remaining movement on its new bearing.
 
 ## Weapon arcs and engine effects
 
@@ -121,7 +127,7 @@ These graphics are client-side PIXI overlays and are not persistent scene docume
 
 ## Current development limitations
 
-- Movement can be previewed but not executed.
+- Movement execution does not yet track a per-token `movedThisPhase` state or prevent a ship moving more than once.
 - Starting a battle prevents manual rotation changes for configured, fleet-assigned ships, keeping token artwork and attached effects on the same heading. Ending or resetting the battle unlocks them, and the Turn Manager provides a GM correction override for a selected ship.
 - Normal Foundry drag movement can bypass the planned movement workflow.
 - Per-token damage, shields, critical damage, special orders, and moved/fired state are not implemented.
@@ -129,7 +135,7 @@ These graphics are client-side PIXI overlays and are not persistent scene docume
 - The ship-profile catalogue is limited to two capital ships.
 - Automated tests are not yet configured.
 
-The next planned work is executing the Movement Planner's calculated result.
+The next movement milestone is per-token movement state and prevention of repeated movement during the same phase.
 
 ## Artwork
 

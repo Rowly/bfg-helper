@@ -26,7 +26,7 @@ export function retributionProfile() {
 
     movement: {
       speedCm: 20,
-      minimumBeforeTurnCm: 10,
+      minimumBeforeTurnCm: 15,
       maximumTurnDegrees: 45,
       maximumTurns: 1
     },

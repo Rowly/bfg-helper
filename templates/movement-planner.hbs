@@ -4,7 +4,7 @@
   {{else}}
     <header class="bfg-movement-heading">
       <div>
-        <p class="bfg-turn-manager-kicker">Movement preview</p>
+        <p class="bfg-turn-manager-kicker">Movement planner</p>
         <h2>{{tokenName}}</h2>
         <p class="notes">{{shipClass}}</p>
       </div>
@@ -110,13 +110,23 @@
       </button>
     </div>
 
+    <button
+      type="button"
+      data-bfg-action="execute-movement"
+      class="bfg-primary-button bfg-full-width"
+      {{#unless canExecute}}disabled{{/unless}}
+    >
+      <i class="fa-solid fa-check"></i>
+      Execute movement
+    </button>
+
     <button type="button" data-bfg-action="reset-movement" class="bfg-full-width">
       <i class="fa-solid fa-arrow-rotate-left"></i>
       Reset planner
     </button>
 
     <p class="notes bfg-movement-preview-note">
-      Preview only. This version does not move or rotate the ship. Closing the planner clears the plotted route.
+      Execute movement commits the currently plotted route. Changing an input or closing the planner clears the preview.
     </p>
   {{/if}}
 </div>

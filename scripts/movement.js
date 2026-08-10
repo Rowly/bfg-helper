@@ -1,6 +1,7 @@
 import { getShipData, getBaseActor } from "./ship-data.js";
 import { getTokenFleetId } from "./fleet-assignment.js";
 import { getTurnState, PHASES } from "./turn-manager.js";
+import { ROTATION_UPDATE_OVERRIDE } from "./rotation-locking.js";
 
 const PREVIEW_NAME = "bfg-movement-preview";
 
@@ -28,6 +29,40 @@ function normaliseRotation(degrees) {
   let value = Number(degrees) % 360;
   if (value < 0) value += 360;
   return value;
+}
+
+function rotationsMatch(first, second, tolerance = 0.001) {
+  const difference = Math.abs(normaliseRotation(first) - normaliseRotation(second));
+  return Math.min(difference, 360 - difference) <= tolerance;
+}
+
+function pointsMatch(first, second, tolerance = 0.01) {
+  return Math.abs(Number(first?.x) - Number(second?.x)) <= tolerance
+    && Math.abs(Number(first?.y) - Number(second?.y)) <= tolerance;
+}
+
+function numbersMatch(first, second, tolerance = 0.000001) {
+  return Math.abs(Number(first) - Number(second)) <= tolerance;
+}
+
+async function waitForTokenAnimations(token) {
+  const promises = new Set();
+  const movementPromise = token?.movementAnimationPromise;
+  if (movementPromise) promises.add(movementPromise);
+
+  for (const context of token?.animationContexts?.values?.() ?? []) {
+    if (context?.promise) promises.add(context.promise);
+  }
+
+  if (promises.size > 0) await Promise.all(promises);
+}
+
+async function updateTokenAnimationStage(token, changes) {
+  await token.document.update(changes, {
+    autoRotate: false,
+    [ROTATION_UPDATE_OVERRIDE]: true
+  });
+  await waitForTokenAnimations(token);
 }
 
 function forwardVector(rotationDegrees) {
@@ -222,6 +257,8 @@ export function calculateMovementPath(token, movement, values = {}) {
   };
 
   return {
+    tokenId: token.document.id,
+    sceneId: token.document.parent?.id ?? canvas.scene?.id ?? null,
     distanceCm,
     beforeTurnCm,
     remainingCm,
@@ -240,6 +277,104 @@ export function calculateMovementPath(token, movement, values = {}) {
     finalRotation,
     finalRotationRaw
   };
+}
+
+/**
+ * Commit a previously previewed route to its TokenDocument.
+ *
+ * The plan's inputs are recalculated through calculateMovementPath so preview
+ * and execution cannot drift into separate geometry implementations. The
+ * token must still be at the previewed starting position and heading.
+ */
+export async function executeMovementPath(token, previewPath) {
+  const context = getMovementContext(token);
+  if (!context.ok) throw new Error(context.error);
+  if (!previewPath) throw new Error("Preview a movement route before executing it.");
+
+  const document = context.token.document;
+  const sceneId = document.parent?.id ?? canvas.scene?.id ?? null;
+  if (previewPath.tokenId !== document.id || previewPath.sceneId !== sceneId) {
+    throw new Error("This movement preview belongs to a different ship or Scene.");
+  }
+
+  if (!context.turnState.battleStarted && !game.user?.isGM) {
+    throw new Error("Only a Gamemaster can execute movement while no battle is running.");
+  }
+
+  const canUpdate = typeof document.canUserModify === "function"
+    ? document.canUserModify(game.user, "update")
+    : document.isOwner;
+  if (!canUpdate) throw new Error("You do not have permission to move this ship.");
+
+  const currentStart = {
+    x: Number(context.token.center.x),
+    y: Number(context.token.center.y)
+  };
+  if (
+    !pointsMatch(currentStart, previewPath.start)
+    || !rotationsMatch(document.rotation, previewPath.startRotation)
+  ) {
+    throw new Error("The ship moved or rotated after this preview. Preview the route again.");
+  }
+
+  const recalculatedPath = calculateMovementPath(context.token, context.movement, {
+    distanceCm: previewPath.distanceCm,
+    beforeTurnCm: previewPath.beforeTurnCm,
+    signedTurnDegrees: previewPath.signedTurnDegrees
+  });
+
+  if (
+    !numbersMatch(recalculatedPath.pixelsPerCm, previewPath.pixelsPerCm)
+    || !numbersMatch(recalculatedPath.speedCm, previewPath.speedCm)
+    || !numbersMatch(recalculatedPath.minimumBeforeTurnCm, previewPath.minimumBeforeTurnCm)
+    || !numbersMatch(recalculatedPath.maximumTurnDegrees, previewPath.maximumTurnDegrees)
+    || !pointsMatch(recalculatedPath.finalCenter, previewPath.finalCenter)
+    || !rotationsMatch(recalculatedPath.finalRotation, previewPath.finalRotation)
+  ) {
+    throw new Error("The Scene scale or ship movement profile changed. Preview the route again.");
+  }
+
+  const widthPixels = Number(context.token.w);
+  const heightPixels = Number(context.token.h);
+  if (!(widthPixels > 0) || !(heightPixels > 0)) {
+    throw new Error("The ship token does not have valid dimensions.");
+  }
+
+  const toTopLeft = point => ({
+    x: point.x - widthPixels / 2,
+    y: point.y - heightPixels / 2
+  });
+
+  if (recalculatedPath.hasTurn) {
+    // First travel along the current bearing without changing the facing.
+    if (!pointsMatch(recalculatedPath.start, recalculatedPath.turnPoint)) {
+      await updateTokenAnimationStage(
+        context.token,
+        toTopLeft(recalculatedPath.turnPoint)
+      );
+    }
+
+    // Pivot at the turn point and wait for the rotation to finish.
+    await updateTokenAnimationStage(context.token, {
+      rotation: recalculatedPath.finalRotation
+    });
+
+    // Complete the remaining distance along the new bearing.
+    if (!pointsMatch(recalculatedPath.turnPoint, recalculatedPath.finalCenter)) {
+      await updateTokenAnimationStage(
+        context.token,
+        toTopLeft(recalculatedPath.finalCenter)
+      );
+    }
+  } else {
+    await updateTokenAnimationStage(
+      context.token,
+      toTopLeft(recalculatedPath.finalCenter)
+    );
+  }
+
+  clearMovementPreview();
+  return recalculatedPath;
 }
 
 export function clearMovementPreview() {
@@ -343,6 +478,10 @@ export function previewSelectedShipMovement(token, values) {
   const path = calculateMovementPath(context.token, context.movement, values);
   drawMovementPreview(context.token, path);
   return path;
+}
+
+export async function executeSelectedShipMovement(token, previewPath) {
+  return executeMovementPath(token, previewPath);
 }
 
 export async function openMovementPlanner(token = canvas.tokens.controlled[0]) {

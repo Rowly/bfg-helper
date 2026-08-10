@@ -2,7 +2,12 @@ import { configureSelectedShip, getShipData, setShipData } from "./ship-data.js"
 import { retributionProfile, despoilerProfile } from "./ship-profiles/index.js";
 import { toggleWeaponDialog, clearAllWeaponArcs, clearWeaponArc } from "./weapon-arcs.js";
 import { createEngine, refreshEngines, initialiseEngineTicker, clearAllEngines, removeEngine } from "./engine-effects.js";
-import { openMovementPlanner, previewSelectedShipMovement, clearMovementPreview } from "./movement.js";
+import {
+  openMovementPlanner,
+  previewSelectedShipMovement,
+  executeSelectedShipMovement,
+  clearMovementPreview
+} from "./movement.js";
 import { getTurnState, registerTurnManagerSettings, turnManager } from "./turn-manager.js";
 import {
   lockSelectedShipRotation,
@@ -67,6 +72,7 @@ Hooks.once("ready", () => {
       move: openMovementPlanner,
       open: openMovementPlanner,
       preview: previewSelectedShipMovement,
+      execute: executeSelectedShipMovement,
       clearPreview: clearMovementPreview
     },
     rotation: {

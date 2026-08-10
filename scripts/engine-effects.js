@@ -86,7 +86,10 @@ export function initialiseEngineTicker() {
         continue;
       }
       entry.graphics.position.set(token.center.x, token.center.y);
-      entry.graphics.rotation = Number(token.document.rotation) * Math.PI / 180;
+      const renderedRotation = Number(token.mesh?.rotation);
+      entry.graphics.rotation = Number.isFinite(renderedRotation)
+        ? renderedRotation
+        : Number(token.document.rotation) * Math.PI / 180;
     }
   };
   canvas.app.ticker.add(ticker);

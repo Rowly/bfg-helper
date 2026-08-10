@@ -2,7 +2,8 @@ import {
   getMovementContext,
   calculateMovementPath,
   drawMovementPreview,
-  clearMovementPreview
+  clearMovementPreview,
+  executeMovementPath
 } from "./movement.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -78,6 +79,7 @@ export class BFGMovementPlannerApplication extends HandlebarsApplicationMixin(Ap
       defaultSignedTurnDegrees: 0,
       hasWarnings: warnings.length > 0,
       warnings,
+      canExecute: Boolean(this.lastPath),
       previewSummary: this.lastPath
         ? `${this.lastPath.distanceCm} cm total; ${this.lastPath.hasTurn ? `${this.lastPath.beforeTurnCm} cm then ${this.lastPath.turnDirection} ${this.lastPath.turnDegrees}°` : "straight ahead"}.`
         : "No preview plotted."
@@ -120,6 +122,19 @@ export class BFGMovementPlannerApplication extends HandlebarsApplicationMixin(Ap
     }
   }
 
+  setExecuteEnabled(enabled) {
+    const button = this.element?.querySelector('[data-bfg-action="execute-movement"]');
+    if (button) button.disabled = !enabled;
+  }
+
+  invalidatePreview(message = "Movement inputs changed. Preview the route again.") {
+    if (!this.lastPath) return;
+    clearMovementPreview();
+    this.lastPath = null;
+    this.setExecuteEnabled(false);
+    this.updateStatus(message, "normal");
+  }
+
   async _onRender(context, options) {
     await super._onRender(context, options);
 
@@ -129,6 +144,12 @@ export class BFGMovementPlannerApplication extends HandlebarsApplicationMixin(Ap
     if (turnSlider) {
       this.updateTurnSliderLabel();
       turnSlider.addEventListener("input", () => this.updateTurnSliderLabel());
+    }
+
+    for (const input of this.element.querySelectorAll(
+      '[name="distanceCm"], [name="beforeTurnCm"], [name="signedTurnDegrees"]'
+    )) {
+      input.addEventListener("input", () => this.invalidatePreview());
     }
 
     const bind = (selector, handler) => {
@@ -150,6 +171,7 @@ export class BFGMovementPlannerApplication extends HandlebarsApplicationMixin(Ap
         const path = calculateMovementPath(token, movementContext.movement, this.readValues());
         drawMovementPreview(token, path);
         this.lastPath = path;
+        this.setExecuteEnabled(true);
 
         const turnText = path.hasTurn
           ? `${path.beforeTurnCm} cm, then ${path.turnDirection} ${path.turnDegrees}°, then ${path.remainingCm} cm`
@@ -166,7 +188,31 @@ export class BFGMovementPlannerApplication extends HandlebarsApplicationMixin(Ap
     bind('[data-bfg-action="clear-movement-preview"]', async () => {
       clearMovementPreview();
       this.lastPath = null;
+      this.setExecuteEnabled(false);
       this.updateStatus("Movement preview cleared.", "normal");
+    });
+
+    bind('[data-bfg-action="execute-movement"]', async () => {
+      try {
+        const token = this.token;
+        const executedPath = await executeMovementPath(token, this.lastPath);
+        this.lastPath = null;
+        this.setExecuteEnabled(false);
+
+        const turnText = executedPath.hasTurn
+          ? `${executedPath.beforeTurnCm} cm, then ${executedPath.turnDirection} ${executedPath.turnDegrees}Â°, then ${executedPath.remainingCm} cm`
+          : `${executedPath.distanceCm} cm straight ahead`;
+
+        this.updateStatus(
+          `Movement executed: ${turnText}. Final facing ${executedPath.finalRotation.toFixed(0)}Â°.`,
+          "success"
+        );
+        ui.notifications.info(`${token.name} movement executed.`);
+      } catch (error) {
+        console.error("BFG Helper | Movement execution failed", error);
+        ui.notifications.warn(error.message ?? String(error));
+        this.updateStatus(error.message ?? String(error), "error");
+      }
     });
 
     bind('[data-bfg-action="reset-movement"]', async () => {

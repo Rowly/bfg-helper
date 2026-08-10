@@ -117,6 +117,10 @@ await game.bfgHelper.weaponArcs.toggle();
 game.bfgHelper.weaponArcs.clearAll();
 ```
 
+While enabled, a weapon arc remains attached to its ship and follows rendered movement and rotation, including staged Movement Planner animations and GM heading corrections.
+
+All weapon arcs use the same yellow fill and outline so their tabletop range-and-bearing role is visually consistent across ship classes and weapon systems.
+
 Configured ships can also display profile-driven engine plumes. Engine graphics follow token movement and rotation:
 
 ```javascript

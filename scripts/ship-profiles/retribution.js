@@ -49,36 +49,28 @@ export function retributionProfile() {
         name: "Port Weapons Battery",
         rangeCm: 60,
         directionDegrees: 180,
-        arcDegrees: 90,
-        fillColour: 0x0088ff,
-        lineColour: 0x66bbff
+        arcDegrees: 90
       },
       {
         id: "starboard-battery",
         name: "Starboard Weapons Battery",
         rangeCm: 60,
         directionDegrees: 0,
-        arcDegrees: 90,
-        fillColour: 0x00cc66,
-        lineColour: 0x66ff99
+        arcDegrees: 90
       },
       {
         id: "dorsal-weapons",
         name: "Dorsal Weapons",
         rangeCm: 60,
         directionDegrees: -90,
-        arcDegrees: 270,
-        fillColour: 0xff0000,
-        lineColour: 0xff6666
+        arcDegrees: 270
       },
       {
         id: "prow-weapons",
         name: "Prow Weapons",
         rangeCm: 30,
         directionDegrees: -90,
-        arcDegrees: 90,
-        fillColour: 0xffaa00,
-        lineColour: 0xffcc66
+        arcDegrees: 90
       }
     ]
   };

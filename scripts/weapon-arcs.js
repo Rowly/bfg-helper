@@ -1,7 +1,11 @@
 import { ARC_PREFIX } from "./constants.js";
 import { getShipData } from "./ship-data.js";
+import { applyTokenOverlayTransform } from "./token-rendering.js";
 
 const overlays = new Map();
+let ticker = null;
+const ARC_FILL_COLOUR = 0xffaa00;
+const ARC_LINE_COLOUR = 0xffcc66;
 
 function pixelsPerCm() {
   const size = Number(canvas.scene?.grid?.size);
@@ -10,16 +14,30 @@ function pixelsPerCm() {
   return size / distance;
 }
 
-function keyFor(token) {
-  return `${canvas.scene.id}.${token.id}`;
+function identityFor(tokenOrDocument) {
+  const document = tokenOrDocument?.document ?? tokenOrDocument;
+  return {
+    tokenId: document?.id ?? tokenOrDocument?.id ?? null,
+    sceneId: document?.parent?.id ?? canvas.scene?.id ?? null
+  };
 }
 
-export function clearWeaponArc(token) {
-  const key = keyFor(token);
-  const graphics = overlays.get(key) ?? token._battlefleetWeaponArc;
+function keyFor(tokenOrDocument) {
+  const { sceneId, tokenId } = identityFor(tokenOrDocument);
+  return `${sceneId}.${tokenId}`;
+}
+
+export function clearWeaponArc(tokenOrDocument) {
+  const { tokenId } = identityFor(tokenOrDocument);
+  const token = tokenOrDocument?.document
+    ? tokenOrDocument
+    : canvas.tokens?.get(tokenId) ?? null;
+  const key = keyFor(tokenOrDocument);
+  const entry = overlays.get(key);
+  const graphics = entry?.graphics ?? token?._battlefleetWeaponArc;
   if (graphics && !graphics.destroyed) graphics.destroy({ children: true });
   overlays.delete(key);
-  token._battlefleetWeaponArc = null;
+  if (token) token._battlefleetWeaponArc = null;
 }
 
 export function clearAllWeaponArcs() {
@@ -47,20 +65,49 @@ export function drawWeaponArc(token, weapon) {
 
   const graphics = new PIXI.Graphics();
   graphics.name = `${ARC_PREFIX}${weapon.id ?? "weapon"}-${token.id}`;
-  graphics.lineStyle(4, Number(weapon.lineColour ?? 0xff6666), 0.9);
-  graphics.beginFill(Number(weapon.fillColour ?? 0xff0000), 0.2);
+  graphics.lineStyle(4, ARC_LINE_COLOUR, 0.9);
+  graphics.beginFill(ARC_FILL_COLOUR, 0.2);
   graphics.moveTo(0, 0);
   graphics.arc(0, 0, rangePixels, direction - halfArc, direction + halfArc);
   graphics.lineTo(0, 0);
   graphics.closePath();
   graphics.endFill();
-  graphics.position.set(token.center.x, token.center.y);
-  graphics.rotation = Number(token.document.rotation) * toRadians;
+  applyTokenOverlayTransform(graphics, token);
 
   canvas.tokens.addChild(graphics);
-  overlays.set(keyFor(token), graphics);
+  overlays.set(keyFor(token), {
+    graphics,
+    tokenId: token.id,
+    sceneId: canvas.scene.id
+  });
   token._battlefleetWeaponArc = graphics;
   return graphics;
+}
+
+/** Keep enabled arcs attached to their ships throughout canvas animations. */
+export function initialiseWeaponArcTicker() {
+  if (ticker) canvas.app.ticker.remove(ticker);
+
+  ticker = () => {
+    for (const [key, entry] of overlays.entries()) {
+      if (entry.sceneId !== canvas.scene?.id || entry.graphics.destroyed) {
+        if (!entry.graphics.destroyed) entry.graphics.destroy({ children: true });
+        overlays.delete(key);
+        continue;
+      }
+
+      const token = canvas.tokens.get(entry.tokenId);
+      if (!token) {
+        if (!entry.graphics.destroyed) entry.graphics.destroy({ children: true });
+        overlays.delete(key);
+        continue;
+      }
+
+      applyTokenOverlayTransform(entry.graphics, token);
+    }
+  };
+
+  canvas.app.ticker.add(ticker);
 }
 
 export async function toggleWeaponDialog(token = canvas.tokens.controlled[0]) {

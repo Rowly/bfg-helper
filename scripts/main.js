@@ -1,6 +1,11 @@
 import { configureSelectedShip, getShipData, setShipData } from "./ship-data.js";
 import { retributionProfile, despoilerProfile } from "./ship-profiles/index.js";
-import { toggleWeaponDialog, clearAllWeaponArcs, clearWeaponArc } from "./weapon-arcs.js";
+import {
+  toggleWeaponDialog,
+  clearAllWeaponArcs,
+  clearWeaponArc,
+  initialiseWeaponArcTicker
+} from "./weapon-arcs.js";
 import { createEngine, refreshEngines, initialiseEngineTicker, clearAllEngines, removeEngine } from "./engine-effects.js";
 import {
   openMovementPlanner,
@@ -99,6 +104,7 @@ Hooks.on("bfgHelperFleetAssignmentsChanged", async () => {
 Hooks.on("preUpdateToken", preventLockedTokenRotation);
 
 Hooks.on("canvasReady", async () => {
+  initialiseWeaponArcTicker();
   initialiseEngineTicker();
   refreshEngines();
   await migrateActorFleetAssignmentsToTokens();
@@ -109,6 +115,7 @@ Hooks.on("canvasReady", async () => {
 });
 
 Hooks.on("deleteToken", (tokenDocument) => {
+  clearWeaponArc(tokenDocument);
   removeEngine(tokenDocument);
 });
 

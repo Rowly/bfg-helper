@@ -1,5 +1,6 @@
 import { ENGINE_PREFIX } from "./constants.js";
 import { getShipData } from "./ship-data.js";
+import { applyTokenOverlayTransform } from "./token-rendering.js";
 
 const engines = new Map();
 let ticker = null;
@@ -56,8 +57,7 @@ export function createEngine(token) {
 
   drawPlume(-separation / 2);
   drawPlume(separation / 2);
-  graphics.position.set(token.center.x, token.center.y);
-  graphics.rotation = Number(token.document.rotation) * Math.PI / 180;
+  applyTokenOverlayTransform(graphics, token);
   canvas.tokens.addChildAt(graphics, 0);
   engines.set(keyFor(token), { graphics, tokenId: token.id, sceneId: canvas.scene.id });
   return graphics;
@@ -85,11 +85,7 @@ export function initialiseEngineTicker() {
         engines.delete(key);
         continue;
       }
-      entry.graphics.position.set(token.center.x, token.center.y);
-      const renderedRotation = Number(token.mesh?.rotation);
-      entry.graphics.rotation = Number.isFinite(renderedRotation)
-        ? renderedRotation
-        : Number(token.document.rotation) * Math.PI / 180;
+      applyTokenOverlayTransform(entry.graphics, token);
     }
   };
   canvas.app.ticker.add(ticker);

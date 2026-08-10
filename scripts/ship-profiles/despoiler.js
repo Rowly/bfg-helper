@@ -64,9 +64,7 @@ export function despoilerProfile() {
         rangeCm: 60,
         strength: 10,
         directionDegrees: 180,
-        arcDegrees: 90,
-        fillColour: 0xcc3333,
-        lineColour: 0xff7777
+        arcDegrees: 90
       },
       {
         id: "starboard-weapons-battery",
@@ -74,9 +72,7 @@ export function despoilerProfile() {
         rangeCm: 60,
         strength: 10,
         directionDegrees: 0,
-        arcDegrees: 90,
-        fillColour: 0xcc3333,
-        lineColour: 0xff7777
+        arcDegrees: 90
       },
       {
         id: "dorsal-lance-battery",
@@ -84,9 +80,7 @@ export function despoilerProfile() {
         rangeCm: 60,
         strength: 3,
         directionDegrees: -90,
-        arcDegrees: 270,
-        fillColour: 0x9933cc,
-        lineColour: 0xcc88ff
+        arcDegrees: 270
       }
     ],
 

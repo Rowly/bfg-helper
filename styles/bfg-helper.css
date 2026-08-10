@@ -264,6 +264,33 @@
   opacity: 0.67;
 }
 
+.bfg-combat-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.25rem;
+  font-size: 0.72rem;
+}
+
+.bfg-combat-summary span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.bfg-combat-summary strong {
+  margin-left: auto;
+  color: rgba(102, 255, 153, 0.9);
+}
+
+.bfg-combat-summary.crippled strong {
+  color: rgba(255, 204, 102, 0.95);
+}
+
+.bfg-combat-summary.out-of-action strong {
+  color: rgba(255, 102, 102, 0.95);
+}
+
 @media (max-width: 420px) {
   .bfg-fleet-rosters {
     grid-template-columns: 1fr;

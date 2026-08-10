@@ -9,6 +9,7 @@ import {
 } from "./turn-manager.js";
 import { getFleetShips, assignSelectedShipToFleet, clearSelectedShipFleet } from "./fleet-assignment.js";
 import { lockSelectedShipRotation, unlockSelectedShipRotation } from "./rotation-locking.js";
+import { editSelectedShipCombatState, resetSelectedShipCombatState } from "./combat-state.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -114,15 +115,23 @@ export class BFGTurnManagerApplication extends HandlebarsApplicationMixin(Applic
       await unlockSelectedShipRotation();
     });
 
+    bind('[data-bfg-action="edit-combat-state"]', async () => {
+      if (await editSelectedShipCombatState()) await this.render({ force: true });
+    });
+
+    bind('[data-bfg-action="reset-combat-state"]', async () => {
+      if (await resetSelectedShipCombatState()) await this.render({ force: true });
+    });
+
     bind('[data-bfg-action="end"]', async () => {
       if (await endBattle()) await this.render({ force: true });
     });
 
     bind('[data-bfg-action="reset"]', async () => {
       const confirmed = await foundry.applications.api.DialogV2.confirm({
-        window: { title: "Reset BFG Turn Manager" },
-        content: "<p>Reset all saved Battlefleet Gothic turn data?</p>",
-        yes: { label: "Reset", icon: "fa-solid fa-rotate-left" },
+        window: { title: "Reset Battle and Restore Ships" },
+        content: "<p>Reset the battle round, fleet names, active fleet and phase, and restore every configured ship to full hits and shields? Deployed ship assignments will be retained.</p>",
+        yes: { label: "Reset and Restore", icon: "fa-solid fa-rotate-left" },
         no: { label: "Cancel", icon: "fa-solid fa-xmark" },
         rejectClose: false,
         modal: true

@@ -2,6 +2,7 @@ import { getShipData, getBaseActor } from "./ship-data.js";
 import { MODULE_ID, FLAG_KEY } from "./constants.js";
 import { getTurnState } from "./turn-manager.js";
 import { syncTokenRotationLock } from "./rotation-locking.js";
+import { getCombatState, initialiseCombatState } from "./combat-state.js";
 
 function selectedShip() {
   const controlled = canvas.tokens.controlled;
@@ -94,6 +95,7 @@ export async function assignSelectedShipToFleet() {
 
   await token.document.setFlag(MODULE_ID, "fleetId", fleet.id);
   await token.document.setFlag(MODULE_ID, "fleetName", fleet.name);
+  await initialiseCombatState(token);
   await syncTokenRotationLock(token, state.battleStarted);
 
   ui.notifications.info(`${shipName} assigned to ${fleet.name}.`);
@@ -143,12 +145,20 @@ export function getFleetShips(fleetId) {
     .map(token => {
       const actor = getBaseActor(token);
       const data = getShipData(actor);
+      const combatState = getCombatState(token);
       return {
         tokenId: token.document.id,
         actorId: actor?.id ?? null,
         actorName: token.name || actor?.name || "Unnamed ship",
         shipClass: data?.shipClass ?? actor?.name ?? "Unconfigured ship",
-        faction: data?.faction ?? ""
+        faction: data?.faction ?? "",
+        combatState,
+        hasCombatState: Boolean(combatState),
+        combatStatus: combatState?.outOfAction
+          ? "Out of action"
+          : combatState?.crippled
+            ? "Crippled"
+            : "Operational"
       };
     })
     .sort((a, b) => a.actorName.localeCompare(b.actorName));

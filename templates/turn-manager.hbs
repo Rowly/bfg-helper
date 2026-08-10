@@ -43,6 +43,19 @@
               <li>
                 <span>{{actorName}}</span>
                 <small>{{shipClass}}</small>
+                {{#if hasCombatState}}
+                  <div class="bfg-combat-summary{{#if combatState.crippled}} crippled{{/if}}{{#if combatState.outOfAction}} out-of-action{{/if}}">
+                    <span title="Current and maximum hits">
+                      <i class="fa-solid fa-heart"></i>
+                      {{combatState.currentHits}}/{{combatState.maximumHits}}
+                    </span>
+                    <span title="Current and maximum shields">
+                      <i class="fa-solid fa-shield-halved"></i>
+                      {{combatState.currentShields}}/{{combatState.maximumShields}}
+                    </span>
+                    <strong>{{combatStatus}}</strong>
+                  </div>
+                {{/if}}
               </li>
             {{/each}}
           </ul>
@@ -108,9 +121,20 @@
         </div>
       {{/if}}
 
+      <div class="bfg-turn-secondary-actions">
+        <button type="button" data-bfg-action="edit-combat-state">
+          <i class="fa-solid fa-heart-pulse"></i>
+          Edit selected combat state
+        </button>
+        <button type="button" data-bfg-action="reset-combat-state">
+          <i class="fa-solid fa-kit-medical"></i>
+          Restore selected ship
+        </button>
+      </div>
+
       <button type="button" data-bfg-action="reset" class="bfg-danger-button bfg-full-width">
         <i class="fa-solid fa-rotate-left"></i>
-        Reset turn data
+        Reset battle and restore ships
       </button>
     </section>
   {{else}}

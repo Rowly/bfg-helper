@@ -1,5 +1,6 @@
 import { MODULE_ID } from "./constants.js";
 import { setBattleShipRotationLocks } from "./rotation-locking.js";
+import { initialiseBattleCombatStates, resetAllCombatStates } from "./combat-state.js";
 
 export const TURN_STATE_KEY = "turnState";
 
@@ -90,6 +91,7 @@ export async function startBattle({ fleetA, fleetB, startingFleetIndex = 0 } = {
 
   await setTurnState(state);
   const lockedCount = await setBattleShipRotationLocks(true);
+  await initialiseBattleCombatStates();
   ui.notifications.info(
     `Battle started: ${state.fleets[state.activeFleetIndex].name}, Movement phase. ${lockedCount} ship rotation lock${lockedCount === 1 ? "" : "s"} applied.`
   );
@@ -109,6 +111,7 @@ export async function endBattle() {
 export async function resetBattle() {
   if (!requireGM()) return false;
   await setBattleShipRotationLocks(false);
+  await resetAllCombatStates();
   await setTurnState(defaultState());
   ui.notifications.info("Battlefleet Gothic turn state reset.");
   return true;

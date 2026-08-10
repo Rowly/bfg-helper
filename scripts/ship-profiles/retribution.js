@@ -31,6 +31,12 @@ export function retributionProfile() {
       maximumTurns: 1
     },
 
+    stats: {
+      hits: 12,
+      shields: 4,
+      armour: "5+"
+    },
+
     engine: {
       enabled: true,
       separationCm: 1.2,

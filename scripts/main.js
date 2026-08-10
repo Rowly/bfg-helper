@@ -28,6 +28,13 @@ import {
   getTokenFleetId,
   migrateActorFleetAssignmentsToTokens
 } from "./fleet-assignment.js";
+import {
+  editSelectedShipCombatState,
+  getCombatState,
+  initialiseBattleCombatStates,
+  resetSelectedShipCombatState,
+  setCombatState
+} from "./combat-state.js";
 
 Hooks.once("init", () => {
   console.log("BFG Helper | Initialising");
@@ -86,6 +93,12 @@ Hooks.once("ready", () => {
       lockSelected: lockSelectedShipRotation,
       unlockSelected: unlockSelectedShipRotation
     },
+    combat: {
+      getState: getCombatState,
+      setState: setCombatState,
+      editSelected: editSelectedShipCombatState,
+      resetSelected: resetSelectedShipCombatState
+    },
     turnManager
   };
   console.log("BFG Helper | API available as game.bfgHelper");
@@ -101,6 +114,11 @@ Hooks.on("bfgHelperFleetAssignmentsChanged", async () => {
   refreshTurnManagerApplication();
 });
 
+Hooks.on("bfgHelperCombatStateChanged", async () => {
+  const { refreshTurnManagerApplication } = await import("./turn-manager-app.js");
+  refreshTurnManagerApplication();
+});
+
 Hooks.on("preUpdateToken", preventLockedTokenRotation);
 
 Hooks.on("canvasReady", async () => {
@@ -110,6 +128,7 @@ Hooks.on("canvasReady", async () => {
   await migrateActorFleetAssignmentsToTokens();
   if (game.user?.isGM) {
     await setBattleShipRotationLocks(getTurnState().battleStarted);
+    await initialiseBattleCombatStates();
   }
   Hooks.callAll("bfgHelperFleetAssignmentsChanged");
 });

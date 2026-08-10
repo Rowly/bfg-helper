@@ -68,6 +68,7 @@ The persistent Turn Manager tracks:
 - the active fleet;
 - Movement, Shooting, Ordnance, and End phases;
 - deployed ships assigned to each fleet.
+- each deployed ship's current hits, shields, and derived combat condition.
 
 Gamemasters can configure and advance the battle. Other players receive a read-only view that rerenders when shared turn state changes.
 
@@ -134,7 +135,7 @@ These graphics are client-side PIXI overlays and are not persistent scene docume
 - Movement execution does not yet track a per-token `movedThisPhase` state or prevent a ship moving more than once.
 - Starting a battle prevents manual rotation changes for configured, fleet-assigned ships, keeping token artwork and attached effects on the same heading. Ending or resetting the battle unlocks them, and the Turn Manager provides a GM correction override for a selected ship.
 - Normal Foundry drag movement can bypass the planned movement workflow.
-- Per-token damage, shields, critical damage, special orders, and moved/fired state are not implemented.
+- Token-level hits, shields, crippled status, and out-of-action status are implemented; automatic attack damage, critical damage, special orders, and moved/fired state are not.
 - Token Nameplates data is present only as a future optional integration.
 - The ship-profile catalogue is limited to two capital ships.
 - Automated tests are not yet configured.

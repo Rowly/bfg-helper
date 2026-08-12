@@ -61,6 +61,7 @@ export function despoilerProfile() {
       {
         id: "port-weapons-battery",
         name: "Port Weapons Battery",
+        type: "battery",
         rangeCm: 60,
         strength: 10,
         directionDegrees: 180,
@@ -69,6 +70,7 @@ export function despoilerProfile() {
       {
         id: "starboard-weapons-battery",
         name: "Starboard Weapons Battery",
+        type: "battery",
         rangeCm: 60,
         strength: 10,
         directionDegrees: 0,
@@ -77,6 +79,7 @@ export function despoilerProfile() {
       {
         id: "dorsal-lance-battery",
         name: "Dorsal Lance Battery",
+        type: "lance",
         rangeCm: 60,
         strength: 3,
         directionDegrees: -90,

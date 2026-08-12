@@ -109,6 +109,18 @@ Execution rechecks the current battle permissions and movement rules. It is refu
 
 The execution animation follows the plotted route in stages: the ship travels to the turn point on its current bearing, rotates in place, and then completes the remaining movement on its new bearing.
 
+## Direct-fire Shooting Planner
+
+The Shooting Planner provides the review stage for direct-fire attacks. Select exactly one firing ship, use Foundry's target control to target exactly one enemy ship, and open the planner:
+
+```javascript
+await game.bfgHelper.shooting.open();
+```
+
+The planner selects a configured weapon, displays its firing arc, measures range from ship centre to target centre, checks whether the target centre lies inside the arc, reports the target aspect facing the attacker, and shows the target's armour, hits and shields. Player access follows the active fleet and Shooting phase; Gamemasters receive explicit preview overrides for setup and testing.
+
+This milestone does not roll attack dice, apply damage, or mark weapons as fired.
+
 ## Weapon arcs and engine effects
 
 Configured direct-fire weapons can display a manually toggled, range-scaled firing arc:
@@ -136,6 +148,7 @@ These graphics are client-side PIXI overlays and are not persistent scene docume
 - Starting a battle prevents manual rotation changes for configured, fleet-assigned ships, keeping token artwork and attached effects on the same heading. Ending or resetting the battle unlocks them, and the Turn Manager provides a GM correction override for a selected ship.
 - Normal Foundry drag movement can bypass the planned movement workflow.
 - Token-level hits, shields, crippled status, and out-of-action status are implemented; automatic attack damage, critical damage, special orders, and moved/fired state are not.
+- Direct-fire range, arc, target-facing and target-legality preview is implemented; lance and battery dice resolution is not.
 - Token Nameplates data is present only as a future optional integration.
 - The ship-profile catalogue is limited to two capital ships.
 - Automated tests are not yet configured.

@@ -1,0 +1,81 @@
+<div class="bfg-shooting-planner-panel">
+  {{#if invalid}}
+    <p class="notification error">{{error}}</p>
+  {{else}}
+    <header class="bfg-shooting-heading">
+      <div>
+        <p class="bfg-turn-manager-kicker">Direct-fire shooting planner</p>
+        <h2>{{tokenName}}</h2>
+        <p class="notes">{{shipClass}}</p>
+      </div>
+      <div class="bfg-shooting-badge">
+        <span>Target</span>
+        <strong>{{targetName}}</strong>
+      </div>
+    </header>
+
+    <section class="bfg-movement-context">
+      <div><span>Ship fleet</span><strong>{{fleetName}}</strong></div>
+      <div><span>Active fleet</span><strong>{{activeFleetName}}</strong></div>
+    </section>
+
+    {{#if hasWarnings}}
+      <section class="bfg-movement-warnings">
+        {{#each warnings}}
+          <p><i class="fa-solid fa-triangle-exclamation"></i> {{this}}</p>
+        {{/each}}
+      </section>
+    {{/if}}
+
+    <label class="bfg-shooting-field">
+      <span>Direct-fire weapon</span>
+      <select name="weaponIndex">
+        {{#each weapons}}
+          <option value="{{index}}" {{#if selected}}selected{{/if}}>
+            {{name}} - {{rangeCm}} cm - {{arcDegrees}}&deg; - Strength {{strength}}
+          </option>
+        {{/each}}
+      </select>
+    </label>
+
+    <p class="notes">
+      Use Foundry's target control to target exactly one enemy ship, then refresh the target and check the firing solution.
+    </p>
+
+    <div class="bfg-shooting-actions">
+      <button type="button" data-bfg-action="refresh-target">
+        <i class="fa-solid fa-arrows-rotate"></i>
+        Refresh target
+      </button>
+      <button type="button" data-bfg-action="check-firing-solution" class="bfg-primary-button">
+        <i class="fa-solid fa-crosshairs"></i>
+        Check firing solution
+      </button>
+    </div>
+
+    {{#if hasAnalysis}}
+      <section class="bfg-firing-analysis{{#unless analysis.legal}} illegal{{/unless}}">
+        <div><span>Weapon type</span><strong>{{analysis.weaponType}}</strong></div>
+        <div><span>Measured range</span><strong>{{analysis.rangeLabel}} / {{analysis.maximumRangeCm}} cm</strong></div>
+        <div><span>Range check</span><strong>{{#if analysis.inRange}}In range{{else}}Out of range{{/if}}</strong></div>
+        <div><span>Arc check</span><strong>{{#if analysis.inArc}}In arc{{else}}Outside arc{{/if}}</strong></div>
+        <div><span>Target facing</span><strong>{{analysis.targetFacing}}</strong></div>
+        <div><span>Target armour</span><strong>{{analysis.targetCombatState.armour}}</strong></div>
+        <div><span>Target hits</span><strong>{{analysis.targetCombatState.currentHits}}/{{analysis.targetCombatState.maximumHits}}</strong></div>
+        <div><span>Target shields</span><strong>{{analysis.targetCombatState.currentShields}}/{{analysis.targetCombatState.maximumShields}}</strong></div>
+        {{#each analysis.warnings}}
+          <p><i class="fa-solid fa-triangle-exclamation"></i> {{this}}</p>
+        {{/each}}
+      </section>
+    {{/if}}
+
+    <p class="bfg-movement-status" data-bfg-shooting-status data-status="normal">
+      Select a weapon and check the firing solution. No dice or damage are resolved in this version.
+    </p>
+
+    <button type="button" data-bfg-action="clear-firing-solution" class="bfg-full-width">
+      <i class="fa-solid fa-eraser"></i>
+      Clear firing solution
+    </button>
+  {{/if}}
+</div>

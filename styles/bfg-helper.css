@@ -521,3 +521,117 @@
   width: 100%;
   margin: 0.15rem 0;
 }
+
+/* --------------------------------------------------------- */
+/* Direct-fire Shooting Planner                              */
+/* --------------------------------------------------------- */
+
+.bfg-shooting-planner-window .window-content {
+  padding: 0;
+  overflow: auto;
+}
+
+.bfg-shooting-planner-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  min-width: 370px;
+  padding: 0.9rem;
+}
+
+.bfg-shooting-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.bfg-shooting-heading h2,
+.bfg-shooting-heading p {
+  margin: 0;
+}
+
+.bfg-shooting-badge {
+  display: grid;
+  max-width: 190px;
+  padding: 0.4rem 0.65rem;
+  text-align: center;
+  border: 1px solid rgba(255, 204, 102, 0.8);
+  border-radius: 6px;
+  background: rgba(255, 170, 0, 0.10);
+}
+
+.bfg-shooting-badge span {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  opacity: 0.72;
+}
+
+.bfg-shooting-badge strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bfg-shooting-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-weight: 600;
+}
+
+.bfg-shooting-field select {
+  width: 100%;
+}
+
+.bfg-shooting-actions {
+  display: grid;
+  grid-template-columns: 1fr 1.25fr;
+  gap: 0.5rem;
+}
+
+.bfg-shooting-actions button,
+.bfg-shooting-planner-panel > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 34px;
+}
+
+.bfg-firing-analysis {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+  padding: 0.65rem;
+  border: 1px solid rgba(102, 255, 153, 0.7);
+  border-radius: 5px;
+}
+
+.bfg-firing-analysis.illegal {
+  border-color: rgba(255, 102, 102, 0.8);
+}
+
+.bfg-firing-analysis > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.bfg-firing-analysis span {
+  font-size: 0.72rem;
+  opacity: 0.72;
+}
+
+.bfg-firing-analysis p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: rgba(255, 184, 77, 0.95);
+}
+
+@media (max-width: 420px) {
+  .bfg-shooting-actions,
+  .bfg-firing-analysis {
+    grid-template-columns: 1fr;
+  }
+}

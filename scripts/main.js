@@ -35,6 +35,12 @@ import {
   resetSelectedShipCombatState,
   setCombatState
 } from "./combat-state.js";
+import {
+  analyseDirectFire,
+  getShootingContext,
+  openShootingPlanner,
+  previewDirectFire
+} from "./shooting.js";
 
 Hooks.once("init", () => {
   console.log("BFG Helper | Initialising");
@@ -98,6 +104,12 @@ Hooks.once("ready", () => {
       setState: setCombatState,
       editSelected: editSelectedShipCombatState,
       resetSelected: resetSelectedShipCombatState
+    },
+    shooting: {
+      open: openShootingPlanner,
+      getContext: getShootingContext,
+      analyse: analyseDirectFire,
+      preview: previewDirectFire
     },
     turnManager
   };

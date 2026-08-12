@@ -1,7 +1,7 @@
 {
   "id": "bfg-helper",
   "title": "Battlefleet Gothic Helper",
-  "description": "Battlefleet Gothic play aids for Foundry VTT, including ship profiles, per-token fleet assignment, weapon arcs, engine plumes, a persistent turn tracker, and planned movement execution.",
+  "description": "Battlefleet Gothic play aids for Foundry VTT, including ship profiles, fleet and combat state, movement execution, weapon arcs, and direct-fire planning.",
   "version": "0.1.0",
   "authors": [
     {

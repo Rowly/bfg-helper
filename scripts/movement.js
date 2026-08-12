@@ -2,8 +2,46 @@ import { getShipData, getBaseActor } from "./ship-data.js";
 import { getTokenFleetId } from "./fleet-assignment.js";
 import { getTurnState, PHASES } from "./turn-manager.js";
 import { ROTATION_UPDATE_OVERRIDE } from "./rotation-locking.js";
+import { MODULE_ID } from "./constants.js";
 
 const PREVIEW_NAME = "bfg-movement-preview";
+const MOVEMENT_STATE_FLAG = "movementState";
+
+function movementActivationKey(state = getTurnState()) {
+  if (!state.battleStarted) return null;
+  return `${state.battleId ?? "legacy-battle"}:${state.round}:${state.activeFleetIndex}:movement`;
+}
+
+export function hasMovedThisPhase(token, state = getTurnState()) {
+  const activationKey = movementActivationKey(state);
+  const stored = token?.document?.getFlag(MODULE_ID, MOVEMENT_STATE_FLAG);
+  return Boolean(activationKey && stored?.activationKey === activationKey && stored.moved);
+}
+
+async function markMovedThisPhase(token, state = getTurnState()) {
+  const activationKey = movementActivationKey(state);
+  if (!activationKey) return false;
+  await token.document.setFlag(MODULE_ID, MOVEMENT_STATE_FLAG, {
+    activationKey,
+    moved: true
+  });
+  return true;
+}
+
+function movementExecutionErrors(context) {
+  if (!context.turnState.battleStarted) return [];
+
+  const errors = [];
+  if (context.turnState.phase !== "movement") errors.push("The current phase is not Movement.");
+  if (!context.tokenFleet) errors.push(`${context.token.name} is not assigned to a fleet.`);
+  else if (context.activeFleet && context.tokenFleet.id !== context.activeFleet.id) {
+    errors.push(`${context.token.name} does not belong to the active fleet.`);
+  }
+  if (hasMovedThisPhase(context.token, context.turnState)) {
+    errors.push(`${context.token.name} has already moved during this Movement phase.`);
+  }
+  return errors;
+}
 
 function getSceneScale() {
   const gridSize = Number(canvas.scene?.grid?.size);
@@ -116,6 +154,12 @@ export function getMovementContext(token = canvas.tokens.controlled[0]) {
       else blocked = true;
     } else if (activeFleet && tokenFleetId !== activeFleet.id) {
       const message = `${token.name} belongs to ${tokenFleet?.name ?? tokenFleetId}, but ${activeFleet.name} is active.`;
+      if (game.user?.isGM) warnings.push(`${message} Gamemaster preview override is available.`);
+      else blocked = true;
+    }
+
+    if (hasMovedThisPhase(token, turnState)) {
+      const message = `${token.name} has already moved during this Movement phase.`;
       if (game.user?.isGM) warnings.push(`${message} Gamemaster preview override is available.`);
       else blocked = true;
     }
@@ -291,6 +335,18 @@ export async function executeMovementPath(token, previewPath) {
   if (!context.ok) throw new Error(context.error);
   if (!previewPath) throw new Error("Preview a movement route before executing it.");
 
+  const executionErrors = movementExecutionErrors(context);
+  if (executionErrors.length > 0) {
+    if (!game.user?.isGM) throw new Error(executionErrors.join(" "));
+    const confirmed = await foundry.applications.api.DialogV2.confirm({
+      window: { title: "Override Movement Restriction?" },
+      content: `<p>${executionErrors.map(error => foundry.utils.escapeHTML(error)).join(" ")}</p><p>Execute this movement as an explicit Gamemaster correction/testing override?</p>`,
+      yes: { label: "Execute Override", icon: "fa-solid fa-unlock" },
+      no: { label: "Cancel" }
+    });
+    if (!confirmed) throw new Error("Movement execution cancelled.");
+  }
+
   const document = context.token.document;
   const sceneId = document.parent?.id ?? canvas.scene?.id ?? null;
   if (previewPath.tokenId !== document.id || previewPath.sceneId !== sceneId) {
@@ -374,6 +430,7 @@ export async function executeMovementPath(token, previewPath) {
   }
 
   clearMovementPreview();
+  if (context.turnState.battleStarted) await markMovedThisPhase(context.token, context.turnState);
   return recalculatedPath;
 }
 

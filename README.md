@@ -148,7 +148,7 @@ These graphics are client-side PIXI overlays and are not persistent scene docume
 
 ## Current development limitations
 
-- Movement execution does not yet track a per-token `movedThisPhase` state or prevent a ship moving more than once.
+- Movement execution records per-token movement state and prevents a ship moving more than once during its fleet's Movement phase. Gamemasters receive an explicit confirmation prompt for correction/testing overrides.
 - Starting a battle prevents manual rotation changes for configured, fleet-assigned ships, keeping token artwork and attached effects on the same heading. Ending or resetting the battle unlocks them, and the Turn Manager provides a GM correction override for a selected ship.
 - Normal Foundry drag movement can bypass the planned movement workflow.
 - Token-level hits, shields, crippled status, and out-of-action status are implemented; direct-fire hits can update this state after Gamemaster confirmation. Critical damage, special orders, and moved/fired state are not implemented.
@@ -157,7 +157,7 @@ These graphics are client-side PIXI overlays and are not persistent scene docume
 - The ship-profile catalogue is limited to two capital ships.
 - Automated tests are not yet configured.
 
-The next movement milestone is per-token movement state and prevention of repeated movement during the same phase.
+The next movement milestone is preventing normal Foundry token dragging from bypassing the planned movement workflow.
 
 ## Artwork
 

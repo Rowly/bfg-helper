@@ -30,6 +30,22 @@ function profileMaximums(tokenOrDocument) {
   return { data, maximumHits, maximumShields };
 }
 
+function profileArmour(stats) {
+  const configured = stats?.armour;
+  if (configured && typeof configured === "object") {
+    const front = String(configured.front ?? configured.other ?? "");
+    const other = String(configured.other ?? configured.front ?? "");
+    return {
+      armour: front === other ? front : `${front} front / ${other} other`,
+      armourFront: front,
+      armourOther: other
+    };
+  }
+
+  const armour = String(configured ?? "");
+  return { armour, armourFront: armour, armourOther: armour };
+}
+
 /** Return normalized current and derived combat state for a deployed ship. */
 export function getCombatState(tokenOrDocument) {
   const document = asTokenDocument(tokenOrDocument);
@@ -46,12 +62,14 @@ export function getCombatState(tokenOrDocument) {
     Math.min(profile.maximumShields, wholeNumber(stored.currentShields, profile.maximumShields))
   );
 
+  const armour = profileArmour(profile.data.stats);
+
   return {
     currentHits,
     maximumHits: profile.maximumHits,
     currentShields,
     maximumShields: profile.maximumShields,
-    armour: String(profile.data.stats.armour ?? ""),
+    ...armour,
     crippled: currentHits > 0 && currentHits <= profile.maximumHits / 2,
     outOfAction: currentHits <= 0,
     initialised: Boolean(document.getFlag(MODULE_ID, COMBAT_STATE_FLAG))
@@ -82,6 +100,36 @@ export async function setCombatState(tokenOrDocument, values = {}) {
   await document.setFlag(MODULE_ID, COMBAT_STATE_FLAG, next);
   Hooks.callAll("bfgHelperCombatStateChanged", document, getCombatState(document));
   return getCombatState(document);
+}
+
+export function previewHitDamage(tokenOrDocument, hits) {
+  const state = getCombatState(tokenOrDocument);
+  if (!state) throw new Error("The target does not have valid combat state.");
+
+  const totalHits = Math.max(0, Math.trunc(Number(hits)));
+  const shieldHits = Math.min(state.currentShields, totalHits);
+  const hullHits = Math.min(state.currentHits, Math.max(0, totalHits - shieldHits));
+  const currentShields = state.currentShields - shieldHits;
+  const currentHits = state.currentHits - hullHits;
+
+  return {
+    totalHits,
+    shieldHits,
+    hullHits,
+    before: state,
+    after: {
+      currentHits,
+      currentShields,
+      crippled: currentHits > 0 && currentHits <= state.maximumHits / 2,
+      outOfAction: currentHits <= 0
+    }
+  };
+}
+
+export async function applyHitDamage(tokenOrDocument, hits) {
+  const preview = previewHitDamage(tokenOrDocument, hits);
+  const updated = await setCombatState(tokenOrDocument, preview.after);
+  return updated ? { ...preview, updated } : false;
 }
 
 export async function resetCombatState(tokenOrDocument, { notify = true } = {}) {

@@ -31,8 +31,8 @@
       <span>Direct-fire weapon</span>
       <select name="weaponIndex">
         {{#each weapons}}
-          <option value="{{index}}" {{#if selected}}selected{{/if}}>
-            {{name}} - {{rangeCm}} cm - {{arcDegrees}}&deg; - Strength {{strength}}
+          <option value="{{index}}" {{#if selected}}selected{{/if}} {{#if fired}}disabled{{/if}}>
+            {{name}} - {{type}} - {{rangeCm}} cm - {{arcDegrees}}&deg; - Strength {{strength}}{{#if fired}} - Fired{{/if}}
           </option>
         {{/each}}
       </select>
@@ -60,17 +60,80 @@
         <div><span>Range check</span><strong>{{#if analysis.inRange}}In range{{else}}Out of range{{/if}}</strong></div>
         <div><span>Arc check</span><strong>{{#if analysis.inArc}}In arc{{else}}Outside arc{{/if}}</strong></div>
         <div><span>Target facing</span><strong>{{analysis.targetFacing}}</strong></div>
-        <div><span>Target armour</span><strong>{{analysis.targetCombatState.armour}}</strong></div>
+        <div><span>Gunnery orientation</span><strong>{{analysis.orientation}}</strong></div>
+        <div><span>Target class</span><strong>{{analysis.targetClass}}</strong></div>
+        <div><span>Target armour</span><strong>{{analysis.targetArmour}}</strong></div>
         <div><span>Target hits</span><strong>{{analysis.targetCombatState.currentHits}}/{{analysis.targetCombatState.maximumHits}}</strong></div>
         <div><span>Target shields</span><strong>{{analysis.targetCombatState.currentShields}}/{{analysis.targetCombatState.maximumShields}}</strong></div>
+        {{#if analysis.gunneryCalculation}}
+          <div><span>Base column</span><strong>{{analysis.gunneryCalculation.startingColumnLabel}}</strong></div>
+          <div><span>Column shifts</span><strong>{{analysis.gunneryCalculation.shiftsLabel}}</strong></div>
+          <div><span>Final column</span><strong>{{analysis.gunneryCalculation.columnLabel}}</strong></div>
+        {{/if}}
+        {{#if analysis.attackDice}}
+          <div><span>Attack dice</span><strong>{{analysis.attackDice}}d6</strong></div>
+        {{/if}}
         {{#each analysis.warnings}}
           <p><i class="fa-solid fa-triangle-exclamation"></i> {{this}}</p>
         {{/each}}
       </section>
+
+      <section class="bfg-shooting-modifiers">
+        <label>
+          <input type="checkbox" name="interveningBlastMarkers" {{#if interveningBlastMarkers}}checked{{/if}}>
+          Intervening Blast Markers (one column right)
+        </label>
+        <label>
+          <input type="checkbox" name="countsAsDefences" {{#if countsAsDefences}}checked{{/if}}>
+          Target counts as Defences
+        </label>
+        <p class="notes">Range shifts are applied automatically. Use Defences for a stationary ship that has not moved at least 5 cm.</p>
+        <button type="button" data-bfg-action="resolve-direct-fire" class="bfg-primary-button" {{#unless canResolveAttack}}disabled{{/unless}}>
+          <i class="fa-solid fa-dice"></i>
+          Resolve attack
+        </button>
+        {{#if hasResolution}}
+          {{#if damageCommitted}}
+            <p class="notification info">This weapon has fired during the current Shooting phase.</p>
+          {{else}}
+            <p class="notification info"><i class="fa-solid fa-hourglass-half"></i> Attack resolved. Waiting for damage confirmation.</p>
+          {{/if}}
+        {{else}}
+          {{#unless canResolveAttack}}
+            <p class="notification error">The firing solution is illegal and cannot be resolved. Gamemaster override permits inspection only.</p>
+          {{/unless}}
+        {{/if}}
+      </section>
+    {{/if}}
+
+    {{#if hasResolution}}
+      <section class="bfg-firing-resolution">
+        <h3>Attack result</h3>
+        <div><span>Dice rolled</span><strong>{{resolution.attackDice}}d6</strong></div>
+        <div><span>Required score</span><strong>{{resolution.hitTarget}}+</strong></div>
+        <div><span>Die results</span><strong>{{resolution.resultsLabel}}</strong></div>
+        <div><span>Hits scored</span><strong>{{resolution.hits}}</strong></div>
+        <div><span>Shield hits</span><strong>{{resolution.damage.shieldHits}}</strong></div>
+        <div><span>Hull damage</span><strong>{{resolution.damage.hullHits}}</strong></div>
+        <div><span>Remaining shields</span><strong>{{resolution.damage.after.currentShields}}</strong></div>
+        <div><span>Remaining hull</span><strong>{{resolution.damage.after.currentHits}}</strong></div>
+        {{#if resolution.damage.after.crippled}}<p><i class="fa-solid fa-triangle-exclamation"></i> Target will be crippled.</p>{{/if}}
+        {{#if resolution.damage.after.outOfAction}}<p><i class="fa-solid fa-skull"></i> Target will be out of action.</p>{{/if}}
+        {{#if canCommitDamage}}
+          <button type="button" data-bfg-action="commit-direct-fire-damage" class="bfg-primary-button">
+            <i class="fa-solid fa-check"></i>
+            Apply damage to target
+          </button>
+        {{else if damageCommitted}}
+          <p class="bfg-resolution-committed"><i class="fa-solid fa-check"></i> Damage applied.</p>
+        {{else}}
+          <p class="notes">A Gamemaster must apply the resolved damage.</p>
+        {{/if}}
+      </section>
     {{/if}}
 
     <p class="bfg-movement-status" data-bfg-shooting-status data-status="normal">
-      Select a weapon and check the firing solution. No dice or damage are resolved in this version.
+      Select a weapon and check the firing solution before resolving the attack.
     </p>
 
     <button type="button" data-bfg-action="clear-firing-solution" class="bfg-full-width">

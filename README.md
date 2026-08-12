@@ -117,9 +117,13 @@ The Shooting Planner provides the review stage for direct-fire attacks. Select e
 await game.bfgHelper.shooting.open();
 ```
 
-The planner selects a configured weapon, displays its firing arc, measures range from ship centre to target centre, checks whether the target centre lies inside the arc, reports the target aspect facing the attacker, and shows the target's armour, hits and shields. Player access follows the active fleet and Shooting phase; Gamemasters receive explicit preview overrides for setup and testing.
+The planner selects a configured weapon, displays its firing arc, measures range from ship centre to target centre, checks whether the target centre lies inside the arc, reports the target aspect facing the attacker, and shows the target's armour, hits and shields. Player access follows the active fleet and Shooting phase; Gamemasters receive explicit overrides for setup and testing.
 
-This milestone does not roll attack dice, apply damage, or mark weapons as fired.
+Configured lance weapons roll one die per point of Strength and hit on 4+. Weapons batteries use the Gunnery Table, including target class and orientation, automatic close- and long-range column shifts, an optional intervening Blast Marker shift, and Firepower totals above 20. Battery successes equal or beat the target's Armour. Resolved hits remove shields before hull points and preview crippled or out-of-action status before a Gamemaster explicitly applies the damage.
+
+Facing-dependent Armour is supported. The Retribution-class profile uses Armour 6+ against attacks through its prow and 5+ against attacks through its other facings.
+
+Each direct-fire weapon can resolve one attack during its ship's Shooting phase. Fired state is stored per deployed ship and automatically becomes fresh for the next fleet activation. This milestone does not combine multiple batteries into one salvo, resolve critical damage, or automate whether a target moved at least 5 cm; the planner therefore provides a manual "counts as Defences" option.
 
 ## Weapon arcs and engine effects
 
@@ -147,8 +151,8 @@ These graphics are client-side PIXI overlays and are not persistent scene docume
 - Movement execution does not yet track a per-token `movedThisPhase` state or prevent a ship moving more than once.
 - Starting a battle prevents manual rotation changes for configured, fleet-assigned ships, keeping token artwork and attached effects on the same heading. Ending or resetting the battle unlocks them, and the Turn Manager provides a GM correction override for a selected ship.
 - Normal Foundry drag movement can bypass the planned movement workflow.
-- Token-level hits, shields, crippled status, and out-of-action status are implemented; automatic attack damage, critical damage, special orders, and moved/fired state are not.
-- Direct-fire range, arc, target-facing and target-legality preview is implemented; lance and battery dice resolution is not.
+- Token-level hits, shields, crippled status, and out-of-action status are implemented; direct-fire hits can update this state after Gamemaster confirmation. Critical damage, special orders, and moved/fired state are not implemented.
+- Direct-fire range, arc, target-facing, target-legality, lance rolls, and battery Gunnery Table resolution are implemented.
 - Token Nameplates data is present only as a future optional integration.
 - The ship-profile catalogue is limited to two capital ships.
 - Automated tests are not yet configured.

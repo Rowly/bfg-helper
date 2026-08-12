@@ -41,6 +41,7 @@ export function despoilerProfile() {
       hits: 12,
       shields: 4,
       armour: "5+",
+      targetClass: "capital",
       turrets: 4,
       notes: ["Cannot use Come to New Heading special orders."]
     },
@@ -50,7 +51,7 @@ export function despoilerProfile() {
       separationCm: 1.2,
       widthCm: 1.3,
       lengthCm: 3,
-      sternOffsetCm: 4.8,
+      sternOffsetCm: 3.5,
       outerColour: 0xff6633,
       innerColour: 0xffdd99,
       outerOpacity: 0.18,

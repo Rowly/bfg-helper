@@ -1,9 +1,13 @@
 import {
   getSelectedShootingTarget,
   getShootingContext,
-  previewDirectFire
+  previewDirectFire,
+  resolveDirectFire,
+  commitDirectFireDamage,
+  hasWeaponFired
 } from "./shooting.js";
 import { clearWeaponArc } from "./weapon-arcs.js";
+import { calculateBatteryDice } from "./gunnery-table.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -31,6 +35,10 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
     this.sceneId = null;
     this.analysis = null;
     this.weaponIndex = 0;
+    this.resolution = null;
+    this.damageCommitted = false;
+    this.interveningBlastMarkers = false;
+    this.countsAsDefences = false;
   }
 
   setToken(token) {
@@ -39,6 +47,10 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
     this.sceneId = canvas.scene?.id ?? null;
     this.analysis = null;
     this.weaponIndex = 0;
+    this.resolution = null;
+    this.damageCommitted = false;
+    this.interveningBlastMarkers = false;
+    this.countsAsDefences = false;
   }
 
   get token() {
@@ -57,6 +69,21 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
     }
 
     const target = getSelectedShootingTarget();
+    const gunneryCalculation = this.analysis?.weapon?.type === "battery"
+      ? calculateBatteryDice({
+          firepower: this.analysis.weapon.strength,
+          targetClass: this.analysis.targetClass,
+          orientation: this.analysis.orientation,
+          rangeCm: this.analysis.rangeCm,
+          interveningBlastMarkers: this.interveningBlastMarkers,
+          countsAsDefences: this.countsAsDefences
+        })
+      : null;
+    const previewAttackDice = gunneryCalculation?.attackDice
+      ?? (this.analysis?.weapon?.type === "lance" ? Number(this.analysis.weapon.strength) : null);
+    const shiftLabel = calculation => calculation?.shifts
+      .map(shift => `${shift.direction}: ${shift.reason}`)
+      .join("; ") || "None";
     const analysis = this.analysis
       ? {
           targetName: this.analysis.targetName,
@@ -66,9 +93,24 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
           inRange: this.analysis.inRange,
           inArc: this.analysis.inArc,
           targetFacing: this.analysis.targetFacing,
+          targetArmour: this.analysis.targetArmour,
+          orientation: this.analysis.orientation,
+          targetClass: this.analysis.targetClass,
+          weaponFired: this.analysis.weaponFired,
+          attackDice: previewAttackDice,
+          gunneryCalculation: gunneryCalculation
+            ? { ...gunneryCalculation, shiftsLabel: shiftLabel(gunneryCalculation) }
+            : null,
           targetCombatState: this.analysis.targetCombatState,
           warnings: this.analysis.warnings,
           legal: this.analysis.legal
+        }
+      : null;
+    const resolution = this.resolution
+      ? {
+          ...this.resolution,
+          resultsLabel: this.resolution.results.join(", ") || "No dice",
+          shiftsLabel: shiftLabel(this.resolution.batteryCalculation)
         }
       : null;
     return foundry.utils.mergeObject(context, {
@@ -80,9 +122,12 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
       weapons: shooting.weapons.map((weapon, index) => ({
         index,
         name: weapon.name,
+        type: String(weapon.type ?? "Direct fire")
+          .replace(/^./, character => character.toUpperCase()),
         rangeCm: weapon.rangeCm,
         arcDegrees: weapon.arcDegrees,
         strength: weapon.strength ?? "-",
+        fired: hasWeaponFired(shooting.token, weapon.id, shooting.state),
         selected: index === this.weaponIndex
       })),
       targetName: target?.name ?? "No target selected",
@@ -90,7 +135,14 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
       hasWarnings: shooting.warnings.length > 0,
       warnings: shooting.warnings,
       analysis,
-      hasAnalysis: Boolean(analysis)
+      hasAnalysis: Boolean(analysis),
+      canResolveAttack: Boolean(analysis?.legal && !resolution),
+      resolution,
+      hasResolution: Boolean(resolution),
+      canCommitDamage: Boolean(resolution && game.user?.isGM && !this.damageCommitted),
+      damageCommitted: this.damageCommitted,
+      interveningBlastMarkers: this.interveningBlastMarkers,
+      countsAsDefences: this.countsAsDefences
     }, { inplace: false });
   }
 
@@ -103,6 +155,8 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
 
   async refreshTarget() {
     this.analysis = null;
+    this.resolution = null;
+    this.damageCommitted = false;
     if (this.token) clearWeaponArc(this.token);
     await this.render({ force: true });
   }
@@ -115,6 +169,8 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
     weaponSelect?.addEventListener("change", () => {
       this.weaponIndex = Number(weaponSelect.value ?? 0);
       this.analysis = null;
+      this.resolution = null;
+      this.damageCommitted = false;
       clearWeaponArc(this.token);
       this.updateStatus("Weapon changed. Check the firing solution again.");
     });
@@ -143,6 +199,8 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
         if (!weapon) throw new Error("Select a valid direct-fire weapon.");
         const analysis = previewDirectFire(this.token, target, weapon);
         this.analysis = analysis;
+        this.resolution = null;
+        this.damageCommitted = false;
 
         const legalForUser = analysis.legal || game.user?.isGM;
         const result = [
@@ -163,9 +221,61 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
       }
     });
 
+    for (const name of ["interveningBlastMarkers", "countsAsDefences"]) {
+      const input = this.element.querySelector(`[name="${name}"]`);
+      input?.addEventListener("change", async () => {
+        this[name] = Boolean(input.checked);
+        this.resolution = null;
+        this.damageCommitted = false;
+        await this.render({ force: true });
+      });
+    }
+
+    bind('[data-bfg-action="resolve-direct-fire"]', async () => {
+      try {
+        if (!this.analysis) throw new Error("Check a firing solution before rolling.");
+        this.interveningBlastMarkers = Boolean(
+          this.element.querySelector('[name="interveningBlastMarkers"]')?.checked
+        );
+        this.countsAsDefences = Boolean(
+          this.element.querySelector('[name="countsAsDefences"]')?.checked
+        );
+        this.resolution = await resolveDirectFire(this.analysis, {
+          interveningBlastMarkers: this.interveningBlastMarkers,
+          countsAsDefences: this.countsAsDefences
+        });
+        this.damageCommitted = false;
+        await this.render({ force: true });
+        this.updateStatus(
+          `Attack rolled: ${this.resolution.hits} hit${this.resolution.hits === 1 ? "" : "s"}. Review damage before committing.`,
+          "success"
+        );
+      } catch (error) {
+        console.error("BFG Helper | Shooting resolution failed", error);
+        ui.notifications.warn(error.message ?? String(error));
+        this.updateStatus(error.message ?? String(error), "error");
+      }
+    });
+
+    bind('[data-bfg-action="commit-direct-fire-damage"]', async () => {
+      try {
+        if (!this.resolution) throw new Error("Roll an attack before committing damage.");
+        await commitDirectFireDamage(this.resolution);
+        this.damageCommitted = true;
+        await this.render({ force: true });
+        this.updateStatus("Damage committed to the target ship.", "success");
+      } catch (error) {
+        console.error("BFG Helper | Damage commit failed", error);
+        ui.notifications.warn(error.message ?? String(error));
+        this.updateStatus(error.message ?? String(error), "error");
+      }
+    });
+
     bind('[data-bfg-action="clear-firing-solution"]', async () => {
       clearWeaponArc(this.token);
       this.analysis = null;
+      this.resolution = null;
+      this.damageCommitted = false;
       await this.render({ force: true });
     });
   }
@@ -173,6 +283,8 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
   async close(options = {}) {
     if (this.token) clearWeaponArc(this.token);
     this.analysis = null;
+    this.resolution = null;
+    this.damageCommitted = false;
     return super.close(options);
   }
 }
@@ -182,6 +294,23 @@ let shootingPlannerApplication = null;
 export function getShootingPlannerApplication() {
   shootingPlannerApplication ??= new BFGShootingPlannerApplication();
   return shootingPlannerApplication;
+}
+
+export async function refreshShootingPlannerApplication({ clear = false } = {}) {
+  if (!shootingPlannerApplication?.rendered) return false;
+  if (clear) {
+    shootingPlannerApplication.analysis = null;
+    shootingPlannerApplication.resolution = null;
+    shootingPlannerApplication.damageCommitted = false;
+  }
+  await shootingPlannerApplication.render({ force: true });
+  return true;
+}
+
+export async function refreshShootingPlannerTarget() {
+  if (!shootingPlannerApplication?.rendered) return false;
+  await shootingPlannerApplication.refreshTarget();
+  return true;
 }
 
 export async function openShootingPlannerApplication(token) {

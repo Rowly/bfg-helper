@@ -37,9 +37,11 @@ import {
 } from "./combat-state.js";
 import {
   analyseDirectFire,
+  commitDirectFireDamage,
   getShootingContext,
   openShootingPlanner,
-  previewDirectFire
+  previewDirectFire,
+  resolveDirectFire
 } from "./shooting.js";
 
 Hooks.once("init", () => {
@@ -109,7 +111,9 @@ Hooks.once("ready", () => {
       open: openShootingPlanner,
       getContext: getShootingContext,
       analyse: analyseDirectFire,
-      preview: previewDirectFire
+      preview: previewDirectFire,
+      resolve: resolveDirectFire,
+      commitDamage: commitDirectFireDamage
     },
     turnManager
   };
@@ -118,7 +122,9 @@ Hooks.once("ready", () => {
 
 Hooks.on("bfgHelperTurnStateChanged", async () => {
   const { refreshTurnManagerApplication } = await import("./turn-manager-app.js");
+  const { refreshShootingPlannerApplication } = await import("./shooting-app.js");
   refreshTurnManagerApplication();
+  refreshShootingPlannerApplication({ clear: true });
 });
 
 Hooks.on("bfgHelperFleetAssignmentsChanged", async () => {
@@ -129,6 +135,12 @@ Hooks.on("bfgHelperFleetAssignmentsChanged", async () => {
 Hooks.on("bfgHelperCombatStateChanged", async () => {
   const { refreshTurnManagerApplication } = await import("./turn-manager-app.js");
   refreshTurnManagerApplication();
+});
+
+Hooks.on("targetToken", async (user) => {
+  if (user?.id !== game.user?.id) return;
+  const { refreshShootingPlannerTarget } = await import("./shooting-app.js");
+  await refreshShootingPlannerTarget();
 });
 
 Hooks.on("preUpdateToken", preventLockedTokenRotation);

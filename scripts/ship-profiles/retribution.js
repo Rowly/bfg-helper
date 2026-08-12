@@ -32,9 +32,14 @@ export function retributionProfile() {
     },
 
     stats: {
+      points: 345,
       hits: 12,
       shields: 4,
-      armour: "5+"
+      armour: { front: "6+", other: "5+" },
+      targetClass: "capital",
+      turrets: 4,
+      notes: ["Cannot use Come to New Heading special orders."],
+      famousShips: ["Bloodhawk", "Cardinal Boras"]
     },
 
     engine: {
@@ -53,28 +58,39 @@ export function retributionProfile() {
       {
         id: "port-battery",
         name: "Port Weapons Battery",
+        type: "battery",
         rangeCm: 60,
+        strength: 12,
         directionDegrees: 180,
         arcDegrees: 90
       },
       {
         id: "starboard-battery",
         name: "Starboard Weapons Battery",
+        type: "battery",
         rangeCm: 60,
+        strength: 12,
         directionDegrees: 0,
         arcDegrees: 90
       },
       {
-        id: "dorsal-weapons",
-        name: "Dorsal Weapons",
+        id: "dorsal-lance-battery",
+        name: "Dorsal Lance Battery",
+        type: "lance",
         rangeCm: 60,
+        strength: 3,
         directionDegrees: -90,
         arcDegrees: 270
-      },
+      }
+    ],
+
+    ordnance: [
       {
-        id: "prow-weapons",
-        name: "Prow Weapons",
-        rangeCm: 30,
+        id: "prow-torpedoes",
+        name: "Prow Torpedoes",
+        type: "torpedo",
+        speedCm: 30,
+        strength: 9,
         directionDegrees: -90,
         arcDegrees: 90
       }

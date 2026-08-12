@@ -629,9 +629,56 @@
   color: rgba(255, 184, 77, 0.95);
 }
 
+.bfg-shooting-modifiers,
+.bfg-firing-resolution {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.65rem;
+  border: 1px solid rgba(255, 204, 102, 0.65);
+  border-radius: 5px;
+}
+
+.bfg-shooting-modifiers label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.bfg-shooting-modifiers p,
+.bfg-firing-resolution h3,
+.bfg-firing-resolution p {
+  margin: 0;
+}
+
+.bfg-firing-resolution {
+  grid-template-columns: 1fr 1fr;
+}
+
+.bfg-firing-resolution h3,
+.bfg-firing-resolution > button,
+.bfg-firing-resolution > p {
+  grid-column: 1 / -1;
+}
+
+.bfg-firing-resolution > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.bfg-firing-resolution span {
+  font-size: 0.72rem;
+  opacity: 0.72;
+}
+
+.bfg-resolution-committed {
+  color: rgba(102, 255, 153, 0.95);
+}
+
 @media (max-width: 420px) {
   .bfg-shooting-actions,
-  .bfg-firing-analysis {
+  .bfg-firing-analysis,
+  .bfg-firing-resolution {
     grid-template-columns: 1fr;
   }
 }

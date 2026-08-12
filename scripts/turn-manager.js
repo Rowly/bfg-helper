@@ -14,6 +14,7 @@ export const PHASES = Object.freeze([
 function defaultState() {
   return {
     battleStarted: false,
+    battleId: null,
     round: 1,
     fleets: [
       { id: "fleet-a", name: "Fleet A" },
@@ -81,6 +82,7 @@ export async function startBattle({ fleetA, fleetB, startingFleetIndex = 0 } = {
 
   const state = defaultState();
   state.battleStarted = true;
+  state.battleId = foundry.utils.randomID();
   state.round = 1;
   state.fleets = [
     { id: "fleet-a", name: normaliseFleetName(fleetA, "Fleet A") },
@@ -112,6 +114,11 @@ export async function resetBattle() {
   if (!requireGM()) return false;
   await setBattleShipRotationLocks(false);
   await resetAllCombatStates();
+  for (const token of canvas.tokens?.placeables ?? []) {
+    if (token.document.getFlag(MODULE_ID, "firedWeapons") !== undefined) {
+      await token.document.unsetFlag(MODULE_ID, "firedWeapons");
+    }
+  }
   await setTurnState(defaultState());
   ui.notifications.info("Battlefleet Gothic turn state reset.");
   return true;

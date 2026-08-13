@@ -34,10 +34,17 @@
     {{/if}}
 
     <section class="bfg-movement-rules">
+      <span>Profile speed <strong>{{profileSpeedCm}} cm</strong></span>
+      <span>Minimum movement <strong>{{minimumMovementCm}} cm</strong></span>
       <span>Maximum movement <strong>{{speedCm}} cm</strong></span>
       <span>Turn after <strong>{{minimumBeforeTurnCm}} cm</strong></span>
       <span>Maximum turn <strong>{{maximumTurnDegrees}}°</strong></span>
     </section>
+
+    <label class="bfg-movement-blast-marker">
+      <input type="checkbox" name="moveThroughBlastMarker" {{#if moveThroughBlastMarker}}checked{{/if}}>
+      <span>Move through Blast Marker (-5 cm maximum movement)</span>
+    </label>
 
     <div class="bfg-movement-fields">
       <label>
@@ -45,7 +52,7 @@
         <input
           type="number"
           name="distanceCm"
-          min="0"
+          min="{{minimumMovementCm}}"
           max="{{speedCm}}"
           value="{{defaultDistanceCm}}"
           step="0.5"

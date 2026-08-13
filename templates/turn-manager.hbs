@@ -55,6 +55,12 @@
                     </span>
                     <strong>{{combatStatus}}</strong>
                   </div>
+                  {{#if combatState.criticals.length}}
+                    <div class="bfg-critical-summary">
+                      <i class="fa-solid fa-burst"></i>
+                      {{#each combatState.criticals}}{{name}}{{#if count}} x{{count}}{{/if}}{{#unless @last}}; {{/unless}}{{/each}}
+                    </div>
+                  {{/if}}
                 {{/if}}
               </li>
             {{/each}}
@@ -107,6 +113,11 @@
           Clear assignment
         </button>
       </div>
+
+      <button type="button" data-bfg-action="edit-critical-state" class="bfg-full-width">
+        <i class="fa-solid fa-burst"></i>
+        Edit selected critical effects
+      </button>
 
       {{#if state.battleStarted}}
         <div class="bfg-turn-secondary-actions">

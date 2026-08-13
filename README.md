@@ -123,7 +123,11 @@ Configured lance weapons roll one die per point of Strength and hit on 4+. Weapo
 
 Facing-dependent Armour is supported. The Retribution-class profile uses Armour 6+ against attacks through its prow and 5+ against attacks through its other facings.
 
-Each direct-fire weapon can resolve one attack during its ship's Shooting phase. Fired state is stored per deployed ship and automatically becomes fresh for the next fleet activation. This milestone does not combine multiple batteries into one salvo, resolve critical damage, or automate whether a target moved at least 5 cm; the planner therefore provides a manual "counts as Defences" option.
+Each direct-fire weapon can resolve one attack during its ship's Shooting phase. Fired state is stored per deployed ship and automatically becomes fresh for the next fleet activation. Each point of hull damage rolls a critical check; results of 6 resolve on the 2D6 Critical Hits Table. Immediate extra damage and persistent armament, engine, thruster, fire, bridge, and shield effects are recorded on the deployed ship. Critical extra damage does not generate further critical checks, and escorts are destroyed when they suffer a critical hit.
+
+Damaged armament cannot fire, Engine Room damage prevents turns, Thrusters damage reduces speed by 10 cm, and Shields Collapse reduces shield strength to zero. Repair attempts, ongoing fire damage in the End Phase, and catastrophic damage are deferred to their later phase milestones. The planner does not yet combine multiple batteries into one salvo or automate whether a target moved at least 5 cm; it therefore provides a manual "counts as Defences" option.
+
+Ships at half or fewer remaining hull points are crippled. Their shields, turrets, weapon Strength/Firepower, and ordnance values are halved, rounding up, and their speed is reduced by 5 cm. Crippled ships cannot fire nova cannon. Braced interactions are deferred until Special Orders are implemented.
 
 ## Weapon arcs and engine effects
 
@@ -151,7 +155,7 @@ These graphics are client-side PIXI overlays and are not persistent scene docume
 - Movement execution records per-token movement state and prevents a ship moving more than once during its fleet's Movement phase. Gamemasters receive an explicit confirmation prompt for correction/testing overrides.
 - Starting a battle prevents manual rotation changes for configured, fleet-assigned ships, keeping token artwork and attached effects on the same heading. Ending or resetting the battle unlocks them, and the Turn Manager provides a GM correction override for a selected ship.
 - Normal Foundry drag movement can bypass the planned movement workflow.
-- Token-level hits, shields, crippled status, and out-of-action status are implemented; direct-fire hits can update this state after Gamemaster confirmation. Critical damage, special orders, and moved/fired state are not implemented.
+- Token-level hits, shields, crippled status, out-of-action status, moved/fired state, and critical-hit effects are implemented. End Phase critical repairs, ongoing fire damage, catastrophic damage, and special orders are not implemented.
 - Direct-fire range, arc, target-facing, target-legality, lance rolls, and battery Gunnery Table resolution are implemented.
 - Token Nameplates data is present only as a future optional integration.
 - The ship-profile catalogue is limited to two capital ships.

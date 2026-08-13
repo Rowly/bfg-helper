@@ -43,6 +43,7 @@ import {
   previewDirectFire,
   resolveDirectFire
 } from "./shooting.js";
+import { editSelectedShipCriticalState, getCriticalState, setCriticalState } from "./critical-hits.js";
 
 Hooks.once("init", () => {
   console.log("BFG Helper | Initialising");
@@ -107,6 +108,11 @@ Hooks.once("ready", () => {
       editSelected: editSelectedShipCombatState,
       resetSelected: resetSelectedShipCombatState
     },
+    criticals: {
+      getState: getCriticalState,
+      setState: setCriticalState,
+      editSelected: editSelectedShipCriticalState
+    },
     shooting: {
       open: openShootingPlanner,
       getContext: getShootingContext,
@@ -133,6 +139,11 @@ Hooks.on("bfgHelperFleetAssignmentsChanged", async () => {
 });
 
 Hooks.on("bfgHelperCombatStateChanged", async () => {
+  const { refreshTurnManagerApplication } = await import("./turn-manager-app.js");
+  refreshTurnManagerApplication();
+});
+
+Hooks.on("bfgHelperCriticalStateChanged", async () => {
   const { refreshTurnManagerApplication } = await import("./turn-manager-app.js");
   refreshTurnManagerApplication();
 });

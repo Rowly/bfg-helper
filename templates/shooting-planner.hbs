@@ -29,10 +29,10 @@
 
     <label class="bfg-shooting-field">
       <span>Direct-fire weapon</span>
-      <select name="weaponIndex">
+      <select name="weaponIndex" {{#if isRolling}}disabled{{/if}}>
         {{#each weapons}}
-          <option value="{{index}}" {{#if selected}}selected{{/if}} {{#if fired}}disabled{{/if}}>
-            {{name}} - {{type}} - {{rangeCm}} cm - {{arcDegrees}}&deg; - Strength {{strength}}{{#if fired}} - Fired{{/if}}
+          <option value="{{index}}" {{#if selected}}selected{{/if}} {{#if fired}}disabled{{/if}} {{#if criticallyDisabled}}disabled{{/if}}>
+            {{name}} - {{type}} - {{rangeCm}} cm - {{arcDegrees}}&deg; - Strength {{strength}}{{#if fired}} - Fired{{/if}}{{#if criticallyDisabled}} - Critically damaged{{/if}}
           </option>
         {{/each}}
       </select>
@@ -43,19 +43,28 @@
     </p>
 
     <div class="bfg-shooting-actions">
-      <button type="button" data-bfg-action="refresh-target">
+      <button type="button" data-bfg-action="refresh-target" {{#if isRolling}}disabled{{/if}}>
         <i class="fa-solid fa-arrows-rotate"></i>
         Refresh target
       </button>
-      <button type="button" data-bfg-action="check-firing-solution" class="bfg-primary-button">
+      <button type="button" data-bfg-action="check-firing-solution" class="bfg-primary-button" {{#if isRolling}}disabled{{/if}}>
         <i class="fa-solid fa-crosshairs"></i>
         Check firing solution
       </button>
     </div>
 
+    {{#if isRolling}}
+      <section class="bfg-shooting-waiting" aria-live="polite" aria-busy="true">
+        <i class="fa-solid fa-dice-d6"></i>
+        <strong>Rolling attack...</strong>
+        <span>Resolving dice and checking for critical damage.</span>
+      </section>
+    {{else}}
+    {{#unless hasResolution}}
     {{#if hasAnalysis}}
       <section class="bfg-firing-analysis{{#unless analysis.legal}} illegal{{/unless}}">
         <div><span>Weapon type</span><strong>{{analysis.weaponType}}</strong></div>
+        <div><span>Effective strength</span><strong>{{analysis.effectiveStrength}}{{#if analysis.attackerCrippled}} (crippled; profile {{analysis.profileStrength}}){{/if}}</strong></div>
         <div><span>Measured range</span><strong>{{analysis.rangeLabel}} / {{analysis.maximumRangeCm}} cm</strong></div>
         <div><span>Range check</span><strong>{{#if analysis.inRange}}In range{{else}}Out of range{{/if}}</strong></div>
         <div><span>Arc check</span><strong>{{#if analysis.inArc}}In arc{{else}}Outside arc{{/if}}</strong></div>
@@ -105,6 +114,7 @@
         {{/if}}
       </section>
     {{/if}}
+    {{/unless}}
 
     {{#if hasResolution}}
       <section class="bfg-firing-resolution">
@@ -115,6 +125,14 @@
         <div><span>Hits scored</span><strong>{{resolution.hits}}</strong></div>
         <div><span>Shield hits</span><strong>{{resolution.damage.shieldHits}}</strong></div>
         <div><span>Hull damage</span><strong>{{resolution.damage.hullHits}}</strong></div>
+        <div><span>Critical checks</span><strong>{{resolution.damage.critical.checks}}d6: {{resolution.criticalChecksLabel}}</strong></div>
+        <div><span>Critical damage</span><strong>{{resolution.damage.extraCriticalDamage}}</strong></div>
+        {{#if resolution.damage.critical.escortDestroyed}}
+          <p><i class="fa-solid fa-skull"></i> Escort destroyed by critical hit.</p>
+        {{/if}}
+        {{#each resolution.damage.critical.results}}
+          <p><i class="fa-solid fa-burst"></i> 2D6 roll {{rolledTotal}}: {{name}}{{#if shifted}} (shifted to table result {{appliedTotal}}){{/if}}{{#if extraDamage}} - {{extraDamage}} extra damage{{/if}}</p>
+        {{/each}}
         <div><span>Remaining shields</span><strong>{{resolution.damage.after.currentShields}}</strong></div>
         <div><span>Remaining hull</span><strong>{{resolution.damage.after.currentHits}}</strong></div>
         {{#if resolution.damage.after.crippled}}<p><i class="fa-solid fa-triangle-exclamation"></i> Target will be crippled.</p>{{/if}}
@@ -130,6 +148,7 @@
           <p class="notes">A Gamemaster must apply the resolved damage.</p>
         {{/if}}
       </section>
+    {{/if}}
     {{/if}}
 
     <p class="bfg-movement-status" data-bfg-shooting-status data-status="normal">

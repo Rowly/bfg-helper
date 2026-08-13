@@ -3,6 +3,7 @@ import { getTokenFleetId } from "./fleet-assignment.js";
 import { getTurnState, PHASES } from "./turn-manager.js";
 import { ROTATION_UPDATE_OVERRIDE } from "./rotation-locking.js";
 import { MODULE_ID } from "./constants.js";
+import { getCombatState } from "./combat-state.js";
 
 const PREVIEW_NAME = "bfg-movement-preview";
 const MOVEMENT_STATE_FLAG = "movementState";
@@ -121,9 +122,9 @@ export function getMovementContext(token = canvas.tokens.controlled[0]) {
 
   const actor = getBaseActor(token);
   const shipData = getShipData(actor);
-  const movement = shipData?.movement;
+  const profileMovement = shipData?.movement;
 
-  if (!shipData || !movement) {
+  if (!shipData || !profileMovement) {
     return {
       ok: false,
       error: `${token.name} does not have a configured BFG movement profile.`
@@ -131,12 +132,28 @@ export function getMovementContext(token = canvas.tokens.controlled[0]) {
   }
 
   const turnState = getTurnState();
+  const combatState = getCombatState(token);
+  const movement = {
+    ...profileMovement,
+    speedCm: Math.max(
+      0,
+      Number(profileMovement.speedCm)
+        - (combatState?.crippled ? 5 : 0)
+        - (combatState?.thrusterDamage > 0 ? 10 : 0)
+    ),
+    maximumTurnDegrees: combatState?.engineRoomDamage > 0
+      ? 0
+      : Number(profileMovement.maximumTurnDegrees)
+  };
   const activeFleet = turnState.fleets?.[turnState.activeFleetIndex] ?? null;
   const tokenFleetId = getTokenFleetId(token);
   const tokenFleet = turnState.fleets?.find(fleet => fleet.id === tokenFleetId) ?? null;
   const phase = PHASES.find(item => item.id === turnState.phase) ?? null;
 
   const warnings = [];
+  if (combatState?.crippled) warnings.push("Crippled: speed is reduced by 5 cm.");
+  if (combatState?.thrusterDamage > 0) warnings.push("Thrusters Damaged: speed is reduced by 10 cm.");
+  if (combatState?.engineRoomDamage > 0) warnings.push("Engine Room Damaged: this ship cannot turn.");
   let blocked = false;
 
   if (!turnState.battleStarted) {

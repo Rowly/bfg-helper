@@ -2,13 +2,20 @@ import { getShipData, getBaseActor } from "./ship-data.js";
 import { getTokenFleetId } from "./fleet-assignment.js";
 import { getTurnState, PHASES } from "./turn-manager.js";
 import {
-  applyHitDamage,
   getCombatState,
-  previewHitDamage
+  halveRoundedUp,
+  previewHitDamage,
+  setCombatState
 } from "./combat-state.js";
 import { drawWeaponArc } from "./weapon-arcs.js";
 import { calculateBatteryDice } from "./gunnery-table.js";
 import { MODULE_ID } from "./constants.js";
+import {
+  getCriticalState,
+  isWeaponDisabledByCritical,
+  rollCriticalHits,
+  setCriticalState
+} from "./critical-hits.js";
 
 const FIRED_WEAPONS_FLAG = "firedWeapons";
 
@@ -108,6 +115,7 @@ export function getShootingContext(token = canvas.tokens.controlled[0]) {
   const fleetId = getTokenFleetId(token);
   const fleet = state.fleets?.find(item => item.id === fleetId) ?? null;
   const combatState = getCombatState(token);
+  const criticalState = getCriticalState(token);
   const phase = PHASES.find(item => item.id === state.phase)?.label ?? state.phase;
   const warnings = [];
   let blocked = false;
@@ -136,6 +144,7 @@ export function getShootingContext(token = canvas.tokens.controlled[0]) {
     actor,
     shipData,
     weapons: shipData.weapons,
+    criticalState,
     state,
     activeFleet,
     fleet,
@@ -150,6 +159,7 @@ export function analyseDirectFire(attacker, target, weapon) {
   if (attacker.id === target.id) throw new Error("A ship cannot target itself.");
 
   const targetData = getShipData(target);
+  const attackerCombatState = getCombatState(attacker);
   const targetCombatState = getCombatState(target);
   if (!targetData || !targetCombatState) {
     throw new Error(`${target.name} is not a configured ship with combat statistics.`);
@@ -196,16 +206,25 @@ export function analyseDirectFire(attacker, target, weapon) {
   const sameFleet = Boolean(attackerFleetId && targetFleetId && attackerFleetId === targetFleetId);
   const warnings = [];
   const weaponFired = hasWeaponFired(attacker, weapon.id);
+  const weaponDisabled = isWeaponDisabledByCritical(weapon, getCriticalState(attacker));
+  const profileStrength = Math.trunc(Number(weapon.strength));
+  const effectiveStrength = attackerCombatState?.crippled
+    ? halveRoundedUp(profileStrength)
+    : profileStrength;
   if (!targetFleetId) warnings.push(`${target.name} is not assigned to a fleet.`);
   if (sameFleet) warnings.push(`${target.name} belongs to the firing ship's fleet.`);
   if (targetCombatState.outOfAction) warnings.push(`${target.name} is already out of action.`);
   if (weaponFired) warnings.push(`${weapon.name} has already fired during this Shooting phase.`);
+  if (weaponDisabled) warnings.push(`${weapon.name} cannot fire because its armament is critically damaged.`);
 
   return {
     attackerId: attacker.id,
     targetId: target.id,
     targetName: target.name,
     weapon,
+    profileStrength,
+    effectiveStrength,
+    attackerCrippled: Boolean(attackerCombatState?.crippled),
     weaponType: weaponTypeLabel(weapon),
     rangeCm,
     rangeLabel: rangeCm.toFixed(1),
@@ -219,9 +238,10 @@ export function analyseDirectFire(attacker, target, weapon) {
     targetCombatState,
     sameFleet,
     weaponFired,
+    weaponDisabled,
     warnings,
     legalTarget: !sameFleet && Boolean(targetFleetId) && !targetCombatState.outOfAction,
-    legal: inRange && inArc && !sameFleet && Boolean(targetFleetId) && !targetCombatState.outOfAction && !weaponFired
+    legal: inRange && inArc && !sameFleet && Boolean(targetFleetId) && !targetCombatState.outOfAction && !weaponFired && !weaponDisabled
   };
 }
 
@@ -244,13 +264,19 @@ export async function resolveDirectFire(analysis, {
   if (analysis.weaponFired) {
     throw new Error(`${currentWeapon.name} has already fired during this Shooting phase.`);
   }
+  if (analysis.weaponDisabled) {
+    throw new Error(`${currentWeapon.name} cannot fire because its armament is critically damaged.`);
+  }
   if (!analysis.legal) {
     throw new Error("This firing solution is not legal. The attack cannot be resolved.");
   }
 
   const weapon = analysis.weapon;
   const type = String(weapon.type ?? "").toLowerCase();
-  const strength = Math.trunc(Number(weapon.strength));
+  const profileStrength = Math.trunc(Number(weapon.strength));
+  const strength = currentContext.combatState?.crippled
+    ? halveRoundedUp(profileStrength)
+    : profileStrength;
   if (!(strength > 0)) throw new Error(`${weapon.name} does not have a valid Strength or Firepower value.`);
 
   let attackDice;
@@ -279,12 +305,32 @@ export async function resolveDirectFire(analysis, {
   const results = roll.dice.flatMap(die => die.results.map(result => Number(result.result)));
   const hits = results.filter(result => result >= hitTarget).length;
   const damage = previewHitDamage(target, hits);
+  const critical = await rollCriticalHits(target, damage.hullHits);
+  const remainingHull = critical.escortDestroyed
+    ? 0
+    : Math.max(0, damage.after.currentHits - critical.extraDamage);
+  damage.critical = critical;
+  damage.extraCriticalDamage = critical.extraDamage;
+  damage.after.currentHits = remainingHull;
+  damage.after.crippled = remainingHull > 0 && remainingHull <= damage.before.maximumHits / 2;
+  const resultingMaximumShields = critical.after.permanent.includes("shields-collapse")
+    ? 0
+    : damage.after.crippled
+      ? halveRoundedUp(damage.before.profileMaximumShields)
+      : damage.before.profileMaximumShields;
+  damage.after.currentShields = Math.min(damage.after.currentShields, resultingMaximumShields);
+  damage.after.outOfAction = remainingHull <= 0;
   const typeLabel = type === "lance" ? "Lance" : "Weapons battery";
 
   await markWeaponFired(attacker, weapon.id, currentContext.state);
 
   const escape = value => foundry.utils.escapeHTML(String(value));
   const diceLabel = results.length > 0 ? results.join(", ") : "No dice";
+  const criticalLabel = critical.escortDestroyed
+    ? "Escort destroyed by critical hit"
+    : critical.results.length > 0
+      ? critical.results.map(result => `2D6 ${result.rolledTotal}: ${result.name}${result.shifted ? ` (applied as ${result.appliedTotal})` : ""}${result.extraDamage ? ` (+${result.extraDamage} damage)` : ""}`).join("; ")
+      : "None";
   await ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ token: attacker.document }),
     content: `
@@ -293,6 +339,8 @@ export async function resolveDirectFire(analysis, {
         <strong>${escape(analysis.targetName)}</strong>.<br>
         Dice (${attackDice}d6): <strong>${escape(diceLabel)}</strong><br>
         Required: <strong>${hitTarget}+</strong>; Hits: <strong>${hits}</strong>
+        <br>Critical checks: <strong>${escape(critical.checkResults.join(", ") || "None")}</strong>
+        <br>Critical effects: <strong>${escape(criticalLabel)}</strong>
       </div>`
   });
 
@@ -325,11 +373,15 @@ export async function commitDirectFireDamage(resolution) {
     !current || !before
     || current.currentHits !== before.currentHits
     || current.currentShields !== before.currentShields
+    || JSON.stringify(getCriticalState(target)) !== JSON.stringify(resolution.damage?.critical?.before)
   ) {
     throw new Error("The target's combat state changed after the roll. Resolve the attack again.");
   }
 
-  return applyHitDamage(target, resolution.hits);
+  const critical = resolution.damage.critical;
+  await setCriticalState(target, critical.after);
+  const updated = await setCombatState(target, resolution.damage.after);
+  return updated ? { ...resolution.damage, updated } : false;
 }
 
 export function previewDirectFire(attacker, target, weapon) {

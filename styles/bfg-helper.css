@@ -675,6 +675,37 @@
   color: rgba(102, 255, 153, 0.95);
 }
 
+.bfg-shooting-waiting {
+  display: grid;
+  justify-items: center;
+  gap: 0.45rem;
+  padding: 1.4rem 0.8rem;
+  text-align: center;
+  border: 1px solid rgba(255, 204, 102, 0.65);
+  border-radius: 5px;
+}
+
+.bfg-shooting-waiting i {
+  color: rgba(255, 204, 102, 0.95);
+  font-size: 2rem;
+  animation: bfg-shooting-pulse 0.8s ease-in-out infinite alternate;
+}
+
+.bfg-shooting-waiting span {
+  opacity: 0.72;
+}
+
+@keyframes bfg-shooting-pulse {
+  from { transform: scale(0.9) rotate(-8deg); opacity: 0.55; }
+  to { transform: scale(1.1) rotate(8deg); opacity: 1; }
+}
+
+.bfg-critical-summary {
+  margin-top: 0.25rem;
+  color: rgba(255, 184, 77, 0.95);
+  font-size: 0.75rem;
+}
+
 @media (max-width: 420px) {
   .bfg-shooting-actions,
   .bfg-firing-analysis,

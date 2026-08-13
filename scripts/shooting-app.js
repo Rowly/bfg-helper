@@ -8,6 +8,7 @@ import {
 } from "./shooting.js";
 import { clearWeaponArc } from "./weapon-arcs.js";
 import { calculateBatteryDice } from "./gunnery-table.js";
+import { isWeaponDisabledByCritical } from "./critical-hits.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -39,6 +40,7 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
     this.damageCommitted = false;
     this.interveningBlastMarkers = false;
     this.countsAsDefences = false;
+    this.isRolling = false;
   }
 
   setToken(token) {
@@ -51,6 +53,7 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
     this.damageCommitted = false;
     this.interveningBlastMarkers = false;
     this.countsAsDefences = false;
+    this.isRolling = false;
   }
 
   get token() {
@@ -71,7 +74,7 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
     const target = getSelectedShootingTarget();
     const gunneryCalculation = this.analysis?.weapon?.type === "battery"
       ? calculateBatteryDice({
-          firepower: this.analysis.weapon.strength,
+          firepower: this.analysis.effectiveStrength,
           targetClass: this.analysis.targetClass,
           orientation: this.analysis.orientation,
           rangeCm: this.analysis.rangeCm,
@@ -80,7 +83,7 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
         })
       : null;
     const previewAttackDice = gunneryCalculation?.attackDice
-      ?? (this.analysis?.weapon?.type === "lance" ? Number(this.analysis.weapon.strength) : null);
+      ?? (this.analysis?.weapon?.type === "lance" ? this.analysis.effectiveStrength : null);
     const shiftLabel = calculation => calculation?.shifts
       .map(shift => `${shift.direction}: ${shift.reason}`)
       .join("; ") || "None";
@@ -88,6 +91,9 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
       ? {
           targetName: this.analysis.targetName,
           weaponType: this.analysis.weaponType,
+          profileStrength: this.analysis.profileStrength,
+          effectiveStrength: this.analysis.effectiveStrength,
+          attackerCrippled: this.analysis.attackerCrippled,
           rangeLabel: this.analysis.rangeLabel,
           maximumRangeCm: this.analysis.maximumRangeCm,
           inRange: this.analysis.inRange,
@@ -97,6 +103,7 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
           orientation: this.analysis.orientation,
           targetClass: this.analysis.targetClass,
           weaponFired: this.analysis.weaponFired,
+          weaponDisabled: this.analysis.weaponDisabled,
           attackDice: previewAttackDice,
           gunneryCalculation: gunneryCalculation
             ? { ...gunneryCalculation, shiftsLabel: shiftLabel(gunneryCalculation) }
@@ -110,6 +117,7 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
       ? {
           ...this.resolution,
           resultsLabel: this.resolution.results.join(", ") || "No dice",
+          criticalChecksLabel: this.resolution.damage.critical.checkResults.join(", ") || "None",
           shiftsLabel: shiftLabel(this.resolution.batteryCalculation)
         }
       : null;
@@ -126,8 +134,11 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
           .replace(/^./, character => character.toUpperCase()),
         rangeCm: weapon.rangeCm,
         arcDegrees: weapon.arcDegrees,
-        strength: weapon.strength ?? "-",
+        strength: shooting.combatState?.crippled
+          ? Math.ceil(Number(weapon.strength ?? 0) / 2)
+          : weapon.strength ?? "-",
         fired: hasWeaponFired(shooting.token, weapon.id, shooting.state),
+        criticallyDisabled: isWeaponDisabledByCritical(weapon, shooting.criticalState),
         selected: index === this.weaponIndex
       })),
       targetName: target?.name ?? "No target selected",
@@ -139,6 +150,7 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
       canResolveAttack: Boolean(analysis?.legal && !resolution),
       resolution,
       hasResolution: Boolean(resolution),
+      isRolling: this.isRolling,
       canCommitDamage: Boolean(resolution && game.user?.isGM && !this.damageCommitted),
       damageCommitted: this.damageCommitted,
       interveningBlastMarkers: this.interveningBlastMarkers,
@@ -240,10 +252,16 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
         this.countsAsDefences = Boolean(
           this.element.querySelector('[name="countsAsDefences"]')?.checked
         );
-        this.resolution = await resolveDirectFire(this.analysis, {
-          interveningBlastMarkers: this.interveningBlastMarkers,
-          countsAsDefences: this.countsAsDefences
-        });
+        this.isRolling = true;
+        await this.render({ force: true });
+        [this.resolution] = await Promise.all([
+          resolveDirectFire(this.analysis, {
+            interveningBlastMarkers: this.interveningBlastMarkers,
+            countsAsDefences: this.countsAsDefences
+          }),
+          new Promise(resolve => setTimeout(resolve, 600))
+        ]);
+        this.isRolling = false;
         this.damageCommitted = false;
         await this.render({ force: true });
         this.updateStatus(
@@ -251,6 +269,8 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
           "success"
         );
       } catch (error) {
+        this.isRolling = false;
+        await this.render({ force: true });
         console.error("BFG Helper | Shooting resolution failed", error);
         ui.notifications.warn(error.message ?? String(error));
         this.updateStatus(error.message ?? String(error), "error");
@@ -285,6 +305,7 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
     this.analysis = null;
     this.resolution = null;
     this.damageCommitted = false;
+    this.isRolling = false;
     return super.close(options);
   }
 }

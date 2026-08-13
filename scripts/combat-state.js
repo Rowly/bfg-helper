@@ -1,7 +1,18 @@
 import { MODULE_ID } from "./constants.js";
 import { getShipData } from "./ship-data.js";
+import {
+  clearCriticalState,
+  criticalCount,
+  criticalStateSummary,
+  getCriticalState,
+  hasCritical
+} from "./critical-hits.js";
 
 export const COMBAT_STATE_FLAG = "combatState";
+
+export function halveRoundedUp(value) {
+  return Math.ceil(Math.max(0, Number(value) || 0) / 2);
+}
 
 function asTokenDocument(tokenOrDocument) {
   if (tokenOrDocument?.document?.documentName === "Token") {
@@ -53,13 +64,21 @@ export function getCombatState(tokenOrDocument) {
   if (!document || !profile) return null;
 
   const stored = document.getFlag(MODULE_ID, COMBAT_STATE_FLAG) ?? {};
+  const criticalState = getCriticalState(document);
   const currentHits = Math.max(
     0,
     Math.min(profile.maximumHits, wholeNumber(stored.currentHits, profile.maximumHits))
   );
+  const crippled = currentHits > 0 && currentHits <= profile.maximumHits / 2;
+  const shieldsCollapsed = hasCritical(criticalState, "shields-collapse");
+  const effectiveMaximumShields = shieldsCollapsed
+    ? 0
+    : crippled
+      ? halveRoundedUp(profile.maximumShields)
+      : profile.maximumShields;
   const currentShields = Math.max(
     0,
-    Math.min(profile.maximumShields, wholeNumber(stored.currentShields, profile.maximumShields))
+    Math.min(effectiveMaximumShields, wholeNumber(stored.currentShields, effectiveMaximumShields))
   );
 
   const armour = profileArmour(profile.data.stats);
@@ -68,9 +87,26 @@ export function getCombatState(tokenOrDocument) {
     currentHits,
     maximumHits: profile.maximumHits,
     currentShields,
-    maximumShields: profile.maximumShields,
+    maximumShields: effectiveMaximumShields,
+    profileMaximumShields: profile.maximumShields,
     ...armour,
-    crippled: currentHits > 0 && currentHits <= profile.maximumHits / 2,
+    criticalState,
+    criticals: criticalStateSummary(criticalState),
+    engineRoomDamage: criticalCount(criticalState, "engine-room"),
+    thrusterDamage: criticalCount(criticalState, "thrusters"),
+    fires: criticalCount(criticalState, "fire"),
+    leadershipPenalty: hasCritical(criticalState, "bridge-smashed") ? 3 : 0,
+    shieldsCollapsed,
+    profileTurrets: wholeNumber(profile.data.stats?.turrets, 0),
+    effectiveTurrets: crippled
+      ? halveRoundedUp(profile.data.stats?.turrets)
+      : wholeNumber(profile.data.stats?.turrets, 0),
+    effectiveOrdnance: (profile.data.ordnance ?? []).map(item => ({
+      id: item.id,
+      strength: crippled ? halveRoundedUp(item.strength ?? item.capacity) : Number(item.strength ?? item.capacity ?? 0)
+    })),
+    crippled,
+    novaCannonDisabled: crippled,
     outOfAction: currentHits <= 0,
     initialised: Boolean(document.getFlag(MODULE_ID, COMBAT_STATE_FLAG))
   };
@@ -111,6 +147,12 @@ export function previewHitDamage(tokenOrDocument, hits) {
   const hullHits = Math.min(state.currentHits, Math.max(0, totalHits - shieldHits));
   const currentShields = state.currentShields - shieldHits;
   const currentHits = state.currentHits - hullHits;
+  const crippled = currentHits > 0 && currentHits <= state.maximumHits / 2;
+  const maximumShields = state.shieldsCollapsed
+    ? 0
+    : crippled
+      ? halveRoundedUp(state.profileMaximumShields)
+      : state.profileMaximumShields;
 
   return {
     totalHits,
@@ -119,8 +161,8 @@ export function previewHitDamage(tokenOrDocument, hits) {
     before: state,
     after: {
       currentHits,
-      currentShields,
-      crippled: currentHits > 0 && currentHits <= state.maximumHits / 2,
+      currentShields: Math.min(currentShields, maximumShields),
+      crippled,
       outOfAction: currentHits <= 0
     }
   };
@@ -137,9 +179,10 @@ export async function resetCombatState(tokenOrDocument, { notify = true } = {}) 
   const current = getCombatState(document);
   if (!document || !current) return false;
 
+  await clearCriticalState(document);
   const result = await setCombatState(document, {
     currentHits: current.maximumHits,
-    currentShields: current.maximumShields
+    currentShields: current.profileMaximumShields
   });
 
   if (result && notify) {

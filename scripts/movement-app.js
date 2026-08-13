@@ -36,12 +36,14 @@ export class BFGMovementPlannerApplication extends HandlebarsApplicationMixin(Ap
     this.tokenId = null;
     this.sceneId = null;
     this.lastPath = null;
+    this.moveThroughBlastMarker = false;
   }
 
   setToken(token) {
     this.tokenId = token?.document?.id ?? null;
     this.sceneId = canvas.scene?.id ?? null;
     this.lastPath = null;
+    this.moveThroughBlastMarker = false;
   }
 
   get token() {
@@ -62,6 +64,9 @@ export class BFGMovementPlannerApplication extends HandlebarsApplicationMixin(Ap
     }
 
     const { shipData, movement, turnState, activeFleet, tokenFleet, warnings } = movementContext;
+    const blastPenaltyCm = this.moveThroughBlastMarker ? 5 : 0;
+    const maximumMovementCm = Math.max(0, Number(movement.speedCm) - blastPenaltyCm);
+    const minimumMovementCm = Math.min(maximumMovementCm, Number(movement.profileSpeedCm) / 2);
 
     return foundry.utils.mergeObject(context, {
       invalid: false,
@@ -70,11 +75,15 @@ export class BFGMovementPlannerApplication extends HandlebarsApplicationMixin(Ap
       fleetName: tokenFleet?.name ?? "Unassigned",
       activeFleetName: activeFleet?.name ?? "None",
       phaseName: turnState.phase === "movement" ? "Movement" : String(turnState.phase ?? "Unknown"),
-      speedCm: Number(movement.speedCm ?? 0),
+      speedCm: maximumMovementCm,
+      profileSpeedCm: Number(movement.profileSpeedCm ?? 0),
+      minimumMovementCm,
+      blastPenaltyCm,
+      moveThroughBlastMarker: this.moveThroughBlastMarker,
       minimumBeforeTurnCm: Number(movement.minimumBeforeTurnCm ?? 0),
       maximumTurnDegrees: Number(movement.maximumTurnDegrees ?? 0),
       maximumTurns: Number(movement.maximumTurns ?? 1),
-      defaultDistanceCm: Number(movement.speedCm ?? 0),
+      defaultDistanceCm: maximumMovementCm,
       defaultBeforeTurnCm: Number(movement.minimumBeforeTurnCm ?? 0),
       defaultSignedTurnDegrees: 0,
       hasWarnings: warnings.length > 0,
@@ -91,7 +100,8 @@ export class BFGMovementPlannerApplication extends HandlebarsApplicationMixin(Ap
     return {
       distanceCm: Number(root.querySelector('[name="distanceCm"]')?.value),
       beforeTurnCm: Number(root.querySelector('[name="beforeTurnCm"]')?.value),
-      signedTurnDegrees: Number(root.querySelector('[name="signedTurnDegrees"]')?.value ?? 0)
+      signedTurnDegrees: Number(root.querySelector('[name="signedTurnDegrees"]')?.value ?? 0),
+      moveThroughBlastMarker: Boolean(root.querySelector('[name="moveThroughBlastMarker"]')?.checked)
     };
   }
 
@@ -145,6 +155,14 @@ export class BFGMovementPlannerApplication extends HandlebarsApplicationMixin(Ap
       this.updateTurnSliderLabel();
       turnSlider.addEventListener("input", () => this.updateTurnSliderLabel());
     }
+
+    const blastMarker = this.element.querySelector('[name="moveThroughBlastMarker"]');
+    blastMarker?.addEventListener("change", async () => {
+      clearMovementPreview();
+      this.lastPath = null;
+      this.moveThroughBlastMarker = Boolean(blastMarker.checked);
+      await this.render({ force: true });
+    });
 
     for (const input of this.element.querySelectorAll(
       '[name="distanceCm"], [name="beforeTurnCm"], [name="signedTurnDegrees"]'

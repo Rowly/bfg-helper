@@ -135,6 +135,7 @@ export function getMovementContext(token = canvas.tokens.controlled[0]) {
   const combatState = getCombatState(token);
   const movement = {
     ...profileMovement,
+    profileSpeedCm: Number(profileMovement.speedCm),
     speedCm: Math.max(
       0,
       Number(profileMovement.speedCm)
@@ -212,7 +213,10 @@ export function getMovementContext(token = canvas.tokens.controlled[0]) {
 export function calculateMovementPath(token, movement, values = {}) {
   const { pixelsPerCm } = getSceneScale();
 
-  const speedCm = Number(movement.speedCm);
+  const moveThroughBlastMarker = Boolean(values.moveThroughBlastMarker);
+  const profileSpeedCm = Number(movement.profileSpeedCm ?? movement.speedCm);
+  const speedCm = Math.max(0, Number(movement.speedCm) - (moveThroughBlastMarker ? 5 : 0));
+  const minimumMovementCm = Math.min(speedCm, profileSpeedCm / 2);
   const minimumBeforeTurnCm = Math.max(0, Number(movement.minimumBeforeTurnCm ?? 0));
   const maximumTurnDegrees = Math.max(0, Number(movement.maximumTurnDegrees ?? 0));
 
@@ -251,6 +255,13 @@ export function calculateMovementPath(token, movement, values = {}) {
 
   if (distanceCm > speedCm) {
     throw new Error(`This ship may move a maximum of ${speedCm} cm.`);
+  }
+
+  if (distanceCm < minimumMovementCm) {
+    const requirement = minimumMovementCm === speedCm
+      ? `must move its maximum possible distance of ${speedCm} cm`
+      : `must move at least ${minimumMovementCm} cm`;
+    throw new Error(`This ship ${requirement}.`);
   }
 
   if (!Number.isFinite(beforeTurnCm) || beforeTurnCm < 0) beforeTurnCm = 0;
@@ -328,6 +339,9 @@ export function calculateMovementPath(token, movement, values = {}) {
     signedTurnDegrees: hasTurn ? signedTurn : 0,
     hasTurn,
     speedCm,
+    profileSpeedCm,
+    minimumMovementCm,
+    moveThroughBlastMarker,
     minimumBeforeTurnCm,
     maximumTurnDegrees,
     pixelsPerCm,
@@ -393,12 +407,15 @@ export async function executeMovementPath(token, previewPath) {
   const recalculatedPath = calculateMovementPath(context.token, context.movement, {
     distanceCm: previewPath.distanceCm,
     beforeTurnCm: previewPath.beforeTurnCm,
-    signedTurnDegrees: previewPath.signedTurnDegrees
+    signedTurnDegrees: previewPath.signedTurnDegrees,
+    moveThroughBlastMarker: previewPath.moveThroughBlastMarker
   });
 
   if (
     !numbersMatch(recalculatedPath.pixelsPerCm, previewPath.pixelsPerCm)
     || !numbersMatch(recalculatedPath.speedCm, previewPath.speedCm)
+    || !numbersMatch(recalculatedPath.minimumMovementCm, previewPath.minimumMovementCm)
+    || recalculatedPath.moveThroughBlastMarker !== previewPath.moveThroughBlastMarker
     || !numbersMatch(recalculatedPath.minimumBeforeTurnCm, previewPath.minimumBeforeTurnCm)
     || !numbersMatch(recalculatedPath.maximumTurnDegrees, previewPath.maximumTurnDegrees)
     || !pointsMatch(recalculatedPath.finalCenter, previewPath.finalCenter)

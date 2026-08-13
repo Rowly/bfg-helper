@@ -161,6 +161,8 @@ These graphics are client-side PIXI overlays and are not persistent scene docume
 - The ship-profile catalogue is limited to two capital ships.
 - Automated tests are not yet configured.
 
+The Movement Planner enforces a minimum move of half profile speed. Crippled, Thrusters Damaged, and a manually selected Blast Marker penalty reduce maximum movement; if the reduced maximum falls below the normal minimum, the ship must move its maximum possible distance.
+
 The next movement milestone is preventing normal Foundry token dragging from bypassing the planned movement workflow.
 
 ## Artwork

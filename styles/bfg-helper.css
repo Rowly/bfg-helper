@@ -406,6 +406,15 @@
   gap: 0.65rem;
 }
 
+.bfg-movement-blast-marker {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid rgba(255, 204, 102, 0.45);
+  border-radius: 5px;
+}
+
 .bfg-movement-fields label {
   display: flex;
   flex-direction: column;

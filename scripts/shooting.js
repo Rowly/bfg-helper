@@ -21,6 +21,7 @@ import {
   rollCatastrophicDamage,
   setCatastrophicState
 } from "./catastrophic-damage.js";
+import { diceFaces, publishBFGDice } from "./dice.js";
 
 const FIRED_WEAPONS_FLAG = "firedWeapons";
 
@@ -310,7 +311,11 @@ export async function resolveDirectFire(analysis, {
   }
 
   const roll = await new Roll(attackDice > 0 ? `${attackDice}d6` : "0").evaluate();
-  const results = roll.dice.flatMap(die => die.results.map(result => Number(result.result)));
+  await publishBFGDice(roll, {
+    speaker: ChatMessage.getSpeaker({ token: attacker.document }),
+    flavor: `${weapon.name} firing at ${analysis.targetName}`
+  });
+  const results = diceFaces(roll);
   const hits = results.filter(result => result >= hitTarget).length;
   const attackingHulk = analysis.targetCombatState.hulk;
   const damage = previewHitDamage(target, attackingHulk ? 0 : hits);

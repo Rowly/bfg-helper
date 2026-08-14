@@ -64,7 +64,7 @@ export function despoilerProfile() {
         name: "Port Weapons Battery",
         type: "battery",
         rangeCm: 60,
-        strength: 10,
+        strength: 6,
         directionDegrees: 180,
         arcDegrees: 90
       },
@@ -73,7 +73,7 @@ export function despoilerProfile() {
         name: "Starboard Weapons Battery",
         type: "battery",
         rangeCm: 60,
-        strength: 10,
+        strength: 6,
         directionDegrees: 0,
         arcDegrees: 90
       },
@@ -85,25 +85,35 @@ export function despoilerProfile() {
         strength: 3,
         directionDegrees: -90,
         arcDegrees: 270
+      },
+      {
+        id: "prow-lance-battery",
+        name: "Prow Lance Battery",
+        type: "lance",
+        rangeCm: 30,
+        strength: 4,
+        directionDegrees: -90,
+        arcDegrees: 90
       }
     ],
 
     ordnance: [
       {
-        id: "prow-launch-bays",
-        name: "Prow Launch Bays",
-        capacity: 4
-      },
-      {
         id: "port-launch-bays",
         name: "Port Launch Bays",
-        capacity: 2
+        capacity: 4
       },
       {
         id: "starboard-launch-bays",
         name: "Starboard Launch Bays",
-        capacity: 2
+        capacity: 4
       }
+    ],
+
+    attackCraft: [
+      { id: "swiftdeath", name: "Swiftdeath Fighter", role: "fighter", speedCm: 30 },
+      { id: "doomfire", name: "Doomfire Bomber", role: "bomber", speedCm: 20 },
+      { id: "dreadclaw", name: "Dreadclaw Assault Boat", role: "assault-boat", speedCm: 30 }
     ]
   };
 }

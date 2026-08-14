@@ -1,5 +1,6 @@
 import { MODULE_ID } from "./constants.js";
 import { getShipData } from "./ship-data.js";
+import { diceFaces, publishBFGDice } from "./dice.js";
 
 export const CRITICAL_HITS_FLAG = "criticalHits";
 
@@ -96,11 +97,15 @@ function addEffect(state, result) {
   }
 }
 
-async function rollValues(formula) {
+async function rollValues(formula, flavor, document) {
   const roll = await new Roll(formula).evaluate();
+  await publishBFGDice(roll, {
+    speaker: ChatMessage.getSpeaker({ token: document }),
+    flavor
+  });
   return {
     total: Number(roll.total ?? 0),
-    values: roll.dice.flatMap(die => die.results.map(result => Number(result.result)))
+    values: diceFaces(roll)
   };
 }
 
@@ -111,7 +116,9 @@ export async function rollCriticalHits(tokenOrDocument, hullDamage) {
   const before = getCriticalState(document);
   const after = foundry.utils.deepClone(before);
   const targetClass = String(shipData?.stats?.targetClass ?? "capital").toLowerCase();
-  const checkRoll = checks > 0 ? await rollValues(`${checks}d6`) : { total: 0, values: [] };
+  const checkRoll = checks > 0
+    ? await rollValues(`${checks}d6`, `${document.name}: Critical-hit checks`, document)
+    : { total: 0, values: [] };
   const triggers = checkRoll.values.filter(value => value === 6).length;
   const results = [];
   let extraDamage = 0;
@@ -130,11 +137,11 @@ export async function rollCriticalHits(tokenOrDocument, hullDamage) {
   }
 
   for (let index = 0; index < triggers; index += 1) {
-    const tableRoll = await rollValues("2d6");
+    const tableRoll = await rollValues("2d6", `${document.name}: Critical Hits table`, document);
     const applicable = resolveApplicableResult(tableRoll.total, shipData, after);
     let extraRoll = null;
     if (applicable.result.extra) {
-      extraRoll = await rollValues(applicable.result.extra);
+      extraRoll = await rollValues(applicable.result.extra, `${document.name}: ${applicable.result.name} extra damage`, document);
       extraDamage += extraRoll.total;
     }
     addEffect(after, applicable.result);

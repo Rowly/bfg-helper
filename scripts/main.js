@@ -50,6 +50,15 @@ import {
 } from "./shooting.js";
 import { editSelectedShipCriticalState, getCriticalState, setCriticalState } from "./critical-hits.js";
 import { getCatastrophicState, setCatastrophicState } from "./catastrophic-damage.js";
+import {
+  getOrdnanceMarker,
+  getOrdnanceState,
+  clearOrdnanceMovementPreview,
+  initialiseOrdnanceControls,
+  launchSelectedShipAttackCraft,
+  moveSelectedOrdnance,
+  reloadSelectedShipOrdnance
+} from "./ordnance.js";
 
 Hooks.once("init", () => {
   console.log("BFG Helper | Initialising");
@@ -69,6 +78,7 @@ async function configureProfile(profileFactory) {
 }
 
 Hooks.once("ready", () => {
+  initialiseOrdnanceControls();
   game.bfgHelper = {
     configureSelectedShip,
     configureRetribution: () => configureProfile(retributionProfile),
@@ -135,6 +145,13 @@ Hooks.once("ready", () => {
       resolve: resolveDirectFire,
       commitDamage: commitDirectFireDamage
     },
+    ordnance: {
+      getMarker: getOrdnanceMarker,
+      getState: getOrdnanceState,
+      launchAttackCraft: launchSelectedShipAttackCraft,
+      move: moveSelectedOrdnance,
+      reloadSelected: reloadSelectedShipOrdnance
+    },
     turnManager
   };
   console.log("BFG Helper | API available as game.bfgHelper");
@@ -196,4 +213,5 @@ Hooks.on("canvasTearDown", () => {
   clearAllWeaponArcs();
   clearAllEngines();
   clearMovementPreview();
+  clearOrdnanceMovementPreview();
 });

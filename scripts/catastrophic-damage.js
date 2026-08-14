@@ -1,5 +1,6 @@
 import { MODULE_ID } from "./constants.js";
 import { getShipData } from "./ship-data.js";
+import { diceFaces, publishBFGDice } from "./dice.js";
 
 export const CATASTROPHIC_DAMAGE_FLAG = "catastrophicDamage";
 
@@ -8,11 +9,15 @@ function asTokenDocument(tokenOrDocument) {
   return tokenOrDocument?.documentName === "Token" ? tokenOrDocument : null;
 }
 
-async function rollValues(formula) {
+async function rollValues(formula, flavor, document) {
   const roll = await new Roll(formula).evaluate();
+  await publishBFGDice(roll, {
+    speaker: ChatMessage.getSpeaker({ token: document }),
+    flavor
+  });
   return {
     total: Number(roll.total ?? 0),
-    values: roll.dice.flatMap(die => die.results.map(result => Number(result.result)))
+    values: diceFaces(roll)
   };
 }
 
@@ -43,7 +48,7 @@ export async function rollCatastrophicDamage(tokenOrDocument) {
     };
   }
 
-  const table = await rollValues("2d6");
+  const table = await rollValues("2d6", `${document.name}: Catastrophic Damage table`, document);
   if (table.total <= 6) {
     return {
       type: "drifting-hulk",
@@ -67,7 +72,7 @@ export async function rollCatastrophicDamage(tokenOrDocument) {
     };
   }
 
-  const range = await rollValues("3d6");
+  const range = await rollValues("3d6", `${document.name}: Catastrophic explosion range`, document);
   const warp = table.total === 12;
   const blastMarkers = warp ? startingHits : Math.ceil(startingHits / 2);
   const explosionStrength = warp ? startingHits : Math.ceil(startingHits / 2);

@@ -6,6 +6,7 @@ import { getActingFleetIndex, getTurnState } from "./turn-manager.js";
 import { getCriticalState, isWeaponDisabledByCritical, rollCriticalHits, setCriticalState } from "./critical-hits.js";
 import { getCatastrophicState, rollCatastrophicDamage, setCatastrophicState } from "./catastrophic-damage.js";
 import { diceFaces, publishBFGDice } from "./dice.js";
+import { commitTurretDefenseChoice, getTurretDefenseChoice } from "./ordnance-defense.js";
 import {
   ORDNANCE_MARKER_FLAG,
   ORDNANCE_STATE_FLAG,
@@ -365,8 +366,11 @@ export async function resolveSelectedTorpedoAttack() {
   const previousAttack = marker.attackedTargets?.[fullRoundKey()] ?? [];
   if (previousAttack.includes(target.document.id)) errors.push(`${salvo.name} has already attacked ${target.name} this full round.`);
   if (!await confirmOverride(errors, "Override Torpedo Attack Restriction?")) return false;
-
-  const turretDice = Math.max(0, Number(combat.effectiveTurrets) || 0);
+  const defenseChoice = getTurretDefenseChoice(target);
+  const turretDice = defenseChoice === "attackCraft"
+    ? 0
+    : Math.max(0, Number(combat.effectiveTurrets) || 0);
+  if (!defenseChoice && turretDice > 0) await commitTurretDefenseChoice(target, "torpedo");
   const turretRoll = await new Roll(turretDice ? `${turretDice}d6` : "0").evaluate();
   await publishBFGDice(turretRoll, {
     speaker: ChatMessage.getSpeaker({ token: target.document }),

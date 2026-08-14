@@ -90,7 +90,7 @@ export class BFGMovementPlannerApplication extends HandlebarsApplicationMixin(Ap
       warnings,
       canExecute: Boolean(this.lastPath),
       previewSummary: this.lastPath
-        ? `${this.lastPath.distanceCm} cm total; ${this.lastPath.hasTurn ? `${this.lastPath.beforeTurnCm} cm then ${this.lastPath.turnDirection} ${this.lastPath.turnDegrees}°` : "straight ahead"}.`
+        ? `${this.lastPath.distanceCm} cm total; ${this.lastPath.hasTurn ? `${this.lastPath.beforeTurnCm} cm then ${this.lastPath.turnDirection} ${this.lastPath.turnDegrees} degrees` : "straight ahead"}.`
         : "No preview plotted."
     }, { inplace: false });
   }
@@ -121,10 +121,10 @@ export class BFGMovementPlannerApplication extends HandlebarsApplicationMixin(Ap
     const rounded = Number.isInteger(value) ? value : Math.round(value);
 
     if (rounded < 0) {
-      label.textContent = `Port ${Math.abs(rounded)}°`;
+      label.textContent = `Port ${Math.abs(rounded)} degrees`;
       label.dataset.direction = "port";
     } else if (rounded > 0) {
-      label.textContent = `Starboard ${rounded}°`;
+      label.textContent = `Starboard ${rounded} degrees`;
       label.dataset.direction = "starboard";
     } else {
       label.textContent = "Straight ahead";
@@ -192,10 +192,10 @@ export class BFGMovementPlannerApplication extends HandlebarsApplicationMixin(Ap
         this.setExecuteEnabled(true);
 
         const turnText = path.hasTurn
-          ? `${path.beforeTurnCm} cm, then ${path.turnDirection} ${path.turnDegrees}°, then ${path.remainingCm} cm`
+          ? `${path.beforeTurnCm} cm, then ${path.turnDirection} ${path.turnDegrees} degrees, then ${path.remainingCm} cm`
           : `${path.distanceCm} cm straight ahead`;
 
-        this.updateStatus(`Preview: ${turnText}. Final facing ${path.finalRotation.toFixed(0)}°.`, "success");
+        this.updateStatus(`Preview: ${turnText}. Final facing ${path.finalRotation.toFixed(0)} degrees.`, "success");
       } catch (error) {
         console.error("BFG Helper | Movement preview failed", error);
         ui.notifications.warn(error.message ?? String(error));
@@ -218,11 +218,11 @@ export class BFGMovementPlannerApplication extends HandlebarsApplicationMixin(Ap
         this.setExecuteEnabled(false);
 
         const turnText = executedPath.hasTurn
-          ? `${executedPath.beforeTurnCm} cm, then ${executedPath.turnDirection} ${executedPath.turnDegrees}Â°, then ${executedPath.remainingCm} cm`
+          ? `${executedPath.beforeTurnCm} cm, then ${executedPath.turnDirection} ${executedPath.turnDegrees} degrees, then ${executedPath.remainingCm} cm`
           : `${executedPath.distanceCm} cm straight ahead`;
 
         this.updateStatus(
-          `Movement executed: ${turnText}. Final facing ${executedPath.finalRotation.toFixed(0)}Â°.`,
+          `Movement executed: ${turnText}. Final facing ${executedPath.finalRotation.toFixed(0)} degrees.`,
           "success"
         );
         ui.notifications.info(`${token.name} movement executed.`);

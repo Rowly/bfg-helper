@@ -2,7 +2,7 @@ import { MODULE_ID } from "./constants.js";
 import { getShipData } from "./ship-data.js";
 import { getCombatState, halveRoundedUp, setCombatState } from "./combat-state.js";
 import { getTokenFleetId } from "./fleet-assignment.js";
-import { getTurnState } from "./turn-manager.js";
+import { getActingFleetIndex, getTurnState } from "./turn-manager.js";
 import { getCriticalState, isWeaponDisabledByCritical, rollCriticalHits, setCriticalState } from "./critical-hits.js";
 import { getCatastrophicState, rollCatastrophicDamage, setCatastrophicState } from "./catastrophic-damage.js";
 import { diceFaces, publishBFGDice } from "./dice.js";
@@ -272,7 +272,7 @@ export async function launchSelectedShipTorpedoes() {
   const rotation = launchRotation;
   const center = torpedoDestination(ship, rotation, Number(launcher.speedCm));
   const turnState = getTurnState();
-  const movedActivation = `${turnState.battleId ?? "no-battle"}:${turnState.round}:${turnState.activeFleetIndex}:ordnance`;
+  const movedActivation = `${turnState.battleId ?? "no-battle"}:${turnState.round}:${turnState.activeFleetIndex}:ordnance:${getActingFleetIndex(turnState)}`;
   const tokenDocument = await actor.getTokenDocument({
     x: center.x - grid,
     y: center.y - grid,

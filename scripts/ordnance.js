@@ -2,7 +2,7 @@ import { MODULE_ID } from "./constants.js";
 import { getShipData } from "./ship-data.js";
 import { getCombatState, halveRoundedUp } from "./combat-state.js";
 import { getTokenFleetId } from "./fleet-assignment.js";
-import { getTurnState } from "./turn-manager.js";
+import { getActingFleetIndex, getTurnState } from "./turn-manager.js";
 import { publishBFGDice } from "./dice.js";
 
 export const ORDNANCE_MARKER_FLAG = "ordnanceMarker";
@@ -115,7 +115,8 @@ function selectedToken() {
 }
 
 function activationKey(state = getTurnState()) {
-  return `${state.battleId ?? "no-battle"}:${state.round}:${state.activeFleetIndex}:${state.phase}`;
+  const actingFleetIndex = getActingFleetIndex(state);
+  return `${state.battleId ?? "no-battle"}:${state.round}:${state.activeFleetIndex}:${state.phase}:${actingFleetIndex}`;
 }
 
 export function getOrdnanceMarker(tokenOrDocument) {
@@ -352,7 +353,7 @@ export function clearOrdnanceMovementPreview() {
 }
 
 function attackCraftDragActivationKey(state = getTurnState()) {
-  return `${state.battleId ?? "no-battle"}:${state.round}:${state.activeFleetIndex}:ordnance`;
+  return `${state.battleId ?? "no-battle"}:${state.round}:${state.activeFleetIndex}:ordnance:${getActingFleetIndex(state)}`;
 }
 
 /** Validate and orient ordinary canvas drag movement for attack-craft markers. */
@@ -374,7 +375,7 @@ export function validateAttackCraftDrag(tokenDocument, changes, _options, userId
 
   const state = getTurnState();
   if (state.battleStarted) {
-    const activeFleet = state.fleets?.[state.activeFleetIndex];
+    const activeFleet = state.fleets?.[getActingFleetIndex(state)];
     const error = state.phase !== "ordnance"
       ? "Attack craft can only move during the Ordnance phase."
       : activeFleet?.id !== marker.fleetId
@@ -414,7 +415,7 @@ export async function completeAttackCraftDrag(tokenDocument, changes, _options, 
   const throughBlastMarker = await foundry.applications.api.DialogV2.confirm({
     window: { title: `Attack Craft Movement: ${tokenDocument.name}` },
     content: "<p>Did this attack-craft marker move through one or more Blast Markers?</p>",
-    yes: { label: "Yes — Roll Test", icon: "fa-solid fa-burst" },
+    yes: { label: "Yes: Roll Test", icon: "fa-solid fa-burst" },
     no: { label: "No", icon: "fa-solid fa-check" },
     rejectClose: false,
     modal: false
@@ -544,7 +545,7 @@ export async function moveSelectedOrdnance() {
   const errors = [];
   if (!state.battleStarted) errors.push("No battle is in progress.");
   if (state.phase !== "ordnance") errors.push("The current phase is not Ordnance.");
-  const activeFleet = state.fleets?.[state.activeFleetIndex];
+  const activeFleet = state.fleets?.[getActingFleetIndex(state)];
   if (activeFleet?.id !== marker.fleetId) errors.push(`${token.name} does not belong to the active fleet.`);
   if (marker.lastMovedActivation === activationKey(state)) errors.push(`${token.name} has already moved in this Ordnance phase.`);
   if (!await confirmGMOverride(errors, "Override Ordnance Movement Restriction?")) return false;

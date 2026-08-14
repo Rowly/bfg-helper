@@ -21,6 +21,7 @@ function defaultState() {
       { id: "fleet-b", name: "Fleet B" }
     ],
     activeFleetIndex: 0,
+    ordnanceFleetIndex: null,
     phase: "movement"
   };
 }
@@ -63,7 +64,14 @@ export function isPhase(phaseId) {
 
 export function getActiveFleet() {
   const state = getTurnState();
-  return state.fleets[state.activeFleetIndex] ?? null;
+  return state.fleets[getActingFleetIndex(state)] ?? null;
+}
+
+export function getActingFleetIndex(state = getTurnState()) {
+  if (state.phase === "ordnance" && Number.isInteger(state.ordnanceFleetIndex)) {
+    return state.ordnanceFleetIndex;
+  }
+  return state.activeFleetIndex;
 }
 
 function requireGM() {
@@ -138,11 +146,29 @@ export async function nextPhase() {
     return false;
   }
 
+  if (state.phase === "ordnance") {
+    if (state.ordnanceFleetIndex === state.activeFleetIndex) {
+      state.ordnanceFleetIndex = state.fleets.findIndex(
+        (_fleet, index) => index !== state.activeFleetIndex
+      );
+      if (state.ordnanceFleetIndex < 0) state.ordnanceFleetIndex = state.activeFleetIndex;
+    } else {
+      state.phase = "end";
+      state.ordnanceFleetIndex = null;
+    }
+    await setTurnState(state);
+    const fleet = state.fleets[getActingFleetIndex(state)]?.name ?? "Unknown fleet";
+    const phase = PHASES.find(item => item.id === state.phase)?.label ?? state.phase;
+    ui.notifications.info(`Round ${state.round}: ${fleet} - ${phase}.`);
+    return true;
+  }
+
   const currentIndex = PHASES.findIndex(phase => phase.id === state.phase);
   const safeIndex = currentIndex >= 0 ? currentIndex : 0;
 
   if (safeIndex < PHASES.length - 1) {
     state.phase = PHASES[safeIndex + 1].id;
+    if (state.phase === "ordnance") state.ordnanceFleetIndex = state.activeFleetIndex;
   } else {
     const isLastFleet = state.activeFleetIndex >= state.fleets.length - 1;
     state.activeFleetIndex = isLastFleet ? 0 : state.activeFleetIndex + 1;
@@ -151,9 +177,9 @@ export async function nextPhase() {
   }
 
   await setTurnState(state);
-  const fleet = state.fleets[state.activeFleetIndex]?.name ?? "Unknown fleet";
+  const fleet = state.fleets[getActingFleetIndex(state)]?.name ?? "Unknown fleet";
   const phase = PHASES.find(item => item.id === state.phase)?.label ?? state.phase;
-  ui.notifications.info(`Round ${state.round}: ${fleet} — ${phase}.`);
+  ui.notifications.info(`Round ${state.round}: ${fleet} - ${phase}.`);
   return true;
 }
 
@@ -166,11 +192,27 @@ export async function previousPhase() {
     return false;
   }
 
+  if (state.phase === "end") {
+    state.phase = "ordnance";
+    state.ordnanceFleetIndex = state.fleets.findIndex(
+      (_fleet, index) => index !== state.activeFleetIndex
+    );
+    if (state.ordnanceFleetIndex < 0) state.ordnanceFleetIndex = state.activeFleetIndex;
+    await setTurnState(state);
+    return true;
+  }
+  if (state.phase === "ordnance" && state.ordnanceFleetIndex !== state.activeFleetIndex) {
+    state.ordnanceFleetIndex = state.activeFleetIndex;
+    await setTurnState(state);
+    return true;
+  }
+
   const currentIndex = PHASES.findIndex(phase => phase.id === state.phase);
   const safeIndex = currentIndex >= 0 ? currentIndex : 0;
 
   if (safeIndex > 0) {
     state.phase = PHASES[safeIndex - 1].id;
+    state.ordnanceFleetIndex = null;
   } else if (state.activeFleetIndex > 0) {
     state.activeFleetIndex -= 1;
     state.phase = PHASES.at(-1).id;

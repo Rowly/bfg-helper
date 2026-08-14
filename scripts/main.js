@@ -59,6 +59,8 @@ import {
   validateAttackCraftDrag,
   completeAttackCraftDrag,
   refreshAttackCraftArtwork,
+  captureCAPShipMovement,
+  completeCAPShipMovement,
   launchSelectedShipAttackCraft,
   moveSelectedOrdnance,
   reloadSelectedShipOrdnance
@@ -68,6 +70,7 @@ import {
   refreshTorpedoMarkerArtwork,
   resolveSelectedTorpedoAttack
 } from "./torpedoes.js";
+import { assignSelectedFighterToCAP, resolveSelectedAttackCraft } from "./attack-craft.js";
 
 Hooks.once("init", () => {
   console.log("BFG Helper | Initialising");
@@ -162,6 +165,8 @@ Hooks.once("ready", () => {
       launchTorpedoes: launchSelectedShipTorpedoes,
       move: moveSelectedOrdnance,
       resolveTorpedoAttack: resolveSelectedTorpedoAttack,
+      resolveAttackCraft: resolveSelectedAttackCraft,
+      assignFighterCAP: assignSelectedFighterToCAP,
       reloadSelected: reloadSelectedShipOrdnance
     },
     turnManager
@@ -204,7 +209,9 @@ Hooks.on("targetToken", async (user) => {
 
 Hooks.on("preUpdateToken", preventLockedTokenRotation);
 Hooks.on("preUpdateToken", validateAttackCraftDrag);
+Hooks.on("preUpdateToken", captureCAPShipMovement);
 Hooks.on("updateToken", completeAttackCraftDrag);
+Hooks.on("updateToken", completeCAPShipMovement);
 
 Hooks.on("canvasReady", async () => {
   initialiseWeaponArcTicker();

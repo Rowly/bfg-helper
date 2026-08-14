@@ -22,6 +22,7 @@ import {
   setCatastrophicState
 } from "./catastrophic-damage.js";
 import { diceFaces, publishBFGDice } from "./dice.js";
+import { getOrdnanceMarker } from "./ordnance.js";
 
 const FIRED_WEAPONS_FLAG = "firedWeapons";
 
@@ -104,6 +105,10 @@ function armourTargetNumber(combatState, targetFacing) {
 
 export function getSelectedShootingTarget() {
   const targets = [...(game.user?.targets ?? [])];
+  if (targets.length === 0) {
+    const visiblyTargeted = (canvas.tokens?.placeables ?? []).filter(token => token.targeted?.has?.(game.user));
+    return visiblyTargeted.length === 1 ? visiblyTargeted[0] : null;
+  }
   return targets.length === 1 ? targets[0] : null;
 }
 
@@ -165,10 +170,12 @@ export function analyseDirectFire(attacker, target, weapon) {
   if (attacker.id === target.id) throw new Error("A ship cannot target itself.");
 
   const targetData = getShipData(target);
+  const targetOrdnance = getOrdnanceMarker(target);
   const attackerCombatState = getCombatState(attacker);
   const targetCombatState = getCombatState(target);
-  if (!targetData || !targetCombatState) {
-    throw new Error(`${target.name} is not a configured ship with combat statistics.`);
+  const isOrdnance = ["attackCraft", "torpedo"].includes(targetOrdnance?.category);
+  if ((!targetData || !targetCombatState) && !isOrdnance) {
+    throw new Error(`${target.name} is not a configured ship or ordnance marker.`);
   }
 
   const scale = pixelsPerCm();
@@ -191,24 +198,24 @@ export function analyseDirectFire(attacker, target, weapon) {
     Number(target.document.rotation ?? 0)
   );
   const absoluteTargetBearing = Math.abs(targetRelativeBearing);
-  const targetFacing = absoluteTargetBearing <= 45
+  const targetFacing = isOrdnance ? "Not applicable" : absoluteTargetBearing <= 45
     ? "Prow"
     : absoluteTargetBearing >= 135
       ? "Aft"
       : targetRelativeBearing > 0
         ? "Starboard beam"
         : "Port beam";
-  const orientation = targetFacing === "Prow"
+  const orientation = isOrdnance ? "ignored" : targetFacing === "Prow"
     ? "closing"
     : targetFacing === "Aft"
       ? "moving-away"
       : "abeam";
-  const targetArmour = targetFacing === "Prow"
+  const targetArmour = isOrdnance ? "6+" : targetFacing === "Prow"
     ? targetCombatState.armourFront
     : targetCombatState.armourOther;
 
   const attackerFleetId = getTokenFleetId(attacker);
-  const targetFleetId = getTokenFleetId(target);
+  const targetFleetId = isOrdnance ? targetOrdnance.fleetId : getTokenFleetId(target);
   const sameFleet = Boolean(attackerFleetId && targetFleetId && attackerFleetId === targetFleetId);
   const warnings = [];
   const weaponFired = hasWeaponFired(attacker, weapon.id);
@@ -219,8 +226,8 @@ export function analyseDirectFire(attacker, target, weapon) {
     : profileStrength;
   if (!targetFleetId) warnings.push(`${target.name} is not assigned to a fleet.`);
   if (sameFleet) warnings.push(`${target.name} belongs to the firing ship's fleet.`);
-  if (targetCombatState.hulk) warnings.push(`${target.name} is a hulk; hits will trigger one Catastrophic Damage roll.`);
-  else if (targetCombatState.outOfAction) warnings.push(`${target.name} is already out of action and cannot be targeted.`);
+  if (targetCombatState?.hulk) warnings.push(`${target.name} is a hulk; hits will trigger one Catastrophic Damage roll.`);
+  else if (targetCombatState?.outOfAction) warnings.push(`${target.name} is already out of action and cannot be targeted.`);
   if (weaponFired) warnings.push(`${weapon.name} has already fired during this Shooting phase.`);
   if (weaponDisabled) warnings.push(`${weapon.name} cannot fire because its armament is critically damaged.`);
 
@@ -241,14 +248,16 @@ export function analyseDirectFire(attacker, target, weapon) {
     targetFacing,
     targetArmour,
     orientation,
-    targetClass: targetClassFor(targetData),
+    targetClass: isOrdnance ? "ordnance" : targetClassFor(targetData),
     targetCombatState,
+    targetOrdnance,
+    isOrdnance,
     sameFleet,
     weaponFired,
     weaponDisabled,
     warnings,
-    legalTarget: !sameFleet && Boolean(targetFleetId) && (!targetCombatState.outOfAction || targetCombatState.hulk),
-    legal: inRange && inArc && !sameFleet && Boolean(targetFleetId) && (!targetCombatState.outOfAction || targetCombatState.hulk) && !weaponFired && !weaponDisabled
+    legalTarget: !sameFleet && Boolean(targetFleetId) && (isOrdnance || !targetCombatState.outOfAction || targetCombatState.hulk),
+    legal: inRange && inArc && !sameFleet && Boolean(targetFleetId) && (isOrdnance || !targetCombatState.outOfAction || targetCombatState.hulk) && !weaponFired && !weaponDisabled
   };
 }
 
@@ -293,7 +302,7 @@ export async function resolveDirectFire(analysis, {
 
   if (type === "lance") {
     attackDice = strength;
-    hitTarget = 4;
+    hitTarget = analysis.isOrdnance ? 6 : 4;
   } else if (type === "battery") {
     batteryCalculation = calculateBatteryDice({
       firepower: strength,
@@ -301,11 +310,11 @@ export async function resolveDirectFire(analysis, {
       orientation: analysis.orientation,
       rangeCm: analysis.rangeCm,
       interveningBlastMarkers,
-      countsAsDefences,
+      countsAsDefences: analysis.isOrdnance ? false : countsAsDefences,
       ignoreLongRangeShift: Boolean(weapon.ignoreLongRangeShift)
     });
     attackDice = batteryCalculation.attackDice;
-    hitTarget = armourTargetNumber(analysis.targetCombatState, analysis.targetFacing);
+    hitTarget = analysis.isOrdnance ? 6 : armourTargetNumber(analysis.targetCombatState, analysis.targetFacing);
   } else {
     throw new Error(`${weapon.name} is not configured as a battery or lance weapon.`);
   }
@@ -317,6 +326,24 @@ export async function resolveDirectFire(analysis, {
   });
   const results = diceFaces(roll);
   const hits = results.filter(result => result >= hitTarget).length;
+  if (analysis.isOrdnance) {
+    const ordnanceHit = hits > 0;
+    await markWeaponFired(attacker, weapon.id, currentContext.state);
+    const escape = value => foundry.utils.escapeHTML(String(value));
+    await ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ token: attacker.document }),
+      content: `<div class="bfg-shooting-chat-result"><strong>${escape(weapon.name)}</strong> firing at <strong>${escape(analysis.targetName)}</strong>.<br>Dice (${attackDice}d6): <strong>${escape(results.join(", ") || "No dice")}</strong><br>Required: <strong>6+</strong>; Hits: <strong>${hits}</strong><br>${ordnanceHit ? "The ordnance marker or entire attack-craft wave is destroyed." : "The ordnance remains in play."}</div>`
+    });
+    return {
+      attackerId: analysis.attackerId, targetId: analysis.targetId, targetName: analysis.targetName,
+      weaponId: weapon.id, weaponName: weapon.name, weaponType: type,
+      attackDice, hitTarget, results, hits, batteryCalculation,
+      isOrdnance: true, ordnanceHit,
+      ordnanceCategory: analysis.targetOrdnance.category,
+      ordnanceWaveId: analysis.targetOrdnance.waveId ?? null,
+      interveningBlastMarkers: Boolean(interveningBlastMarkers), countsAsDefences: false
+    };
+  }
   const attackingHulk = analysis.targetCombatState.hulk;
   const damage = previewHitDamage(target, attackingHulk ? 0 : hits);
   const critical = attackingHulk
@@ -391,6 +418,22 @@ export async function commitDirectFireDamage(resolution) {
   if (!resolution?.targetId) throw new Error("Roll an attack before committing damage.");
   const target = canvas.tokens?.get(resolution.targetId);
   if (!target) throw new Error("The target is no longer on this Scene.");
+
+  if (resolution.isOrdnance) {
+    const marker = getOrdnanceMarker(target);
+    if (!marker || marker.category !== resolution.ordnanceCategory || (marker.waveId ?? null) !== resolution.ordnanceWaveId) {
+      throw new Error("The ordnance target changed after the roll. Resolve the attack again.");
+    }
+    if (!resolution.ordnanceHit) return { removed: false };
+    const targets = marker.category === "attackCraft"
+      ? (canvas.tokens?.placeables ?? []).filter(token => {
+          const other = getOrdnanceMarker(token);
+          return other?.category === "attackCraft" && other.waveId === marker.waveId;
+        })
+      : [target];
+    await canvas.scene.deleteEmbeddedDocuments("Token", targets.map(token => token.document.id));
+    return { removed: true, count: targets.length };
+  }
 
   const current = getCombatState(target);
   const before = resolution.damage?.before;

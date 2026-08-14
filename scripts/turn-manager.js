@@ -131,6 +131,9 @@ export async function resetBattle() {
     if (token.document.getFlag(MODULE_ID, "movementState") !== undefined) {
       await token.document.unsetFlag(MODULE_ID, "movementState");
     }
+    if (token.document.getFlag(MODULE_ID, "pendingHitAndRun") !== undefined) {
+      await token.document.unsetFlag(MODULE_ID, "pendingHitAndRun");
+    }
   }
   await setTurnState(defaultState());
   ui.notifications.info("Battlefleet Gothic turn state reset.");

@@ -11,6 +11,8 @@ const ORDNANCE_PREVIEW_NAME = "bfg-ordnance-movement-preview";
 const ORDNANCE_TRAIL_PREFIX = "bfg-ordnance-trail-";
 let ordnanceControlsInitialised = false;
 const blastMarkerChoices = new Map();
+const pendingAttackCraftDrags = new Map();
+const pendingCAPShipMoves = new Map();
 const ATTACK_CRAFT_IMAGES = Object.freeze({
   fighter: "modules/bfg-helper/assets/attack-craft-fighters.svg",
   bomber: "modules/bfg-helper/assets/attack-craft-bombers.svg",
@@ -88,7 +90,7 @@ export function initialiseOrdnanceControls() {
       input.dispatchEvent(new Event("change", { bubbles: true }));
     }
     if (needle) needle.style.transform = `translateX(-50%) rotate(${bearing}deg)`;
-    if (output) output.value = `${bearing}°`;
+    if (output) output.value = `${bearing} degrees`;
   });
 
   document.addEventListener("change", event => {
@@ -358,6 +360,7 @@ function attackCraftDragActivationKey(state = getTurnState()) {
 
 /** Validate and orient ordinary canvas drag movement for attack-craft markers. */
 export function validateAttackCraftDrag(tokenDocument, changes, _options, userId) {
+  if (_options?.bfgWaveMove) return;
   if (userId !== game.user?.id) return;
   const marker = getOrdnanceMarker(tokenDocument);
   if (marker?.category !== "attackCraft") return;
@@ -376,7 +379,9 @@ export function validateAttackCraftDrag(tokenDocument, changes, _options, userId
   const state = getTurnState();
   if (state.battleStarted) {
     const activeFleet = state.fleets?.[getActingFleetIndex(state)];
-    const error = state.phase !== "ordnance"
+    const error = marker.capShipId
+      ? `${tokenDocument.name} is on Combat Air Patrol and cannot move independently.`
+      : state.phase !== "ordnance"
       ? "Attack craft can only move during the Ordnance phase."
       : activeFleet?.id !== marker.fleetId
         ? `${tokenDocument.name} does not belong to the active fleet.`
@@ -389,28 +394,34 @@ export function validateAttackCraftDrag(tokenDocument, changes, _options, userId
     }
   }
 
-  const maximumPixels = Number(marker.speedCm) * pixelsPerCm();
+  const maximumCm = Number(marker.speedCm);
+  const maximumPixels = maximumCm * pixelsPerCm();
   if (distancePixels > maximumPixels + 0.01) {
-    ui.notifications.warn(`${tokenDocument.name} may move a maximum of ${marker.speedCm} cm.`);
+    ui.notifications.warn(`${tokenDocument.name} may move a maximum of ${maximumCm} cm.`);
     return false;
   }
 
   changes.rotation = (Math.atan2(dx, -dy) * 180 / Math.PI + 360) % 360;
+  pendingAttackCraftDrags.set(tokenDocument.id, { dx, dy, rotation: changes.rotation });
 }
 
 /** Record a completed attack-craft drag and resolve its manual Blast Marker test. */
 export async function completeAttackCraftDrag(tokenDocument, changes, _options, userId) {
+  if (_options?.bfgWaveMove) return;
   if (userId !== game.user?.id) return;
   const marker = getOrdnanceMarker(tokenDocument);
   if (marker?.category !== "attackCraft") return;
   if (changes.x === undefined && changes.y === undefined) return;
+  const drag = pendingAttackCraftDrags.get(tokenDocument.id);
+  pendingAttackCraftDrags.delete(tokenDocument.id);
+  if (!drag) return;
 
   const state = getTurnState();
-  if (state.battleStarted) {
-    await tokenDocument.update({
-      [`flags.${MODULE_ID}.${ORDNANCE_MARKER_FLAG}.lastMovedActivation`]: attackCraftDragActivationKey(state)
-    });
-  }
+  const activation = attackCraftDragActivationKey(state);
+  await tokenDocument.update({
+    [`flags.${MODULE_ID}.${ORDNANCE_MARKER_FLAG}.waveId`]: foundry.utils.randomID(),
+    [`flags.${MODULE_ID}.${ORDNANCE_MARKER_FLAG}.lastMovedActivation`]: state.battleStarted ? activation : null
+  }, { bfgWaveMove: true });
 
   const throughBlastMarker = await foundry.applications.api.DialogV2.confirm({
     window: { title: `Attack Craft Movement: ${tokenDocument.name}` },
@@ -430,6 +441,43 @@ export async function completeAttackCraftDrag(tokenDocument, changes, _options, 
   if (roll.total === 6) {
     await tokenDocument.delete();
     ui.notifications.warn(`${tokenDocument.name} was destroyed by the Blast Markers.`);
+  }
+}
+
+export function captureCAPShipMovement(tokenDocument, changes) {
+  if (!getShipData(tokenDocument)) return;
+  if (changes.x === undefined && changes.y === undefined && changes.rotation === undefined) return;
+  const token = canvas.tokens?.get(tokenDocument.id);
+  if (!token) return;
+  pendingCAPShipMoves.set(tokenDocument.id, {
+    center: { x: Number(token.center.x), y: Number(token.center.y) },
+    rotation: Number(tokenDocument.rotation ?? 0)
+  });
+}
+
+export async function completeCAPShipMovement(tokenDocument, changes) {
+  if (changes.x === undefined && changes.y === undefined && changes.rotation === undefined) return;
+  const before = pendingCAPShipMoves.get(tokenDocument.id);
+  pendingCAPShipMoves.delete(tokenDocument.id);
+  if (!before) return;
+  const ship = canvas.tokens?.get(tokenDocument.id);
+  if (!ship) return;
+  const rotationChange = (Number(tokenDocument.rotation ?? 0) - before.rotation) * Math.PI / 180;
+  const cosine = Math.cos(rotationChange);
+  const sine = Math.sin(rotationChange);
+  const cap = (canvas.tokens?.placeables ?? []).filter(token =>
+    getOrdnanceMarker(token)?.capShipId === tokenDocument.id
+  );
+  for (const fighter of cap) {
+    const relativeX = fighter.center.x - before.center.x;
+    const relativeY = fighter.center.y - before.center.y;
+    const rotatedX = relativeX * cosine - relativeY * sine;
+    const rotatedY = relativeX * sine + relativeY * cosine;
+    await fighter.document.update({
+      x: ship.center.x + rotatedX - fighter.w / 2,
+      y: ship.center.y + rotatedY - fighter.h / 2,
+      rotation: Number(fighter.document.rotation ?? 0) + rotationChange * 180 / Math.PI
+    }, { bfgWaveMove: true });
   }
 }
 

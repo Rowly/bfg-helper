@@ -39,7 +39,7 @@
     </label>
 
     <p class="notes">
-      Use Foundry's target control to target exactly one enemy ship, then refresh the target and check the firing solution.
+      Use Foundry's target control to target exactly one enemy ship or ordnance marker, then refresh the target and check the firing solution.
     </p>
 
     <div class="bfg-shooting-actions">
@@ -72,8 +72,10 @@
         <div><span>Gunnery orientation</span><strong>{{analysis.orientation}}</strong></div>
         <div><span>Target class</span><strong>{{analysis.targetClass}}</strong></div>
         <div><span>Target armour</span><strong>{{analysis.targetArmour}}</strong></div>
-        <div><span>Target hits</span><strong>{{analysis.targetCombatState.currentHits}}/{{analysis.targetCombatState.maximumHits}}</strong></div>
-        <div><span>Target shields</span><strong>{{analysis.targetCombatState.currentShields}}/{{analysis.targetCombatState.maximumShields}}</strong></div>
+        {{#unless analysis.isOrdnance}}
+          <div><span>Target hits</span><strong>{{analysis.targetCombatState.currentHits}}/{{analysis.targetCombatState.maximumHits}}</strong></div>
+          <div><span>Target shields</span><strong>{{analysis.targetCombatState.currentShields}}/{{analysis.targetCombatState.maximumShields}}</strong></div>
+        {{/unless}}
         {{#if analysis.gunneryCalculation}}
           <div><span>Base column</span><strong>{{analysis.gunneryCalculation.startingColumnLabel}}</strong></div>
           <div><span>Column shifts</span><strong>{{analysis.gunneryCalculation.shiftsLabel}}</strong></div>
@@ -92,11 +94,13 @@
           <input type="checkbox" name="interveningBlastMarkers" {{#if interveningBlastMarkers}}checked{{/if}}>
           Intervening Blast Markers (one column right)
         </label>
-        <label>
-          <input type="checkbox" name="countsAsDefences" {{#if countsAsDefences}}checked{{/if}}>
-          Target counts as Defences
-        </label>
-        <p class="notes">Range shifts are applied automatically. Use Defences for a stationary ship that has not moved at least 5 cm.</p>
+        {{#unless analysis.isOrdnance}}
+          <label>
+            <input type="checkbox" name="countsAsDefences" {{#if countsAsDefences}}checked{{/if}}>
+            Target counts as Defences
+          </label>
+        {{/unless}}
+        <p class="notes">Range shifts are applied automatically.{{#unless analysis.isOrdnance}} Use Defences for a stationary ship that has not moved at least 5 cm.{{/unless}}</p>
         <button type="button" data-bfg-action="resolve-direct-fire" class="bfg-primary-button" {{#unless canResolveAttack}}disabled{{/unless}}>
           <i class="fa-solid fa-dice"></i>
           Resolve attack
@@ -123,6 +127,9 @@
         <div><span>Required score</span><strong>{{resolution.hitTarget}}+</strong></div>
         <div><span>Die results</span><strong>{{resolution.resultsLabel}}</strong></div>
         <div><span>Hits scored</span><strong>{{resolution.hits}}</strong></div>
+        {{#if resolution.isOrdnance}}
+          <div><span>Ordnance result</span><strong>{{#if resolution.ordnanceHit}}Marker or wave destroyed{{else}}No effect{{/if}}</strong></div>
+        {{else}}
         <div><span>Shield hits</span><strong>{{resolution.damage.shieldHits}}</strong></div>
         {{#if resolution.damage.shieldHits}}
           <p><i class="fa-solid fa-circle-exclamation"></i> Place one Blast Marker token manually for this attack's shield hits.</p>
@@ -148,13 +155,14 @@
         <div><span>Remaining hull</span><strong>{{resolution.damage.after.currentHits}}</strong></div>
         {{#if resolution.damage.after.crippled}}<p><i class="fa-solid fa-triangle-exclamation"></i> Target will be crippled.</p>{{/if}}
         {{#if resolution.damage.after.outOfAction}}<p><i class="fa-solid fa-skull"></i> Target will be out of action.</p>{{/if}}
+        {{/if}}
         {{#if canCommitDamage}}
           <button type="button" data-bfg-action="commit-direct-fire-damage" class="bfg-primary-button">
             <i class="fa-solid fa-check"></i>
-            Apply damage to target
+            {{#if resolution.isOrdnance}}Confirm ordnance result{{else}}Apply damage to target{{/if}}
           </button>
         {{else if damageCommitted}}
-          <p class="bfg-resolution-committed"><i class="fa-solid fa-check"></i> Damage applied.</p>
+          <p class="bfg-resolution-committed"><i class="fa-solid fa-check"></i> {{#if resolution.isOrdnance}}Ordnance result confirmed.{{else}}Damage applied.{{/if}}</p>
         {{else}}
           <p class="notes">A Gamemaster must apply the resolved damage.</p>
         {{/if}}

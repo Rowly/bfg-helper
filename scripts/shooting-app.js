@@ -79,7 +79,7 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
           orientation: this.analysis.orientation,
           rangeCm: this.analysis.rangeCm,
           interveningBlastMarkers: this.interveningBlastMarkers,
-          countsAsDefences: this.countsAsDefences,
+          countsAsDefences: this.analysis.isOrdnance ? false : this.countsAsDefences,
           ignoreLongRangeShift: Boolean(this.analysis.weapon.ignoreLongRangeShift)
         })
       : null;
@@ -118,8 +118,8 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
       ? {
           ...this.resolution,
           resultsLabel: this.resolution.results.join(", ") || "No dice",
-          criticalChecksLabel: this.resolution.damage.critical.checkResults.join(", ") || "None",
-          catastrophicRangeLabel: this.resolution.damage.catastrophic?.explosionRangeDice?.join(", ") || "None",
+          criticalChecksLabel: this.resolution.damage?.critical?.checkResults?.join(", ") || "None",
+          catastrophicRangeLabel: this.resolution.damage?.catastrophic?.explosionRangeDice?.join(", ") || "None",
           shiftsLabel: shiftLabel(this.resolution.batteryCalculation)
         }
       : null;
@@ -206,7 +206,7 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
         const shooting = getShootingContext(this.token);
         if (!shooting.ok) throw new Error(shooting.error);
         const target = getSelectedShootingTarget();
-        if (!target) throw new Error("Target exactly one ship, then refresh or check the firing solution.");
+        if (!target) throw new Error("Target exactly one ship or ordnance marker, then refresh or check the firing solution.");
 
         this.weaponIndex = Number(weaponSelect?.value ?? this.weaponIndex);
         const weapon = shooting.weapons[this.weaponIndex];
@@ -267,7 +267,7 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
         this.damageCommitted = false;
         await this.render({ force: true });
         this.updateStatus(
-          `Attack rolled: ${this.resolution.hits} hit${this.resolution.hits === 1 ? "" : "s"}. Review damage before committing.`,
+          `Attack rolled: ${this.resolution.hits} hit${this.resolution.hits === 1 ? "" : "s"}. Review the result before confirming.`,
           "success"
         );
       } catch (error) {
@@ -285,7 +285,7 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
         await commitDirectFireDamage(this.resolution);
         this.damageCommitted = true;
         await this.render({ force: true });
-        this.updateStatus("Damage committed to the target ship.", "success");
+        this.updateStatus(this.resolution.isOrdnance ? "Ordnance result confirmed." : "Damage committed to the target ship.", "success");
       } catch (error) {
         console.error("BFG Helper | Damage commit failed", error);
         ui.notifications.warn(error.message ?? String(error));

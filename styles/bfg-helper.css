@@ -789,6 +789,18 @@
   pointer-events: none;
 }
 
+.bfg-bearing-dial.bfg-bearing-arc-dial {
+  border-color: transparent;
+  background: conic-gradient(
+    from var(--bfg-arc-start) at 50% 50%,
+    rgba(255, 204, 102, 0.30) 0deg,
+    rgba(255, 204, 102, 0.16) var(--bfg-arc-size),
+    transparent var(--bfg-arc-size),
+    transparent 360deg
+  );
+  filter: drop-shadow(0 0 5px rgba(255, 204, 102, 0.45));
+}
+
 .bfg-critical-summary {
   margin-top: 0.25rem;
   color: rgba(255, 184, 77, 0.95);

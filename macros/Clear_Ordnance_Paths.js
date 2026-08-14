@@ -1,0 +1,1 @@
+game.bfgHelper.ordnance.clearTrails();

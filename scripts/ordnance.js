@@ -8,8 +8,55 @@ import { publishBFGDice } from "./dice.js";
 export const ORDNANCE_MARKER_FLAG = "ordnanceMarker";
 export const ORDNANCE_STATE_FLAG = "ordnanceState";
 const ORDNANCE_PREVIEW_NAME = "bfg-ordnance-movement-preview";
+const ORDNANCE_TRAIL_PREFIX = "bfg-ordnance-trail-";
 let ordnanceControlsInitialised = false;
 const blastMarkerChoices = new Map();
+const ATTACK_CRAFT_IMAGES = Object.freeze({
+  fighter: "modules/bfg-helper/assets/attack-craft-fighters.svg",
+  bomber: "modules/bfg-helper/assets/attack-craft-bombers.svg",
+  "assault-boat": "modules/bfg-helper/assets/attack-craft-boarding.svg"
+});
+
+function attackCraftImage(craft) {
+  return ATTACK_CRAFT_IMAGES[craft?.role] ?? ATTACK_CRAFT_IMAGES.fighter;
+}
+
+export async function refreshAttackCraftArtwork() {
+  if (!game.user?.isGM) return false;
+  for (const actor of game.actors ?? []) {
+    const craftId = actor.getFlag(MODULE_ID, "ordnanceActorType");
+    if (!craftId || craftId === "torpedo-salvo") continue;
+    const craft = [
+      { id: "swiftdeath", role: "fighter" },
+      { id: "doomfire", role: "bomber" },
+      { id: "dreadclaw", role: "assault-boat" }
+    ].find(item => item.id === craftId) ?? {
+      id: craftId,
+      role: actor.getFlag(MODULE_ID, "ordnanceRole")
+    };
+    if (!craft.role) continue;
+    const image = attackCraftImage(craft);
+    await actor.update({
+      img: image,
+      "prototypeToken.width": 2,
+      "prototypeToken.height": 2,
+      "prototypeToken.texture.src": image,
+      "prototypeToken.texture.fit": "contain"
+    });
+  }
+  for (const token of canvas.tokens?.placeables ?? []) {
+    const marker = getOrdnanceMarker(token);
+    if (marker?.category !== "attackCraft") continue;
+    const image = attackCraftImage(marker);
+    await token.document.update({
+      width: 2,
+      height: 2,
+      "texture.src": image,
+      "texture.fit": "contain"
+    });
+  }
+  return true;
+}
 
 export function initialiseOrdnanceControls() {
   if (ordnanceControlsInitialised) return;
@@ -24,6 +71,14 @@ export function initialiseOrdnanceControls() {
     const x = event.clientX - bounds.left - bounds.width / 2;
     const y = event.clientY - bounds.top - bounds.height / 2;
     const bearing = Math.round((Math.atan2(x, -y) * 180 / Math.PI + 360) % 360);
+    const arcCentre = Number(dial.dataset.arcCentre);
+    const arcHalf = Number(dial.dataset.arcHalf);
+    if (Number.isFinite(arcCentre) && Number.isFinite(arcHalf)) {
+      let difference = bearing - arcCentre;
+      if (difference > 180) difference -= 360;
+      if (difference <= -180) difference += 360;
+      if (Math.abs(difference) > arcHalf + 0.000001) return;
+    }
     const input = dial.querySelector('input[name="rotation"]');
     const needle = dial.querySelector(".bfg-bearing-needle");
     const output = dial.querySelector("output");
@@ -133,7 +188,20 @@ async function getOrCreateMarkerActor(craft) {
   const existing = game.actors?.find(actor =>
     actor.getFlag(MODULE_ID, "ordnanceActorType") === craft.id
   );
-  if (existing) return existing;
+  if (existing) {
+    if (game.user?.isGM) {
+      const image = attackCraftImage(craft);
+      await existing.update({
+        img: image,
+        "prototypeToken.width": 2,
+        "prototypeToken.height": 2,
+        "prototypeToken.texture.src": image,
+        "prototypeToken.texture.fit": "contain",
+        [`flags.${MODULE_ID}.ordnanceRole`]: craft.role
+      });
+    }
+    return existing;
+  }
 
   if (!game.user?.isGM) {
     throw new Error(`A Gamemaster must create the ${craft.name} marker Actor before players can launch it.`);
@@ -142,16 +210,16 @@ async function getOrCreateMarkerActor(craft) {
   const actor = await Actor.create({
     name: craft.name,
     type: actorType(),
-    img: "icons/svg/wing.svg",
+    img: attackCraftImage(craft),
     prototypeToken: {
       name: craft.name,
       width: 2,
       height: 2,
-      texture: { src: "icons/svg/wing.svg", fit: "contain" },
+      texture: { src: attackCraftImage(craft), fit: "contain" },
       disposition: CONST.TOKEN_DISPOSITIONS.NEUTRAL,
       lockRotation: false
     },
-    flags: { [MODULE_ID]: { ordnanceActorType: craft.id } }
+    flags: { [MODULE_ID]: { ordnanceActorType: craft.id, ordnanceRole: craft.role } }
   }, { renderSheet: false });
   return actor;
 }
@@ -283,6 +351,125 @@ export function clearOrdnanceMovementPreview() {
   globalThis.bfgOrdnanceMovementPreview = null;
 }
 
+function attackCraftDragActivationKey(state = getTurnState()) {
+  return `${state.battleId ?? "no-battle"}:${state.round}:${state.activeFleetIndex}:ordnance`;
+}
+
+/** Validate and orient ordinary canvas drag movement for attack-craft markers. */
+export function validateAttackCraftDrag(tokenDocument, changes, _options, userId) {
+  if (userId !== game.user?.id) return;
+  const marker = getOrdnanceMarker(tokenDocument);
+  if (marker?.category !== "attackCraft") return;
+  if (changes.x === undefined && changes.y === undefined) return;
+
+  const from = { x: Number(tokenDocument.x), y: Number(tokenDocument.y) };
+  const to = {
+    x: Number(changes.x ?? tokenDocument.x),
+    y: Number(changes.y ?? tokenDocument.y)
+  };
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const distancePixels = Math.hypot(dx, dy);
+  if (!(distancePixels > 0)) return;
+
+  const state = getTurnState();
+  if (state.battleStarted) {
+    const activeFleet = state.fleets?.[state.activeFleetIndex];
+    const error = state.phase !== "ordnance"
+      ? "Attack craft can only move during the Ordnance phase."
+      : activeFleet?.id !== marker.fleetId
+        ? `${tokenDocument.name} does not belong to the active fleet.`
+        : marker.lastMovedActivation === attackCraftDragActivationKey(state)
+          ? `${tokenDocument.name} has already moved this Ordnance phase.`
+          : null;
+    if (error) {
+      ui.notifications.warn(error);
+      return false;
+    }
+  }
+
+  const maximumPixels = Number(marker.speedCm) * pixelsPerCm();
+  if (distancePixels > maximumPixels + 0.01) {
+    ui.notifications.warn(`${tokenDocument.name} may move a maximum of ${marker.speedCm} cm.`);
+    return false;
+  }
+
+  changes.rotation = (Math.atan2(dx, -dy) * 180 / Math.PI + 360) % 360;
+}
+
+/** Record a completed attack-craft drag and resolve its manual Blast Marker test. */
+export async function completeAttackCraftDrag(tokenDocument, changes, _options, userId) {
+  if (userId !== game.user?.id) return;
+  const marker = getOrdnanceMarker(tokenDocument);
+  if (marker?.category !== "attackCraft") return;
+  if (changes.x === undefined && changes.y === undefined) return;
+
+  const state = getTurnState();
+  if (state.battleStarted) {
+    await tokenDocument.update({
+      [`flags.${MODULE_ID}.${ORDNANCE_MARKER_FLAG}.lastMovedActivation`]: attackCraftDragActivationKey(state)
+    });
+  }
+
+  const throughBlastMarker = await foundry.applications.api.DialogV2.confirm({
+    window: { title: `Attack Craft Movement: ${tokenDocument.name}` },
+    content: "<p>Did this attack-craft marker move through one or more Blast Markers?</p>",
+    yes: { label: "Yes — Roll Test", icon: "fa-solid fa-burst" },
+    no: { label: "No", icon: "fa-solid fa-check" },
+    rejectClose: false,
+    modal: false
+  });
+  if (!throughBlastMarker) return;
+
+  const roll = await new Roll("1d6").evaluate();
+  await publishBFGDice(roll, {
+    speaker: ChatMessage.getSpeaker({ token: tokenDocument }),
+    flavor: `${tokenDocument.name}: Attack craft passing through Blast Markers`
+  });
+  if (roll.total === 6) {
+    await tokenDocument.delete();
+    ui.notifications.warn(`${tokenDocument.name} was destroyed by the Blast Markers.`);
+  }
+}
+
+export function drawOrdnanceTrail(start, destination, widthPixels, { colour = 0xffcc66 } = {}) {
+  if (!canvas?.ready || !canvas.tokens) return null;
+  const dx = Number(destination.x) - Number(start.x);
+  const dy = Number(destination.y) - Number(start.y);
+  const length = Math.hypot(dx, dy);
+  if (!(length > 0)) return null;
+  const halfWidth = Math.max(1, Number(widthPixels) / 2);
+  const offsetX = -dy / length * halfWidth;
+  const offsetY = dx / length * halfWidth;
+  const grid = Number(canvas.scene?.grid?.size ?? 100);
+  const graphics = new PIXI.Graphics();
+  graphics.name = `${ORDNANCE_TRAIL_PREFIX}${foundry.utils.randomID()}`;
+  graphics.beginFill(colour, 0.10);
+  graphics.drawPolygon([
+    start.x + offsetX, start.y + offsetY,
+    destination.x + offsetX, destination.y + offsetY,
+    destination.x - offsetX, destination.y - offsetY,
+    start.x - offsetX, start.y - offsetY
+  ]);
+  graphics.endFill();
+  graphics.lineStyle(Math.max(2, grid * 0.035), colour, 0.55);
+  graphics.moveTo(start.x, start.y);
+  graphics.lineTo(destination.x, destination.y);
+  canvas.tokens.addChildAt(graphics, 0);
+  return graphics;
+}
+
+export function clearAllOrdnanceTrails({ notify = true } = {}) {
+  let count = 0;
+  for (const child of [...(canvas.tokens?.children ?? [])]) {
+    if (!String(child?.name ?? "").startsWith(ORDNANCE_TRAIL_PREFIX)) continue;
+    child.destroy({ children: true });
+    count += 1;
+  }
+  if (notify) ui.notifications.info(`Cleared ${count} ordnance path${count === 1 ? "" : "s"}.`);
+  return count;
+}
+
 function ordnanceDestination(token, distanceCm, rotation) {
   const radians = rotation * Math.PI / 180;
   const distancePixels = distanceCm * pixelsPerCm();
@@ -348,6 +535,10 @@ export async function moveSelectedOrdnance() {
     ui.notifications.warn(`${token.name} is not a BFG ordnance marker.`);
     return false;
   }
+  if (marker.category === "attackCraft") {
+    ui.notifications.info(`${token.name} uses normal click-drag movement up to ${marker.speedCm} cm.`);
+    return false;
+  }
 
   const state = getTurnState();
   const errors = [];
@@ -359,27 +550,32 @@ export async function moveSelectedOrdnance() {
   if (!await confirmGMOverride(errors, "Override Ordnance Movement Restriction?")) return false;
 
   let result;
+  const isTorpedo = marker.category === "torpedo";
   let plannedDistanceCm = Number(marker.speedCm);
   let plannedRotation = Number(token.document.rotation ?? 0);
   let throughBlastMarker = false;
   while (true) {
-    result = await foundry.applications.api.DialogV2.input({
-      window: { title: `Plan Ordnance Move: ${token.name}` },
-      content: `<div class="bfg-dialog">
-        <p>${foundry.utils.escapeHTML(marker.name)} may move up to ${marker.speedCm} cm in any direction.</p>
-        <label>Distance (cm)</label><input type="range" class="bfg-ordnance-distance-slider" name="distanceCm" value="${plannedDistanceCm}" min="0" max="${marker.speedCm}" step="0.5"><output>${plannedDistanceCm} cm</output>
+    const torpedoFields = `<p><strong>Standard torpedoes must move their full ${marker.speedCm} cm straight ahead.</strong></p>
+      <input type="hidden" name="distanceCm" value="${marker.speedCm}">
+      <input type="hidden" name="rotation" value="${token.document.rotation}">`;
+    const attackCraftFields = `<label>Distance (cm)</label><input type="range" class="bfg-ordnance-distance-slider" name="distanceCm" value="${plannedDistanceCm}" min="0" max="${marker.speedCm}" step="0.5"><output>${plannedDistanceCm} cm</output>
         <label>Bearing</label>
         <div class="bfg-bearing-dial" title="Click the compass to choose a bearing">
-          <span class="bfg-bearing-cardinal north">0°</span>
-          <span class="bfg-bearing-cardinal east">90°</span>
-          <span class="bfg-bearing-cardinal south">180°</span>
-          <span class="bfg-bearing-cardinal west">270°</span>
+          <span class="bfg-bearing-cardinal north">0 degrees</span>
+          <span class="bfg-bearing-cardinal east">90 degrees</span>
+          <span class="bfg-bearing-cardinal south">180 degrees</span>
+          <span class="bfg-bearing-cardinal west">270 degrees</span>
           <span class="bfg-bearing-needle" style="transform: translateX(-50%) rotate(${plannedRotation}deg)"></span>
           <span class="bfg-bearing-centre"></span>
           <input type="hidden" name="rotation" value="${plannedRotation}">
-          <output>${plannedRotation}°</output>
+          <output>${plannedRotation} degrees</output>
         </div>
-        <small>Click toward the desired direction of travel.</small>
+        <small>Click toward the desired direction of travel.</small>`;
+    result = await foundry.applications.api.DialogV2.input({
+      window: { title: `Plan Ordnance Move: ${token.name}` },
+      content: `<div class="bfg-dialog">
+        <p>${foundry.utils.escapeHTML(marker.name)} ${isTorpedo ? "follows a fixed torpedo course." : `may move up to ${marker.speedCm} cm in any direction.`}</p>
+        ${isTorpedo ? torpedoFields : attackCraftFields}
       </div>`,
       ok: { label: "Preview Vector", icon: "fa-solid fa-route" },
       rejectClose: false,
@@ -390,8 +586,8 @@ export async function moveSelectedOrdnance() {
       return false;
     }
 
-    plannedDistanceCm = Number(result.distanceCm);
-    plannedRotation = Number(result.rotation);
+    plannedDistanceCm = isTorpedo ? Number(marker.speedCm) : Number(result.distanceCm);
+    plannedRotation = isTorpedo ? Number(token.document.rotation ?? 0) : Number(result.rotation);
     if (!Number.isFinite(plannedDistanceCm) || plannedDistanceCm < 0 || plannedDistanceCm > Number(marker.speedCm)) {
       ui.notifications.warn(`Movement must be between 0 and ${marker.speedCm} cm.`);
       continue;
@@ -405,7 +601,7 @@ export async function moveSelectedOrdnance() {
         <label><input type="checkbox" class="bfg-ordnance-blast-choice" data-token-id="${token.document.id}" ${throughBlastMarker ? "checked" : ""}> Path passes through one or more Blast Markers</label>
       </div>`,
       yes: { label: "Execute Move", icon: "fa-solid fa-check" },
-      no: { label: "Edit Move", icon: "fa-solid fa-pen" },
+      no: { label: isTorpedo ? "Cancel" : "Edit Move", icon: isTorpedo ? "fa-solid fa-xmark" : "fa-solid fa-pen" },
       rejectClose: false,
       modal: false
     });
@@ -413,10 +609,12 @@ export async function moveSelectedOrdnance() {
     blastMarkerChoices.delete(token.document.id);
     if (execute) break;
     clearOrdnanceMovementPreview();
+    if (isTorpedo) return false;
   }
 
   const distanceCm = plannedDistanceCm;
   const rotation = plannedRotation;
+  const movementStart = { x: Number(token.center.x), y: Number(token.center.y) };
   if (!Number.isFinite(distanceCm) || distanceCm < 0 || distanceCm > Number(marker.speedCm)) {
     ui.notifications.warn(`Movement must be between 0 and ${marker.speedCm} cm.`);
     return false;
@@ -444,6 +642,9 @@ export async function moveSelectedOrdnance() {
     [`flags.${MODULE_ID}.${ORDNANCE_MARKER_FLAG}.lastMovedActivation`]: activationKey(state)
   }, { animate: true });
   clearOrdnanceMovementPreview();
+  if (marker.category === "torpedo") {
+    drawOrdnanceTrail(movementStart, center, Number(token.w));
+  }
   return true;
 }
 
@@ -468,6 +669,7 @@ export async function reloadSelectedShipOrdnance() {
 
 export async function resetOrdnance() {
   clearOrdnanceMovementPreview();
+  clearAllOrdnanceTrails({ notify: false });
   const tokens = [...(canvas.tokens?.placeables ?? [])];
   const markerIds = tokens
     .filter(token => getOrdnanceMarker(token))

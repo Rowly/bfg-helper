@@ -16,6 +16,11 @@ import {
   rollCriticalHits,
   setCriticalState
 } from "./critical-hits.js";
+import {
+  getCatastrophicState,
+  rollCatastrophicDamage,
+  setCatastrophicState
+} from "./catastrophic-damage.js";
 
 const FIRED_WEAPONS_FLAG = "firedWeapons";
 
@@ -213,7 +218,8 @@ export function analyseDirectFire(attacker, target, weapon) {
     : profileStrength;
   if (!targetFleetId) warnings.push(`${target.name} is not assigned to a fleet.`);
   if (sameFleet) warnings.push(`${target.name} belongs to the firing ship's fleet.`);
-  if (targetCombatState.outOfAction) warnings.push(`${target.name} is already out of action.`);
+  if (targetCombatState.hulk) warnings.push(`${target.name} is a hulk; hits will trigger one Catastrophic Damage roll.`);
+  else if (targetCombatState.outOfAction) warnings.push(`${target.name} is already out of action and cannot be targeted.`);
   if (weaponFired) warnings.push(`${weapon.name} has already fired during this Shooting phase.`);
   if (weaponDisabled) warnings.push(`${weapon.name} cannot fire because its armament is critically damaged.`);
 
@@ -240,8 +246,8 @@ export function analyseDirectFire(attacker, target, weapon) {
     weaponFired,
     weaponDisabled,
     warnings,
-    legalTarget: !sameFleet && Boolean(targetFleetId) && !targetCombatState.outOfAction,
-    legal: inRange && inArc && !sameFleet && Boolean(targetFleetId) && !targetCombatState.outOfAction && !weaponFired && !weaponDisabled
+    legalTarget: !sameFleet && Boolean(targetFleetId) && (!targetCombatState.outOfAction || targetCombatState.hulk),
+    legal: inRange && inArc && !sameFleet && Boolean(targetFleetId) && (!targetCombatState.outOfAction || targetCombatState.hulk) && !weaponFired && !weaponDisabled
   };
 }
 
@@ -258,6 +264,7 @@ export async function resolveDirectFire(analysis, {
 
   const currentContext = getShootingContext(attacker);
   if (!currentContext.ok) throw new Error(currentContext.error);
+  if (currentContext.combatState?.outOfAction) throw new Error("A hulk or destroyed ship cannot fire.");
   const currentWeapon = currentContext.weapons.find(item => item.id === analysis.weapon.id);
   if (!currentWeapon) throw new Error("The selected weapon is no longer configured on this ship.");
   analysis = analyseDirectFire(attacker, target, currentWeapon);
@@ -293,7 +300,8 @@ export async function resolveDirectFire(analysis, {
       orientation: analysis.orientation,
       rangeCm: analysis.rangeCm,
       interveningBlastMarkers,
-      countsAsDefences
+      countsAsDefences,
+      ignoreLongRangeShift: Boolean(weapon.ignoreLongRangeShift)
     });
     attackDice = batteryCalculation.attackDice;
     hitTarget = armourTargetNumber(analysis.targetCombatState, analysis.targetFacing);
@@ -304,11 +312,16 @@ export async function resolveDirectFire(analysis, {
   const roll = await new Roll(attackDice > 0 ? `${attackDice}d6` : "0").evaluate();
   const results = roll.dice.flatMap(die => die.results.map(result => Number(result.result)));
   const hits = results.filter(result => result >= hitTarget).length;
-  const damage = previewHitDamage(target, hits);
-  const critical = await rollCriticalHits(target, damage.hullHits);
-  const remainingHull = critical.escortDestroyed
+  const attackingHulk = analysis.targetCombatState.hulk;
+  const damage = previewHitDamage(target, attackingHulk ? 0 : hits);
+  const critical = attackingHulk
+    ? await rollCriticalHits(target, 0)
+    : await rollCriticalHits(target, damage.hullHits);
+  const remainingHull = attackingHulk
     ? 0
-    : Math.max(0, damage.after.currentHits - critical.extraDamage);
+    : critical.escortDestroyed
+      ? 0
+      : Math.max(0, damage.after.currentHits - critical.extraDamage);
   damage.critical = critical;
   damage.extraCriticalDamage = critical.extraDamage;
   damage.after.currentHits = remainingHull;
@@ -320,6 +333,9 @@ export async function resolveDirectFire(analysis, {
       : damage.before.profileMaximumShields;
   damage.after.currentShields = Math.min(damage.after.currentShields, resultingMaximumShields);
   damage.after.outOfAction = remainingHull <= 0;
+  damage.catastrophic = (attackingHulk && hits > 0) || (!damage.before.outOfAction && damage.after.outOfAction)
+    ? await rollCatastrophicDamage(target)
+    : null;
   const typeLabel = type === "lance" ? "Lance" : "Weapons battery";
 
   await markWeaponFired(attacker, weapon.id, currentContext.state);
@@ -331,6 +347,9 @@ export async function resolveDirectFire(analysis, {
     : critical.results.length > 0
       ? critical.results.map(result => `2D6 ${result.rolledTotal}: ${result.name}${result.shifted ? ` (applied as ${result.appliedTotal})` : ""}${result.extraDamage ? ` (+${result.extraDamage} damage)` : ""}`).join("; ")
       : "None";
+  const catastrophicLabel = damage.catastrophic
+    ? `2D6 ${damage.catastrophic.tableTotal ?? "-"}: ${damage.catastrophic.name}. ${damage.catastrophic.instruction}`
+    : "None";
   await ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ token: attacker.document }),
     content: `
@@ -341,6 +360,7 @@ export async function resolveDirectFire(analysis, {
         Required: <strong>${hitTarget}+</strong>; Hits: <strong>${hits}</strong>
         <br>Critical checks: <strong>${escape(critical.checkResults.join(", ") || "None")}</strong>
         <br>Critical effects: <strong>${escape(criticalLabel)}</strong>
+        <br>Catastrophic damage: <strong>${escape(catastrophicLabel)}</strong>
       </div>`
   });
 
@@ -374,12 +394,16 @@ export async function commitDirectFireDamage(resolution) {
     || current.currentHits !== before.currentHits
     || current.currentShields !== before.currentShields
     || JSON.stringify(getCriticalState(target)) !== JSON.stringify(resolution.damage?.critical?.before)
+    || JSON.stringify(getCatastrophicState(target)) !== JSON.stringify(before.catastrophicState)
   ) {
     throw new Error("The target's combat state changed after the roll. Resolve the attack again.");
   }
 
   const critical = resolution.damage.critical;
   await setCriticalState(target, critical.after);
+  if (resolution.damage.catastrophic) {
+    await setCatastrophicState(target, resolution.damage.catastrophic);
+  }
   const updated = await setCombatState(target, resolution.damage.after);
   return updated ? { ...resolution.damage, updated } : false;
 }

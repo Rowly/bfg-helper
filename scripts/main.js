@@ -1,5 +1,10 @@
 import { configureSelectedShip, getShipData, setShipData } from "./ship-data.js";
-import { retributionProfile, despoilerProfile } from "./ship-profiles/index.js";
+import {
+  despoilerProfile,
+  idolatorProfile,
+  retributionProfile,
+  swordProfile
+} from "./ship-profiles/index.js";
 import {
   toggleWeaponDialog,
   clearAllWeaponArcs,
@@ -44,6 +49,7 @@ import {
   resolveDirectFire
 } from "./shooting.js";
 import { editSelectedShipCriticalState, getCriticalState, setCriticalState } from "./critical-hits.js";
+import { getCatastrophicState, setCatastrophicState } from "./catastrophic-damage.js";
 
 Hooks.once("init", () => {
   console.log("BFG Helper | Initialising");
@@ -67,9 +73,13 @@ Hooks.once("ready", () => {
     configureSelectedShip,
     configureRetribution: () => configureProfile(retributionProfile),
     configureDespoiler: () => configureProfile(despoilerProfile),
+    configureSword: () => configureProfile(swordProfile),
+    configureIdolator: () => configureProfile(idolatorProfile),
     profiles: {
       retribution: retributionProfile,
-      despoiler: despoilerProfile
+      despoiler: despoilerProfile,
+      sword: swordProfile,
+      idolator: idolatorProfile
     },
     getShipData,
     setShipData,
@@ -113,6 +123,10 @@ Hooks.once("ready", () => {
       setState: setCriticalState,
       editSelected: editSelectedShipCriticalState
     },
+    catastrophicDamage: {
+      getState: getCatastrophicState,
+      setState: setCatastrophicState
+    },
     shooting: {
       open: openShootingPlanner,
       getContext: getShootingContext,
@@ -144,6 +158,11 @@ Hooks.on("bfgHelperCombatStateChanged", async () => {
 });
 
 Hooks.on("bfgHelperCriticalStateChanged", async () => {
+  const { refreshTurnManagerApplication } = await import("./turn-manager-app.js");
+  refreshTurnManagerApplication();
+});
+
+Hooks.on("bfgHelperCatastrophicStateChanged", async () => {
   const { refreshTurnManagerApplication } = await import("./turn-manager-app.js");
   refreshTurnManagerApplication();
 });

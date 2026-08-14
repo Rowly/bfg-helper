@@ -124,6 +124,9 @@
         <div><span>Die results</span><strong>{{resolution.resultsLabel}}</strong></div>
         <div><span>Hits scored</span><strong>{{resolution.hits}}</strong></div>
         <div><span>Shield hits</span><strong>{{resolution.damage.shieldHits}}</strong></div>
+        {{#if resolution.damage.shieldHits}}
+          <p><i class="fa-solid fa-circle-exclamation"></i> Place one Blast Marker token manually for this attack's shield hits.</p>
+        {{/if}}
         <div><span>Hull damage</span><strong>{{resolution.damage.hullHits}}</strong></div>
         <div><span>Critical checks</span><strong>{{resolution.damage.critical.checks}}d6: {{resolution.criticalChecksLabel}}</strong></div>
         <div><span>Critical damage</span><strong>{{resolution.damage.extraCriticalDamage}}</strong></div>
@@ -133,6 +136,14 @@
         {{#each resolution.damage.critical.results}}
           <p><i class="fa-solid fa-burst"></i> 2D6 roll {{rolledTotal}}: {{name}}{{#if shifted}} (shifted to table result {{appliedTotal}}){{/if}}{{#if extraDamage}} - {{extraDamage}} extra damage{{/if}}</p>
         {{/each}}
+        {{#if resolution.damage.catastrophic}}
+          <p class="bfg-catastrophic-result"><i class="fa-solid fa-explosion"></i> Catastrophic Damage{{#if resolution.damage.catastrophic.tableTotal}} (2D6 roll {{resolution.damage.catastrophic.tableTotal}}){{/if}}: <strong>{{resolution.damage.catastrophic.name}}</strong></p>
+          <p>{{resolution.damage.catastrophic.instruction}}</p>
+          <p>Place {{resolution.damage.catastrophic.blastMarkers}} Blast Marker token(s) manually.</p>
+          {{#if resolution.damage.catastrophic.explosionRangeCm}}
+            <p>Explosion range: {{resolution.damage.catastrophic.explosionRangeCm}} cm (3D6: {{resolution.catastrophicRangeLabel}}). Lance Strength: {{resolution.damage.catastrophic.explosionStrength}}.</p>
+          {{/if}}
+        {{/if}}
         <div><span>Remaining shields</span><strong>{{resolution.damage.after.currentShields}}</strong></div>
         <div><span>Remaining hull</span><strong>{{resolution.damage.after.currentHits}}</strong></div>
         {{#if resolution.damage.after.crippled}}<p><i class="fa-solid fa-triangle-exclamation"></i> Target will be crippled.</p>{{/if}}

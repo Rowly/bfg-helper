@@ -154,11 +154,12 @@ export function getFleetShips(fleetId) {
         faction: data?.faction ?? "",
         combatState,
         hasCombatState: Boolean(combatState),
-        combatStatus: combatState?.outOfAction
+        combatStatus: combatState?.catastrophicState?.name
+          ?? (combatState?.outOfAction
           ? "Out of action"
           : combatState?.crippled
             ? "Crippled"
-            : "Operational"
+            : "Operational")
       };
     })
     .sort((a, b) => a.actorName.localeCompare(b.actorName));

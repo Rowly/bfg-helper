@@ -7,6 +7,7 @@ import {
   getCriticalState,
   hasCritical
 } from "./critical-hits.js";
+import { clearCatastrophicState, getCatastrophicState, isHulk } from "./catastrophic-damage.js";
 
 export const COMBAT_STATE_FLAG = "combatState";
 
@@ -70,8 +71,9 @@ export function getCombatState(tokenOrDocument) {
     Math.min(profile.maximumHits, wholeNumber(stored.currentHits, profile.maximumHits))
   );
   const crippled = currentHits > 0 && currentHits <= profile.maximumHits / 2;
+  const catastrophicState = getCatastrophicState(document);
   const shieldsCollapsed = hasCritical(criticalState, "shields-collapse");
-  const effectiveMaximumShields = shieldsCollapsed
+  const effectiveMaximumShields = currentHits <= 0 || shieldsCollapsed
     ? 0
     : crippled
       ? halveRoundedUp(profile.maximumShields)
@@ -91,6 +93,8 @@ export function getCombatState(tokenOrDocument) {
     profileMaximumShields: profile.maximumShields,
     ...armour,
     criticalState,
+    catastrophicState,
+    hulk: isHulk(catastrophicState),
     criticals: criticalStateSummary(criticalState),
     engineRoomDamage: criticalCount(criticalState, "engine-room"),
     thrusterDamage: criticalCount(criticalState, "thrusters"),
@@ -98,7 +102,9 @@ export function getCombatState(tokenOrDocument) {
     leadershipPenalty: hasCritical(criticalState, "bridge-smashed") ? 3 : 0,
     shieldsCollapsed,
     profileTurrets: wholeNumber(profile.data.stats?.turrets, 0),
-    effectiveTurrets: crippled
+    effectiveTurrets: currentHits <= 0
+      ? 0
+      : crippled
       ? halveRoundedUp(profile.data.stats?.turrets)
       : wholeNumber(profile.data.stats?.turrets, 0),
     effectiveOrdnance: (profile.data.ordnance ?? []).map(item => ({
@@ -180,6 +186,7 @@ export async function resetCombatState(tokenOrDocument, { notify = true } = {}) 
   if (!document || !current) return false;
 
   await clearCriticalState(document);
+  await clearCatastrophicState(document);
   const result = await setCombatState(document, {
     currentHits: current.maximumHits,
     currentShields: current.profileMaximumShields

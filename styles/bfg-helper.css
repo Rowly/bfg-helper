@@ -709,6 +709,86 @@
   to { transform: scale(1.1) rotate(8deg); opacity: 1; }
 }
 
+/* Ordnance bearing compass used by the lightweight movement dialog. */
+.bfg-bearing-dial {
+  position: relative;
+  width: 190px;
+  height: 190px;
+  margin: 0.25rem auto;
+  border: 2px solid rgba(255, 204, 102, 0.85);
+  border-radius: 50%;
+  background:
+    linear-gradient(90deg, transparent 49.5%, rgba(255,255,255,0.18) 49.5%, rgba(255,255,255,0.18) 50.5%, transparent 50.5%),
+    linear-gradient(transparent 49.5%, rgba(255,255,255,0.18) 49.5%, rgba(255,255,255,0.18) 50.5%, transparent 50.5%),
+    radial-gradient(circle, rgba(255,204,102,0.10), rgba(0,0,0,0.12));
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+
+.bfg-bearing-dial output {
+  position: absolute;
+  left: 50%;
+  bottom: 23px;
+  min-width: 48px;
+  padding: 0.12rem 0.3rem;
+  transform: translateX(-50%);
+  border-radius: 4px;
+  background: rgba(0,0,0,0.62);
+  color: #ffcc66;
+  text-align: center;
+  font-weight: 700;
+}
+
+.bfg-bearing-cardinal {
+  position: absolute;
+  font-size: 0.7rem;
+  opacity: 0.78;
+  pointer-events: none;
+}
+
+.bfg-bearing-cardinal.north { top: 5px; left: 50%; transform: translateX(-50%); }
+.bfg-bearing-cardinal.east { top: 50%; right: 5px; transform: translateY(-50%); }
+.bfg-bearing-cardinal.south { bottom: 5px; left: 50%; transform: translateX(-50%); }
+.bfg-bearing-cardinal.west { top: 50%; left: 5px; transform: translateY(-50%); }
+
+.bfg-bearing-needle {
+  position: absolute;
+  left: 50%;
+  bottom: 50%;
+  width: 4px;
+  height: 69px;
+  transform-origin: 50% 100%;
+  border-radius: 4px 4px 0 0;
+  background: linear-gradient(#ffcc66, #ff9f33);
+  box-shadow: 0 0 8px rgba(255, 204, 102, 0.7);
+  pointer-events: none;
+}
+
+.bfg-bearing-needle::before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  border-right: 7px solid transparent;
+  border-bottom: 12px solid #ffcc66;
+  border-left: 7px solid transparent;
+  transform: translateX(-50%);
+}
+
+.bfg-bearing-centre {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 13px;
+  height: 13px;
+  transform: translate(-50%, -50%);
+  border: 2px solid #ffcc66;
+  border-radius: 50%;
+  background: #302416;
+  pointer-events: none;
+}
+
 .bfg-critical-summary {
   margin-top: 0.25rem;
   color: rgba(255, 184, 77, 0.95);

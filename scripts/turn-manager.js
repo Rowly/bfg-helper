@@ -114,6 +114,8 @@ export async function resetBattle() {
   if (!requireGM()) return false;
   await setBattleShipRotationLocks(false);
   await resetAllCombatStates();
+  const { resetOrdnance } = await import("./ordnance.js");
+  await resetOrdnance();
   for (const token of canvas.tokens?.placeables ?? []) {
     if (token.document.getFlag(MODULE_ID, "firedWeapons") !== undefined) {
       await token.document.unsetFlag(MODULE_ID, "firedWeapons");

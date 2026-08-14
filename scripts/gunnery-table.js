@@ -59,7 +59,8 @@ export function calculateBatteryDice({
   orientation = "abeam",
   rangeCm,
   interveningBlastMarkers = false,
-  countsAsDefences = false
+  countsAsDefences = false,
+  ignoreLongRangeShift = false
 }) {
   const numericFirepower = Math.trunc(Number(firepower));
   const numericRange = Number(rangeCm);
@@ -73,7 +74,7 @@ export function calculateBatteryDice({
     shift -= 1;
     shifts.push({ direction: "left", reason: "Target within 15 cm" });
   }
-  if (numericRange > 30) {
+  if (numericRange > 30 && !ignoreLongRangeShift) {
     shift += 1;
     shifts.push({ direction: "right", reason: "Target more than 30 cm away" });
   }

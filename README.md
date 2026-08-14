@@ -26,6 +26,8 @@ The current profiles are:
 
 - Imperial Navy Retribution-class Battleship
 - Chaos Despoiler-class Battleship
+- Imperial Navy Sword-class Frigate
+- Chaos Idolator-class Raider
 
 Class definitions are kept separately under `scripts/ship-profiles/` so that the catalogue can grow without expanding the generic ship-data service.
 
@@ -34,6 +36,8 @@ To configure the Actor used by exactly one selected token:
 ```javascript
 await game.bfgHelper.configureRetribution();
 await game.bfgHelper.configureDespoiler();
+await game.bfgHelper.configureSword();
+await game.bfgHelper.configureIdolator();
 ```
 
 Equivalent hotbar wrappers are available under `macros/`.
@@ -92,7 +96,7 @@ It reads movement limits from the selected ship profile and plots:
 
 The turn control is a signed slider: negative values turn to port, zero continues straight ahead, and positive values turn to starboard. Calculations also validate movement distance, minimum distance before turning, and the ship's maximum turn angle.
 
-The minimum-before-turn value is profile driven. The current battleships must move 15 cm before turning; a future escort profile can set the value to 0 cm to rotate at its starting point or at any later point in its move.
+The minimum-before-turn value is profile driven. The battleships must move 15 cm before turning; the Sword and Idolator escorts use 0 cm and can rotate at their starting point or at any later point in their move.
 
 Players can only plan movement for a ship in the active fleet during its Movement phase while a battle is running. Gamemasters receive a preview override for testing. When no battle is running, preview remains available for setup and testing.
 
@@ -125,9 +129,11 @@ Facing-dependent Armour is supported. The Retribution-class profile uses Armour 
 
 Each direct-fire weapon can resolve one attack during its ship's Shooting phase. Fired state is stored per deployed ship and automatically becomes fresh for the next fleet activation. Each point of hull damage rolls a critical check; results of 6 resolve on the 2D6 Critical Hits Table. Immediate extra damage and persistent armament, engine, thruster, fire, bridge, and shield effects are recorded on the deployed ship. Critical extra damage does not generate further critical checks, and escorts are destroyed when they suffer a critical hit.
 
-Damaged armament cannot fire, Engine Room damage prevents turns, Thrusters damage reduces speed by 10 cm, and Shields Collapse reduces shield strength to zero. Repair attempts, ongoing fire damage in the End Phase, and catastrophic damage are deferred to their later phase milestones. The planner does not yet combine multiple batteries into one salvo or automate whether a target moved at least 5 cm; it therefore provides a manual "counts as Defences" option.
+Damaged armament cannot fire, Engine Room damage prevents turns, Thrusters damage reduces speed by 10 cm, and Shields Collapse reduces shield strength to zero. Repair attempts and ongoing fire damage in the End Phase are deferred to their later phase milestone. The planner does not yet combine multiple batteries into one salvo or automate whether a target moved at least 5 cm; it therefore provides a manual "counts as Defences" option.
 
 Ships at half or fewer remaining hull points are crippled. Their shields, turrets, weapon Strength/Firepower, and ordnance values are halved, rounding up, and their speed is reduced by 5 cm. Crippled ships cannot fire nova cannon. Braced interactions are deferred until Special Orders are implemented.
+
+Ships reduced to zero hull resolve catastrophic damage. Escorts become debris and require one manually placed Blast Marker. Capital ships become drifting or blazing hulks, suffer a plasma-drive overload, or suffer a warp-drive implosion according to the 2D6 table. Enemy hulks remain valid targets and roll once on the table whenever an attack scores one or more hits against them. Explosion range, lance Strength, removal, and manual Blast Marker instructions are reported in Attack Results and chat; nearby explosion attacks remain player-resolved.
 
 ## Weapon arcs and engine effects
 
@@ -155,10 +161,10 @@ These graphics are client-side PIXI overlays and are not persistent scene docume
 - Movement execution records per-token movement state and prevents a ship moving more than once during its fleet's Movement phase. Gamemasters receive an explicit confirmation prompt for correction/testing overrides.
 - Starting a battle prevents manual rotation changes for configured, fleet-assigned ships, keeping token artwork and attached effects on the same heading. Ending or resetting the battle unlocks them, and the Turn Manager provides a GM correction override for a selected ship.
 - Normal Foundry drag movement can bypass the planned movement workflow.
-- Token-level hits, shields, crippled status, out-of-action status, moved/fired state, and critical-hit effects are implemented. End Phase critical repairs, ongoing fire damage, catastrophic damage, and special orders are not implemented.
+- Token-level hits, shields, crippled status, out-of-action status, moved/fired state, critical-hit effects, and catastrophic-damage results are implemented. End Phase critical repairs, ongoing fire damage, automated hulk movement/explosion attacks, and special orders are not implemented.
 - Direct-fire range, arc, target-facing, target-legality, lance rolls, and battery Gunnery Table resolution are implemented.
 - Token Nameplates data is present only as a future optional integration.
-- The ship-profile catalogue is limited to two capital ships.
+- The ship-profile catalogue currently contains two capital ships and two escorts.
 - Automated tests are not yet configured.
 
 The Movement Planner enforces a minimum move of half profile speed. Crippled, Thrusters Damaged, and a manually selected Blast Marker penalty reduce maximum movement; if the reduced maximum falls below the normal minimum, the ship must move its maximum possible distance.

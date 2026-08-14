@@ -79,7 +79,8 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
           orientation: this.analysis.orientation,
           rangeCm: this.analysis.rangeCm,
           interveningBlastMarkers: this.interveningBlastMarkers,
-          countsAsDefences: this.countsAsDefences
+          countsAsDefences: this.countsAsDefences,
+          ignoreLongRangeShift: Boolean(this.analysis.weapon.ignoreLongRangeShift)
         })
       : null;
     const previewAttackDice = gunneryCalculation?.attackDice
@@ -118,6 +119,7 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
           ...this.resolution,
           resultsLabel: this.resolution.results.join(", ") || "No dice",
           criticalChecksLabel: this.resolution.damage.critical.checkResults.join(", ") || "None",
+          catastrophicRangeLabel: this.resolution.damage.catastrophic?.explosionRangeDice?.join(", ") || "None",
           shiftsLabel: shiftLabel(this.resolution.batteryCalculation)
         }
       : null;

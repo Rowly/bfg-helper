@@ -33,6 +33,7 @@ function movementExecutionErrors(context) {
   if (!context.turnState.battleStarted) return [];
 
   const errors = [];
+  if (context.combatState?.outOfAction) errors.push(`${context.token.name} is out of action and cannot use normal movement.`);
   if (context.turnState.phase !== "movement") errors.push("The current phase is not Movement.");
   if (!context.tokenFleet) errors.push(`${context.token.name} is not assigned to a fleet.`);
   else if (context.activeFleet && context.tokenFleet.id !== context.activeFleet.id) {
@@ -196,6 +197,7 @@ export function getMovementContext(token = canvas.tokens.controlled[0]) {
     actor,
     shipData,
     movement,
+    combatState,
     turnState,
     activeFleet,
     tokenFleet,

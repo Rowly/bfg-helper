@@ -53,12 +53,21 @@ import { getCatastrophicState, setCatastrophicState } from "./catastrophic-damag
 import {
   getOrdnanceMarker,
   getOrdnanceState,
+  clearAllOrdnanceTrails,
   clearOrdnanceMovementPreview,
   initialiseOrdnanceControls,
+  validateAttackCraftDrag,
+  completeAttackCraftDrag,
+  refreshAttackCraftArtwork,
   launchSelectedShipAttackCraft,
   moveSelectedOrdnance,
   reloadSelectedShipOrdnance
 } from "./ordnance.js";
+import {
+  launchSelectedShipTorpedoes,
+  refreshTorpedoMarkerArtwork,
+  resolveSelectedTorpedoAttack
+} from "./torpedoes.js";
 
 Hooks.once("init", () => {
   console.log("BFG Helper | Initialising");
@@ -148,8 +157,11 @@ Hooks.once("ready", () => {
     ordnance: {
       getMarker: getOrdnanceMarker,
       getState: getOrdnanceState,
+      clearTrails: clearAllOrdnanceTrails,
       launchAttackCraft: launchSelectedShipAttackCraft,
+      launchTorpedoes: launchSelectedShipTorpedoes,
       move: moveSelectedOrdnance,
+      resolveTorpedoAttack: resolveSelectedTorpedoAttack,
       reloadSelected: reloadSelectedShipOrdnance
     },
     turnManager
@@ -191,6 +203,8 @@ Hooks.on("targetToken", async (user) => {
 });
 
 Hooks.on("preUpdateToken", preventLockedTokenRotation);
+Hooks.on("preUpdateToken", validateAttackCraftDrag);
+Hooks.on("updateToken", completeAttackCraftDrag);
 
 Hooks.on("canvasReady", async () => {
   initialiseWeaponArcTicker();
@@ -198,6 +212,8 @@ Hooks.on("canvasReady", async () => {
   refreshEngines();
   await migrateActorFleetAssignmentsToTokens();
   if (game.user?.isGM) {
+    await refreshAttackCraftArtwork();
+    await refreshTorpedoMarkerArtwork();
     await setBattleShipRotationLocks(getTurnState().battleStarted);
     await initialiseBattleCombatStates();
   }
@@ -214,4 +230,5 @@ Hooks.on("canvasTearDown", () => {
   clearAllEngines();
   clearMovementPreview();
   clearOrdnanceMovementPreview();
+  clearAllOrdnanceTrails({ notify: false });
 });

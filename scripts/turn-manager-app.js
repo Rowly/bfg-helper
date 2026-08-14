@@ -1,6 +1,7 @@
 import {
   PHASES,
   getTurnState,
+  getActingFleetIndex,
   nextPhase,
   previousPhase,
   endBattle,
@@ -47,13 +48,15 @@ export class BFGTurnManagerApplication extends HandlebarsApplicationMixin(Applic
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
     const state = getTurnState();
-    const activeFleet = state.fleets[state.activeFleetIndex] ?? null;
+    const actingFleetIndex = getActingFleetIndex(state);
+    const activeFleet = state.fleets[actingFleetIndex] ?? null;
     const currentPhase = PHASES.find(phase => phase.id === state.phase) ?? PHASES[0];
 
     return foundry.utils.mergeObject(context, {
       state,
       battleStatus: state.battleStarted ? "In progress" : "Not started",
       activeFleetName: activeFleet?.name ?? "Unassigned",
+      activeFleetLabel: state.phase === "ordnance" ? "Acting fleet" : "Active fleet",
       currentPhaseLabel: currentPhase?.label ?? state.phase,
       phases: PHASES.map(phase => ({
         ...phase,
@@ -64,7 +67,7 @@ export class BFGTurnManagerApplication extends HandlebarsApplicationMixin(Applic
         const ships = getFleetShips(fleet.id);
         return {
           ...fleet,
-          active: index === state.activeFleetIndex,
+          active: index === actingFleetIndex,
           ships,
           hasShips: ships.length > 0,
           shipCount: ships.length

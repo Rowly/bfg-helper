@@ -131,7 +131,7 @@ export async function toggleWeaponDialog(token = canvas.tokens.controlled[0]) {
 
   const options = shipData.weapons.map((weapon, index) => {
     const name = foundry.utils.escapeHTML(String(weapon.name));
-    return `<option value="${index}">${name} — ${weapon.rangeCm} cm — ${weapon.arcDegrees}°</option>`;
+    return `<option value="${index}">${name} - ${weapon.rangeCm} cm - ${weapon.arcDegrees}°</option>`;
   }).join("");
 
   const result = await foundry.applications.api.DialogV2.input({

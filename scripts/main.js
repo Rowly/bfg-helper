@@ -80,6 +80,7 @@ import {
 } from "./boarding.js";
 import { resolveBlastMarkerRemoval, resolveSelectedDamageControl } from "./end-phase.js";
 import { initialiseQuantitySteppers } from "./quantity-stepper.js";
+import { assignSelectedSpecialOrder, braceSelectedShip, getSpecialOrder } from "./special-orders.js";
 
 Hooks.once("init", () => {
   console.log("BFG Helper | Initialising");
@@ -168,6 +169,11 @@ Hooks.once("ready", () => {
       repairSystems: resolveSelectedDamageControl,
       clearBlastMarkers: resolveBlastMarkerRemoval
     },
+    specialOrders: {
+      assign: assignSelectedSpecialOrder,
+      brace: braceSelectedShip,
+      get: getSpecialOrder
+    },
     shooting: {
       open: openShootingPlanner,
       getContext: getShootingContext,
@@ -221,6 +227,11 @@ Hooks.on("bfgHelperCatastrophicStateChanged", async () => {
 });
 
 Hooks.on("bfgHelperPendingActionsChanged", async () => {
+  const { refreshTurnManagerApplication } = await import("./turn-manager-app.js");
+  refreshTurnManagerApplication();
+});
+
+Hooks.on("bfgHelperSpecialOrdersChanged", async () => {
   const { refreshTurnManagerApplication } = await import("./turn-manager-app.js");
   refreshTurnManagerApplication();
 });

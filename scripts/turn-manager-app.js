@@ -31,6 +31,7 @@ import {
   resolveSelectedTeleportHitAndRun
 } from "./boarding.js";
 import { resolveBlastMarkerRemoval, resolveSelectedDamageControl } from "./end-phase.js";
+import { assignSelectedSpecialOrder, braceSelectedShip } from "./special-orders.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -130,6 +131,12 @@ export class BFGTurnManagerApplication extends HandlebarsApplicationMixin(Applic
     }
 
     bind('[data-bfg-action="move-ship"]', () => openMovementPlanner());
+    bind('[data-bfg-action="assign-orders"]', async () => {
+      if (await assignSelectedSpecialOrder()) await this.render({ force: true });
+    });
+    bind('[data-bfg-action="brace-for-impact"]', async () => {
+      if (await braceSelectedShip()) await this.render({ force: true });
+    });
     bind('[data-bfg-action="declare-boarding"]', () => declareSelectedShipBoarding());
     bind('[data-bfg-action="fire-weaponry"]', () => openShootingPlanner());
     bind('[data-bfg-action="weapon-arcs"]', () => toggleWeaponDialog());

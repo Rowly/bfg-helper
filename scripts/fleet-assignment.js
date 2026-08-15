@@ -149,6 +149,7 @@ export function getFleetShips(fleetId) {
       const boarding = token.document.getFlag(MODULE_ID, "boardingAction");
       const pendingHitAndRun = Math.max(0, Math.trunc(Number(token.document.getFlag(MODULE_ID, "pendingHitAndRun")?.count) || 0));
       const pendingActions = [];
+      const specialOrder = token.document.getFlag(MODULE_ID, "specialOrder");
       if (boarding?.partnerId) {
         pendingActions.push(boarding.drawn
           ? "Boarding action ongoing"
@@ -157,6 +158,7 @@ export function getFleetShips(fleetId) {
             : "Boarding target");
       }
       if (pendingHitAndRun > 0) pendingActions.push(`Pending Hit-and-Run x${pendingHitAndRun}`);
+      if (specialOrder?.name) pendingActions.push(`Special Order: ${specialOrder.name}`);
       return {
         tokenId: token.document.id,
         actorId: actor?.id ?? null,

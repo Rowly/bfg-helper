@@ -28,7 +28,8 @@ export function retributionProfile() {
       speedCm: 20,
       minimumBeforeTurnCm: 15,
       maximumTurnDegrees: 45,
-      maximumTurns: 1
+      maximumTurns: 1,
+      canComeToNewHeading: false
     },
 
     stats: {

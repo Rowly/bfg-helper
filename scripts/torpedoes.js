@@ -9,6 +9,7 @@ import { diceFaces, publishBFGDice } from "./dice.js";
 import { commitTurretDefenseChoice, getTurretDefenseChoice } from "./ordnance-defense.js";
 import { getBoardingState, hasDeclaredBoarding } from "./boarding.js";
 import { openActionResolution } from "./action-resolution-app.js";
+import { effectiveOrdnanceStrength, rollBraceSaves } from "./special-orders.js";
 import {
   ORDNANCE_MARKER_FLAG,
   ORDNANCE_STATE_FLAG,
@@ -205,7 +206,7 @@ export async function launchSelectedShipTorpedoes() {
 
   const combat = getCombatState(ship);
   const profileStrength = Math.max(0, Math.trunc(Number(launcher.strength)));
-  const strength = combat?.crippled ? halveRoundedUp(profileStrength) : profileStrength;
+  const strength = effectiveOrdnanceStrength(ship, profileStrength);
   const weaponHeading = normalise(
     Number(ship.document.rotation ?? 0) + Number(launcher.directionDegrees ?? -90) + 90
   );
@@ -398,16 +399,17 @@ export async function resolveSelectedTorpedoAttack() {
       await publishBFGDice(attackRoll, { speaker: ChatMessage.getSpeaker({ token: salvo.document }), flavor: `${salvo.name} attacking ${target.name}` });
       const attackResults = diceFaces(attackRoll);
       const hits = attackResults.filter(value => value >= armourPreview.targetNumber).length;
-      const critical = combat.hulk ? { after: getCriticalState(target), escortDestroyed: false, extraDamage: 0 } : await rollCriticalHits(target, hits);
-      const remainingHull = combat.hulk ? 0 : critical.escortDestroyed ? 0 : Math.max(0, combat.currentHits - hits - critical.extraDamage);
+      const brace = combat.hulk ? { dice: [], saved: 0, unsaved: hits } : await rollBraceSaves(target, hits, "Brace saves against torpedoes");
+      const critical = combat.hulk ? { after: getCriticalState(target), escortDestroyed: false, extraDamage: 0 } : await rollCriticalHits(target, brace.unsaved);
+      const remainingHull = combat.hulk ? 0 : critical.escortDestroyed ? 0 : Math.max(0, combat.currentHits - brace.unsaved - critical.extraDamage);
       const catastrophic = (combat.hulk && hits > 0) || (!combat.outOfAction && remainingHull <= 0) ? await rollCatastrophicDamage(target) : null;
       const remainingStrength = Math.max(0, attackingStrength - hits);
       const criticalChecks = critical.checkResults?.join(", ") || "None";
       const criticalEffects = critical.escortDestroyed ? "Escort destroyed" : critical.results?.map(result => `${result.name}${result.shifted ? ` (table result ${result.appliedTotal})` : ""}${result.extraDamage ? ` (+${result.extraDamage} damage)` : ""}`).join("; ") || "None";
       const catastrophicResult = catastrophic ? `${catastrophic.name}${catastrophic.tableTotal ? ` (${catastrophic.tableTotal})` : ""}` : "None";
       return {
-        defenseChoice, turretDice, turretResults, shotDown, attackingStrength, attackResults, hits, critical, catastrophic, remainingHull, remainingStrength, criticalChecks, criticalEffects, catastrophicResult,
-        resultHtml: `<h3>Attack result</h3><div class="bfg-action-confirmation"><div><span>Turret dice (${turretDice}d6, needing 4+)</span><strong>${turretResults.join(", ") || "None"}</strong></div><div><span>Torpedoes shot down</span><strong>${shotDown}</strong></div><div><span>Attack dice (${attackingStrength}d6, needing ${armourPreview.targetNumber}+)</span><strong>${attackResults.join(", ") || "None"}</strong></div><div><span>Hits</span><strong>${hits}</strong></div><div><span>Critical checks (${hits}d6, needing 6)</span><strong>${criticalChecks}</strong></div><div><span>Critical effects</span><strong>${foundry.utils.escapeHTML(criticalEffects)}</strong></div><div><span>Critical damage</span><strong>${critical.extraDamage ?? 0}</strong></div><div><span>Catastrophic result</span><strong>${foundry.utils.escapeHTML(catastrophicResult)}</strong></div><div><span>Remaining hull</span><strong>${remainingHull}</strong></div><div><span>Remaining salvo Strength</span><strong>${remainingStrength}</strong></div></div><p>Shields are ignored. Review this result before applying it.</p>`
+        defenseChoice, turretDice, turretResults, shotDown, attackingStrength, attackResults, hits, brace, critical, catastrophic, remainingHull, remainingStrength, criticalChecks, criticalEffects, catastrophicResult,
+        resultHtml: `<h3>Attack result</h3><div class="bfg-action-confirmation"><div><span>Turret dice (${turretDice}d6, needing 4+)</span><strong>${turretResults.join(", ") || "None"}</strong></div><div><span>Torpedoes shot down</span><strong>${shotDown}</strong></div><div><span>Attack dice (${attackingStrength}d6, needing ${armourPreview.targetNumber}+)</span><strong>${attackResults.join(", ") || "None"}</strong></div><div><span>Hits</span><strong>${hits}</strong></div><div><span>Brace saves (${hits}d6, needing 4+)</span><strong>${brace.dice.join(", ") || "None"}; saved ${brace.saved}</strong></div><div><span>Critical checks (${brace.unsaved}d6, needing 6)</span><strong>${criticalChecks}</strong></div><div><span>Critical effects</span><strong>${foundry.utils.escapeHTML(criticalEffects)}</strong></div><div><span>Critical damage</span><strong>${critical.extraDamage ?? 0}</strong></div><div><span>Catastrophic result</span><strong>${foundry.utils.escapeHTML(catastrophicResult)}</strong></div><div><span>Remaining hull</span><strong>${remainingHull}</strong></div><div><span>Remaining salvo Strength</span><strong>${remainingStrength}</strong></div></div><p>Shields are ignored. Review this result before applying it.</p>`
       };
     },
     apply: async outcome => {
@@ -424,7 +426,7 @@ export async function resolveSelectedTorpedoAttack() {
         attackedTargets[fullRoundKey()] = [...new Set([...(attackedTargets[fullRoundKey()] ?? []), target.document.id])];
         await salvo.document.update({ name: `Torpedo Salvo (Strength ${outcome.remainingStrength})`, [`flags.${MODULE_ID}.${ORDNANCE_MARKER_FLAG}.strength`]: outcome.remainingStrength, [`flags.${MODULE_ID}.${ORDNANCE_MARKER_FLAG}.name`]: `Torpedo Salvo (Strength ${outcome.remainingStrength})`, [`flags.${MODULE_ID}.${ORDNANCE_MARKER_FLAG}.attackedTargets`]: attackedTargets });
       }
-      await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ token: salvo.document }), content: `<div class="bfg-dice-chat-result"><strong>Torpedo attack on ${foundry.utils.escapeHTML(target.name)}</strong><br>Turrets: ${outcome.turretResults.join(", ") || "None"}; Strength removed: ${outcome.shotDown}<br>Attack dice: ${outcome.attackResults.join(", ") || "None"}; Armour: ${armourPreview.targetNumber}+ (${armourPreview.facing}); Hits: ${outcome.hits}; shields ignored<br>Critical checks: ${outcome.criticalChecks}; critical effects: ${foundry.utils.escapeHTML(outcome.criticalEffects)}; critical damage: ${outcome.critical.extraDamage ?? 0}<br>Catastrophic result: ${foundry.utils.escapeHTML(outcome.catastrophicResult)}; remaining hull: ${outcome.remainingHull}; remaining salvo Strength: ${outcome.remainingStrength}</div>` });
+      await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ token: salvo.document }), content: `<div class="bfg-dice-chat-result"><strong>Torpedo attack on ${foundry.utils.escapeHTML(target.name)}</strong><br>Turrets: ${outcome.turretResults.join(", ") || "None"}; Strength removed: ${outcome.shotDown}<br>Attack dice: ${outcome.attackResults.join(", ") || "None"}; Armour: ${armourPreview.targetNumber}+ (${armourPreview.facing}); Hits: ${outcome.hits}; shields ignored<br>Brace saves: ${outcome.brace.dice.join(", ") || "None"}; damage saved: ${outcome.brace.saved}<br>Critical checks: ${outcome.criticalChecks}; critical effects: ${foundry.utils.escapeHTML(outcome.criticalEffects)}; critical damage: ${outcome.critical.extraDamage ?? 0}<br>Catastrophic result: ${foundry.utils.escapeHTML(outcome.catastrophicResult)}; remaining hull: ${outcome.remainingHull}; remaining salvo Strength: ${outcome.remainingStrength}</div>` });
     }
   });
 }

@@ -24,6 +24,7 @@ import {
 import { diceFaces, publishBFGDice } from "./dice.js";
 import { getOrdnanceMarker } from "./ordnance.js";
 import { getBoardingState, hasDeclaredBoarding, isBoardingParticipant } from "./boarding.js";
+import { effectiveWeaponStrength, getSpecialOrder, rollBraceSaves } from "./special-orders.js";
 
 const FIRED_WEAPONS_FLAG = "firedWeapons";
 
@@ -224,9 +225,7 @@ export function analyseDirectFire(attacker, target, weapon) {
   const weaponFired = hasWeaponFired(attacker, weapon.id);
   const weaponDisabled = isWeaponDisabledByCritical(weapon, getCriticalState(attacker));
   const profileStrength = Math.trunc(Number(weapon.strength));
-  const effectiveStrength = attackerCombatState?.crippled
-    ? halveRoundedUp(profileStrength)
-    : profileStrength;
+  const effectiveStrength = effectiveWeaponStrength(attacker, profileStrength);
   if (!targetFleetId) warnings.push(`${target.name} is not assigned to a fleet.`);
   if (sameFleet) warnings.push(`${target.name} belongs to the firing ship's fleet.`);
   if (!isOrdnance && isBoardingParticipant(target)) warnings.push(`${target.name} is involved in a boarding action and cannot be fired upon.`);
@@ -243,6 +242,7 @@ export function analyseDirectFire(attacker, target, weapon) {
     profileStrength,
     effectiveStrength,
     attackerCrippled: Boolean(attackerCombatState?.crippled),
+    attackerSpecialOrder: getSpecialOrder(attacker)?.name ?? null,
     weaponType: weaponTypeLabel(weapon),
     rangeCm,
     rangeLabel: rangeCm.toFixed(1),
@@ -295,9 +295,7 @@ export async function resolveDirectFire(analysis, {
   const weapon = analysis.weapon;
   const type = String(weapon.type ?? "").toLowerCase();
   const profileStrength = Math.trunc(Number(weapon.strength));
-  const strength = currentContext.combatState?.crippled
-    ? halveRoundedUp(profileStrength)
-    : profileStrength;
+  const strength = effectiveWeaponStrength(attacker, profileStrength);
   if (!(strength > 0)) throw new Error(`${weapon.name} does not have a valid Strength or Firepower value.`);
 
   let attackDice;
@@ -328,7 +326,17 @@ export async function resolveDirectFire(analysis, {
     speaker: ChatMessage.getSpeaker({ token: attacker.document }),
     flavor: `${weapon.name} firing at ${analysis.targetName}`
   });
-  const results = diceFaces(roll);
+  let results = diceFaces(roll);
+  const lockOn = getSpecialOrder(attacker)?.id === "lock-on";
+  const misses = results.filter(result => result < hitTarget).length;
+  if (lockOn && misses > 0) {
+    const reroll = await new Roll(`${misses}d6`).evaluate();
+    await publishBFGDice(reroll, {
+      speaker: ChatMessage.getSpeaker({ token: attacker.document }),
+      flavor: `${weapon.name}: Lock On rerolls`
+    });
+    results = [...results.filter(result => result >= hitTarget), ...diceFaces(reroll)];
+  }
   const hits = results.filter(result => result >= hitTarget).length;
   if (analysis.isOrdnance) {
     const ordnanceHit = hits > 0;
@@ -349,7 +357,9 @@ export async function resolveDirectFire(analysis, {
     };
   }
   const attackingHulk = analysis.targetCombatState.hulk;
-  const damage = previewHitDamage(target, attackingHulk ? 0 : hits);
+  let damage = previewHitDamage(target, attackingHulk ? 0 : hits);
+  const brace = attackingHulk ? { dice: [], saved: 0, unsaved: 0 } : await rollBraceSaves(target, damage.hullHits);
+  if (brace.saved > 0) damage = previewHitDamage(target, damage.shieldHits + brace.unsaved);
   const critical = attackingHulk
     ? await rollCriticalHits(target, 0)
     : await rollCriticalHits(target, damage.hullHits);
@@ -359,6 +369,7 @@ export async function resolveDirectFire(analysis, {
       ? 0
       : Math.max(0, damage.after.currentHits - critical.extraDamage);
   damage.critical = critical;
+  damage.brace = brace;
   damage.extraCriticalDamage = critical.extraDamage;
   damage.after.currentHits = remainingHull;
   damage.after.crippled = remainingHull > 0 && remainingHull <= damage.before.maximumHits / 2;
@@ -394,6 +405,7 @@ export async function resolveDirectFire(analysis, {
         <strong>${escape(analysis.targetName)}</strong>.<br>
         Dice (${attackDice}d6): <strong>${escape(diceLabel)}</strong><br>
         Required: <strong>${hitTarget}+</strong>; Hits: <strong>${hits}</strong>
+        <br>Brace saves: <strong>${escape(brace.dice.join(", ") || "None")}</strong>; Damage saved: <strong>${brace.saved}</strong>
         <br>Critical checks: <strong>${escape(critical.checkResults.join(", ") || "None")}</strong>
         <br>Critical effects: <strong>${escape(criticalLabel)}</strong>
         <br>Catastrophic damage: <strong>${escape(catastrophicLabel)}</strong>

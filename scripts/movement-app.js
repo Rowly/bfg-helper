@@ -8,6 +8,13 @@ import {
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
+function describePath(path) {
+  if (!path.hasTurn) return `${path.distanceCm} cm straight ahead`;
+  let text = `${path.beforeTurnCm} cm, then ${path.turnDirection} ${path.turnDegrees} degrees`;
+  if (path.hasSecondTurn) text += `, then ${path.intermediateCm} cm, then ${path.secondTurnDirection} ${path.secondTurnDegrees} degrees`;
+  return `${text}, then ${path.remainingCm} cm`;
+}
+
 export class BFGMovementPlannerApplication extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
     id: "bfg-helper-movement-planner",
@@ -63,10 +70,12 @@ export class BFGMovementPlannerApplication extends HandlebarsApplicationMixin(Ap
       }, { inplace: false });
     }
 
-    const { shipData, movement, turnState, activeFleet, tokenFleet, warnings } = movementContext;
+    const { shipData, movement, turnState, activeFleet, tokenFleet, warnings, specialOrder } = movementContext;
     const blastPenaltyCm = this.moveThroughBlastMarker ? 5 : 0;
     const maximumMovementCm = Math.max(0, Number(movement.speedCm) - blastPenaltyCm);
-    const minimumMovementCm = Math.min(maximumMovementCm, Number(movement.profileSpeedCm) / 2);
+    const minimumMovementCm = movement.minimumMovementCmOverride === null || movement.minimumMovementCmOverride === undefined
+      ? Math.min(maximumMovementCm, Number(movement.profileSpeedCm) / 2)
+      : Math.min(maximumMovementCm, Math.max(0, Number(movement.minimumMovementCmOverride)));
 
     return foundry.utils.mergeObject(context, {
       invalid: false,
@@ -82,15 +91,30 @@ export class BFGMovementPlannerApplication extends HandlebarsApplicationMixin(Ap
       moveThroughBlastMarker: this.moveThroughBlastMarker,
       minimumBeforeTurnCm: Number(movement.minimumBeforeTurnCm ?? 0),
       maximumTurnDegrees: Number(movement.maximumTurnDegrees ?? 0),
+      turnSliderMaximum: Math.max(1, Number(movement.maximumTurnDegrees ?? 0)),
+      turningUnavailable: Number(movement.maximumTurnDegrees ?? 0) <= 0,
+      turningLockTitle: specialOrder?.id === "lock-on"
+        ? "Locked On"
+        : specialOrder?.id === "all-ahead-full"
+          ? "All Ahead Full"
+          : "Turning unavailable",
+      turningLockMessage: specialOrder?.id === "lock-on"
+        ? "This ship must maintain its current heading."
+        : specialOrder?.id === "all-ahead-full"
+          ? "This ship cannot turn while moving at full thrust."
+          : "The ship cannot turn because of its current condition.",
       maximumTurns: Number(movement.maximumTurns ?? 1),
       defaultDistanceCm: maximumMovementCm,
       defaultBeforeTurnCm: Number(movement.minimumBeforeTurnCm ?? 0),
       defaultSignedTurnDegrees: 0,
+      allowsSecondTurn: Number(movement.maximumTurns ?? 1) > 1,
+      defaultBeforeSecondTurnCm: Number(movement.minimumBeforeTurnCm ?? 0),
+      defaultSecondSignedTurnDegrees: 0,
       hasWarnings: warnings.length > 0,
       warnings,
       canExecute: Boolean(this.lastPath),
       previewSummary: this.lastPath
-        ? `${this.lastPath.distanceCm} cm total; ${this.lastPath.hasTurn ? `${this.lastPath.beforeTurnCm} cm then ${this.lastPath.turnDirection} ${this.lastPath.turnDegrees} degrees` : "straight ahead"}.`
+        ? `${this.lastPath.distanceCm} cm total; ${describePath(this.lastPath)}.`
         : "No preview plotted."
     }, { inplace: false });
   }
@@ -101,6 +125,8 @@ export class BFGMovementPlannerApplication extends HandlebarsApplicationMixin(Ap
       distanceCm: Number(root.querySelector('[name="distanceCm"]')?.value),
       beforeTurnCm: Number(root.querySelector('[name="beforeTurnCm"]')?.value),
       signedTurnDegrees: Number(root.querySelector('[name="signedTurnDegrees"]')?.value ?? 0),
+      beforeSecondTurnCm: Number(root.querySelector('[name="beforeSecondTurnCm"]')?.value ?? 0),
+      secondSignedTurnDegrees: Number(root.querySelector('[name="secondSignedTurnDegrees"]')?.value ?? 0),
       moveThroughBlastMarker: Boolean(root.querySelector('[name="moveThroughBlastMarker"]')?.checked)
     };
   }
@@ -112,9 +138,9 @@ export class BFGMovementPlannerApplication extends HandlebarsApplicationMixin(Ap
     element.dataset.status = type;
   }
 
-  updateTurnSliderLabel() {
-    const slider = this.element?.querySelector('[name="signedTurnDegrees"]');
-    const label = this.element?.querySelector("[data-bfg-turn-slider-value]");
+  updateTurnSliderLabel(name = "signedTurnDegrees", labelSelector = "[data-bfg-turn-slider-value]") {
+    const slider = this.element?.querySelector(`[name="${name}"]`);
+    const label = this.element?.querySelector(labelSelector);
     if (!slider || !label) return;
 
     const value = Number(slider.value ?? 0);
@@ -155,6 +181,11 @@ export class BFGMovementPlannerApplication extends HandlebarsApplicationMixin(Ap
       this.updateTurnSliderLabel();
       turnSlider.addEventListener("input", () => this.updateTurnSliderLabel());
     }
+    const secondTurnSlider = this.element.querySelector('[name="secondSignedTurnDegrees"]');
+    if (secondTurnSlider) {
+      this.updateTurnSliderLabel("secondSignedTurnDegrees", "[data-bfg-second-turn-slider-value]");
+      secondTurnSlider.addEventListener("input", () => this.updateTurnSliderLabel("secondSignedTurnDegrees", "[data-bfg-second-turn-slider-value]"));
+    }
 
     const blastMarker = this.element.querySelector('[name="moveThroughBlastMarker"]');
     blastMarker?.addEventListener("change", async () => {
@@ -165,7 +196,7 @@ export class BFGMovementPlannerApplication extends HandlebarsApplicationMixin(Ap
     });
 
     for (const input of this.element.querySelectorAll(
-      '[name="distanceCm"], [name="beforeTurnCm"], [name="signedTurnDegrees"]'
+      '[name="distanceCm"], [name="beforeTurnCm"], [name="signedTurnDegrees"], [name="beforeSecondTurnCm"], [name="secondSignedTurnDegrees"]'
     )) {
       input.addEventListener("input", () => this.invalidatePreview());
     }
@@ -191,9 +222,7 @@ export class BFGMovementPlannerApplication extends HandlebarsApplicationMixin(Ap
         this.lastPath = path;
         this.setExecuteEnabled(true);
 
-        const turnText = path.hasTurn
-          ? `${path.beforeTurnCm} cm, then ${path.turnDirection} ${path.turnDegrees} degrees, then ${path.remainingCm} cm`
-          : `${path.distanceCm} cm straight ahead`;
+        const turnText = describePath(path);
 
         this.updateStatus(`Preview: ${turnText}. Final facing ${path.finalRotation.toFixed(0)} degrees.`, "success");
       } catch (error) {
@@ -217,9 +246,7 @@ export class BFGMovementPlannerApplication extends HandlebarsApplicationMixin(Ap
         this.lastPath = null;
         this.setExecuteEnabled(false);
 
-        const turnText = executedPath.hasTurn
-          ? `${executedPath.beforeTurnCm} cm, then ${executedPath.turnDirection} ${executedPath.turnDegrees} degrees, then ${executedPath.remainingCm} cm`
-          : `${executedPath.distanceCm} cm straight ahead`;
+        const turnText = describePath(executedPath);
 
         this.updateStatus(
           `Movement executed: ${turnText}. Final facing ${executedPath.finalRotation.toFixed(0)} degrees.`,

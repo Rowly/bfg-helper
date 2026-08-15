@@ -629,12 +629,37 @@
 
 /* Signed port/straight/starboard turn slider */
 .bfg-turn-slider-section {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
   padding: 0.6rem 0.7rem;
   border: 1px solid rgba(127, 127, 127, 0.35);
   border-radius: 5px;
+}
+
+.bfg-turn-slider-lock-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.5rem;
+  border-radius: 5px;
+  background: rgba(20, 17, 23, 0.84);
+  color: rgba(255, 204, 102, 0.98);
+  text-align: center;
+}
+
+.bfg-turn-slider-lock-overlay span {
+  color: rgba(235, 230, 220, 0.82);
+  font-size: 0.78rem;
+}
+
+.bfg-turn-slider-locked .bfg-turn-slider {
+  cursor: not-allowed;
 }
 
 .bfg-turn-slider-heading {
@@ -768,8 +793,15 @@
 
 .bfg-firing-analysis > div {
   display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.bfg-firing-analysis > div strong {
+  min-width: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
 }
 
 .bfg-firing-analysis span {
@@ -816,8 +848,13 @@
 
 .bfg-firing-resolution > div {
   display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.bfg-firing-resolution > div strong {
+  text-align: right;
 }
 
 .bfg-firing-resolution span {

@@ -126,6 +126,8 @@ export async function resetBattle() {
   await resetOrdnance();
   const { resetBoardingState } = await import("./boarding.js");
   await resetBoardingState();
+  const { resetEndPhaseState } = await import("./end-phase.js");
+  await resetEndPhaseState();
   for (const token of canvas.tokens?.placeables ?? []) {
     if (token.document.getFlag(MODULE_ID, "firedWeapons") !== undefined) {
       await token.document.unsetFlag(MODULE_ID, "firedWeapons");
@@ -149,6 +151,15 @@ export async function nextPhase() {
   if (!state.battleStarted) {
     ui.notifications.warn("Start a battle before advancing phases.");
     return false;
+  }
+
+  if (state.phase === "end") {
+    const { unresolvedFireDamageShips } = await import("./end-phase.js");
+    const unresolved = unresolvedFireDamageShips(state);
+    if (unresolved.length) {
+      ui.notifications.warn(`Resolve Damage Control for ships with active fires before leaving the End Phase: ${unresolved.map(token => token.name).join(", ")}.`);
+      return false;
+    }
   }
 
   if (state.phase === "ordnance") {

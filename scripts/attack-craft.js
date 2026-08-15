@@ -35,6 +35,13 @@ function rolePriority(token) {
   return role === "fighter" ? 0 : role === "bomber" ? 1 : 2;
 }
 
+function attackWaveName(markers) {
+  const roles = new Set(markers.map(marker => marker?.role).filter(role => role !== "fighter"));
+  if (roles.size === 1 && roles.has("assault-boat")) return "Boarding-craft wave";
+  if (roles.size === 1 && roles.has("bomber")) return "Bomber wave";
+  return "Mixed attack-craft wave";
+}
+
 async function deleteTokens(tokens) {
   const ids = [...new Set(tokens.filter(Boolean).map(token => token.document.id))];
   if (ids.length) await canvas.scene.deleteEmbeddedDocuments("Token", ids);
@@ -146,6 +153,7 @@ async function resolveSelectedAgainstShip(selected, target, selectedMarker) {
   }
 
   let wave = [...selected].sort((a, b) => rolePriority(a) - rolePriority(b));
+  const waveName = attackWaveName(selected.map(getOrdnanceMarker));
   const bombersAtStart = wave.filter(token => getOrdnanceMarker(token)?.role === "bomber");
   const assaultAtStart = wave.filter(token => getOrdnanceMarker(token)?.role === "assault-boat");
   if (!bombersAtStart.length && !assaultAtStart.length) {
@@ -198,9 +206,12 @@ async function resolveSelectedAgainstShip(selected, target, selectedMarker) {
         bomberAttackCounts.push(attacks);
         bomberAttacks += attacks;
       }
-      const attackRoll = await new Roll(bomberAttacks ? `${bomberAttacks}d6` : "0").evaluate();
-      await publishBFGDice(attackRoll, { speaker: ChatMessage.getSpeaker({ token: selected[0].document }), flavor: `Bomber wave attacking ${target.name}` });
-      const attackResults = diceFaces(attackRoll);
+      let attackResults = [];
+      if (bomberAttacks > 0) {
+        const attackRoll = await new Roll(`${bomberAttacks}d6`).evaluate();
+        await publishBFGDice(attackRoll, { speaker: ChatMessage.getSpeaker({ token: selected[0].document }), flavor: `Bomber attack dice against ${target.name}` });
+        attackResults = diceFaces(attackRoll);
+      }
       const hits = attackResults.filter(value => value >= targetNumber).length;
       const critical = targetCombat.hulk ? { after: getCriticalState(target), escortDestroyed: false, extraDamage: 0, results: [] } : await rollCriticalHits(target, hits);
       const remainingHull = targetCombat.hulk ? 0 : critical.escortDestroyed ? 0 : Math.max(0, targetCombat.currentHits - hits - critical.extraDamage);
@@ -211,7 +222,7 @@ async function resolveSelectedAgainstShip(selected, target, selectedMarker) {
       const catastrophicResult = catastrophic ? `${catastrophic.name}${catastrophic.tableTotal ? ` (${catastrophic.tableTotal})` : ""}` : "None";
       return { intercepted, turretResults, turretVictims, afterTurrets, survivingBombers, survivingAssault, suppressionFighters, bomberRunRolls, bomberAttackCounts, bomberAttacks, attackResults, hits, critical, catastrophic, remainingHull, pendingHitAndRun, defenseChoice, defensiveTurretDice,
         criticalChecks, criticalEffects, catastrophicResult,
-        resultHtml: `<h3>Attack result</h3><div class="bfg-action-confirmation"><div><span>CAP interceptions</span><strong>${intercepted.length}</strong></div><div><span>Turret dice (${defensiveTurretDice}d6, needing 4+)</span><strong>${turretResults.join(", ") || "None"}</strong></div><div><span>Turret kills</span><strong>${turretVictims.length}</strong></div><div><span>Bomber attack-run dice (${survivingBombers.length}d6)</span><strong>${bomberRunRolls.join(", ") || "None"}</strong></div><div><span>Attacks generated</span><strong>${bomberAttackCounts.join(", ") || "None"}; total ${bomberAttacks}</strong></div><div><span>Attack dice (${bomberAttacks}d6, needing ${targetNumber}+)</span><strong>${attackResults.join(", ") || "None"}</strong></div><div><span>Hits</span><strong>${hits}</strong></div><div><span>Critical checks (${hits}d6, needing 6)</span><strong>${criticalChecks}</strong></div><div><span>Critical effects</span><strong>${foundry.utils.escapeHTML(criticalEffects)}</strong></div><div><span>Critical damage</span><strong>${critical.extraDamage ?? 0}</strong></div><div><span>Catastrophic result</span><strong>${foundry.utils.escapeHTML(catastrophicResult)}</strong></div><div><span>Remaining hull</span><strong>${remainingHull}</strong></div><div><span>Pending Hit-and-Run</span><strong>${pendingHitAndRun}</strong></div></div><p>Shields are ignored. Review all damage and marker losses before applying.</p>` };
+        resultHtml: `<h3>${waveName} result</h3><div class="bfg-action-confirmation"><div><span>CAP interceptions</span><strong>${intercepted.length}</strong></div><div><span>Turret dice (${defensiveTurretDice}d6, needing 4+)</span><strong>${turretResults.join(", ") || "None"}</strong></div><div><span>Turret kills</span><strong>${turretVictims.length}</strong></div><div><span>Surviving bombers</span><strong>${survivingBombers.length}</strong></div><div><span>Surviving boarding craft</span><strong>${survivingAssault.length}</strong></div><div><span>Bomber attack-run dice (${survivingBombers.length}d6)</span><strong>${bomberRunRolls.join(", ") || "None"}</strong></div><div><span>Bomber attacks generated</span><strong>${bomberAttackCounts.join(", ") || "None"}; total ${bomberAttacks}</strong></div><div><span>Bomber attack dice (${bomberAttacks}d6, needing ${targetNumber}+)</span><strong>${attackResults.join(", ") || "None"}</strong></div><div><span>Hits</span><strong>${hits}</strong></div><div><span>Critical checks (${hits}d6, needing 6)</span><strong>${criticalChecks}</strong></div><div><span>Critical effects</span><strong>${foundry.utils.escapeHTML(criticalEffects)}</strong></div><div><span>Critical damage</span><strong>${critical.extraDamage ?? 0}</strong></div><div><span>Catastrophic result</span><strong>${foundry.utils.escapeHTML(catastrophicResult)}</strong></div><div><span>Remaining hull</span><strong>${remainingHull}</strong></div><div><span>Pending boarding-craft Hit-and-Run attacks</span><strong>${pendingHitAndRun}</strong></div></div><p>Shields are ignored. Review all damage and marker losses before applying.</p>` };
     },
     apply: async outcome => {
       const current = getCombatState(target);
@@ -224,8 +235,9 @@ async function resolveSelectedAgainstShip(selected, target, selectedMarker) {
       if (outcome.pendingHitAndRun > 0) {
         const stored = target.document.getFlag(MODULE_ID, HIT_AND_RUN_FLAG) ?? { count: 0 };
         await target.document.setFlag(MODULE_ID, HIT_AND_RUN_FLAG, { count: Math.max(0, Number(stored.count) || 0) + outcome.pendingHitAndRun, source: "assault-boats" });
+        Hooks.callAll("bfgHelperPendingActionsChanged", target.document);
       }
-      await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ token: selected[0].document }), content: `<div class="bfg-dice-chat-result"><strong>Attack-craft wave against ${foundry.utils.escapeHTML(target.name)}</strong><br>CAP interceptions: ${outcome.intercepted.length}; turret rolls: ${outcome.turretResults.join(", ") || "None"}; turret kills: ${outcome.turretVictims.length}<br>Surviving bombers: ${outcome.survivingBombers.length}; attack runs: ${outcome.bomberAttackCounts.join(", ") || "None"}; fighter suppression attacks: ${outcome.suppressionFighters}<br>Attack dice: ${outcome.attackResults.join(", ") || "None"}; Armour: ${targetNumber}+; hits: ${outcome.hits}; shields ignored<br>Critical checks: ${outcome.criticalChecks}; critical effects: ${foundry.utils.escapeHTML(outcome.criticalEffects)}; critical damage: ${outcome.critical.extraDamage ?? 0}<br>Catastrophic result: ${foundry.utils.escapeHTML(outcome.catastrophicResult)}; remaining hull: ${outcome.remainingHull}<br>Pending assault-boat Hit-and-Run attacks: ${outcome.pendingHitAndRun}</div>` });
+      await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ token: selected[0].document }), content: `<div class="bfg-dice-chat-result"><strong>${waveName} against ${foundry.utils.escapeHTML(target.name)}</strong><br>CAP interceptions: ${outcome.intercepted.length}; turret rolls: ${outcome.turretResults.join(", ") || "None"}; turret kills: ${outcome.turretVictims.length}<br>Surviving bombers: ${outcome.survivingBombers.length}; surviving boarding craft: ${outcome.survivingAssault.length}; fighter suppression attacks: ${outcome.suppressionFighters}<br>Bomber attack runs: ${outcome.bomberAttackCounts.join(", ") || "None"}; bomber attack dice: ${outcome.attackResults.join(", ") || "None"}; Armour: ${targetNumber}+; hits: ${outcome.hits}; shields ignored<br>Critical checks: ${outcome.criticalChecks}; critical effects: ${foundry.utils.escapeHTML(outcome.criticalEffects)}; critical damage: ${outcome.critical.extraDamage ?? 0}<br>Catastrophic result: ${foundry.utils.escapeHTML(outcome.catastrophicResult)}; remaining hull: ${outcome.remainingHull}<br>Pending boarding-craft Hit-and-Run attacks: ${outcome.pendingHitAndRun}</div>` });
     }
   });
 }

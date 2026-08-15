@@ -36,17 +36,17 @@
         <div class="bfg-phase-action-grid">
           {{#if movementPhase}}
             <button type="button" disabled title="Special orders have not yet been implemented"><i class="fa-solid fa-scroll"></i> Assign Orders <small>Coming later</small></button>
-            <button type="button" data-bfg-action="move-ship" class="bfg-primary-button"><i class="fa-solid fa-route"></i> Move Ship</button>
+            <button type="button" data-bfg-action="move-ship"><i class="fa-solid fa-route"></i> Move Ship</button>
             <button type="button" data-bfg-action="declare-boarding"><i class="fa-solid fa-link"></i> Declare Boarding</button>
           {{/if}}
           {{#if shootingPhase}}
-            <button type="button" data-bfg-action="fire-weaponry" class="bfg-primary-button"><i class="fa-solid fa-crosshairs"></i> Fire Weaponry</button>
+            <button type="button" data-bfg-action="fire-weaponry"><i class="fa-solid fa-crosshairs"></i> Fire Weaponry</button>
             <button type="button" data-bfg-action="launch-ordnance"><i class="fa-solid fa-rocket"></i> Launch Ordnance</button>
             <button type="button" data-bfg-action="weapon-arcs"><i class="fa-solid fa-fan"></i> Show Weapon Arcs</button>
             <button type="button" data-bfg-action="clear-weapon-arcs"><i class="fa-solid fa-eraser"></i> Clear Weapon Arcs</button>
           {{/if}}
           {{#if ordnancePhase}}
-            <button type="button" data-bfg-action="move-ordnance" class="bfg-primary-button"><i class="fa-solid fa-route"></i> Move Ordnance</button>
+            <button type="button" data-bfg-action="move-ordnance"><i class="fa-solid fa-route"></i> Move Ordnance</button>
             <button type="button" data-bfg-action="ordnance-attack"><i class="fa-solid fa-burst"></i> Ordnance Attack</button>
             <button type="button" data-bfg-action="assign-cap"><i class="fa-solid fa-shield-halved"></i> Assign Fighter CAP</button>
             <button type="button" data-bfg-action="clear-ordnance-paths"><i class="fa-solid fa-eraser"></i> Clear Ordnance Paths</button>
@@ -56,8 +56,8 @@
             <button type="button" data-bfg-action="resolve-boarding"><i class="fa-solid fa-hand-fist"></i> Resolve Boarding</button>
             <button type="button" data-bfg-action="resolve-hit-and-run"><i class="fa-solid fa-person-running"></i> Resolve Hit and Run</button>
             <button type="button" data-bfg-action="teleport-hit-and-run"><i class="fa-solid fa-bolt"></i> Teleport Hit and Run</button>
-            <button type="button" disabled title="Damage control has not yet been implemented"><i class="fa-solid fa-screwdriver-wrench"></i> Repair Systems <small>Coming later</small></button>
-            <button type="button" disabled title="Blast Marker removal has not yet been implemented"><i class="fa-solid fa-broom"></i> Clear Blast Markers <small>Coming later</small></button>
+            <button type="button" data-bfg-action="repair-systems"><i class="fa-solid fa-screwdriver-wrench"></i> Repair Systems</button>
+            <button type="button" data-bfg-action="clear-blast-markers"><i class="fa-solid fa-broom"></i> Clear Blast Markers</button>
           {{/if}}
         </div>
       </section>
@@ -81,6 +81,7 @@
                   <strong>{{combatStatus}}</strong>
                 </div>
                 {{#if combatState.criticals.length}}<div class="bfg-critical-summary"><i class="fa-solid fa-burst"></i> {{#each combatState.criticals}}{{name}}{{#if count}} x{{count}}{{/if}}{{#unless @last}}; {{/unless}}{{/each}}</div>{{/if}}
+                {{#if pendingActions.length}}<div class="bfg-pending-action-summary"><i class="fa-solid fa-hourglass-half"></i> {{#each pendingActions}}{{this}}{{#unless @last}}; {{/unless}}{{/each}}</div>{{/if}}
               {{/if}}
             </li>{{/each}}</ul>
           {{else}}<p class="notes">No ships assigned.</p>{{/if}}

@@ -64,7 +64,7 @@ class BFGActionResolutionApplication extends HandlebarsApplicationMixin(Applicat
     });
     bind("apply", async () => {
       try {
-        await this.config.apply(this.outcome);
+        await this.config.apply(this.outcome, this.element);
         this.applied = true;
         this.stage = "applied";
         await this.render({ force: true });

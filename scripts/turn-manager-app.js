@@ -30,6 +30,7 @@ import {
   resolveSelectedPendingHitAndRun,
   resolveSelectedTeleportHitAndRun
 } from "./boarding.js";
+import { resolveBlastMarkerRemoval, resolveSelectedDamageControl } from "./end-phase.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -165,6 +166,12 @@ export class BFGTurnManagerApplication extends HandlebarsApplicationMixin(Applic
     bind('[data-bfg-action="resolve-boarding"]', () => resolveSelectedBoarding());
     bind('[data-bfg-action="resolve-hit-and-run"]', () => resolveSelectedPendingHitAndRun());
     bind('[data-bfg-action="teleport-hit-and-run"]', () => resolveSelectedTeleportHitAndRun());
+    bind('[data-bfg-action="repair-systems"]', async () => {
+      if (await resolveSelectedDamageControl()) await this.render({ force: true });
+    });
+    bind('[data-bfg-action="clear-blast-markers"]', async () => {
+      if (await resolveBlastMarkerRemoval()) await this.render({ force: true });
+    });
 
     bind('[data-bfg-action="next"]', async () => {
       if (await nextPhase()) await this.render({ force: true });

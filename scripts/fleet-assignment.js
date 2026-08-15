@@ -146,6 +146,17 @@ export function getFleetShips(fleetId) {
       const actor = getBaseActor(token);
       const data = getShipData(actor);
       const combatState = getCombatState(token);
+      const boarding = token.document.getFlag(MODULE_ID, "boardingAction");
+      const pendingHitAndRun = Math.max(0, Math.trunc(Number(token.document.getFlag(MODULE_ID, "pendingHitAndRun")?.count) || 0));
+      const pendingActions = [];
+      if (boarding?.partnerId) {
+        pendingActions.push(boarding.drawn
+          ? "Boarding action ongoing"
+          : boarding.initiatorId === token.document.id
+            ? "Boarding declared"
+            : "Boarding target");
+      }
+      if (pendingHitAndRun > 0) pendingActions.push(`Pending Hit-and-Run x${pendingHitAndRun}`);
       return {
         tokenId: token.document.id,
         actorId: actor?.id ?? null,
@@ -153,6 +164,7 @@ export function getFleetShips(fleetId) {
         shipClass: data?.shipClass ?? actor?.name ?? "Unconfigured ship",
         faction: data?.faction ?? "",
         combatState,
+        pendingActions,
         hasCombatState: Boolean(combatState),
         combatStatus: combatState?.catastrophicState?.name
           ?? (combatState?.outOfAction

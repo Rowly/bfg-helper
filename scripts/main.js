@@ -78,6 +78,8 @@ import {
   resolveSelectedPendingHitAndRun,
   resolveSelectedTeleportHitAndRun
 } from "./boarding.js";
+import { resolveBlastMarkerRemoval, resolveSelectedDamageControl } from "./end-phase.js";
+import { initialiseQuantitySteppers } from "./quantity-stepper.js";
 
 Hooks.once("init", () => {
   console.log("BFG Helper | Initialising");
@@ -98,6 +100,7 @@ async function configureProfile(profileFactory) {
 
 Hooks.once("ready", () => {
   initialiseOrdnanceControls();
+  initialiseQuantitySteppers();
   game.bfgHelper = {
     configureSelectedShip,
     configureRetribution: () => configureProfile(retributionProfile),
@@ -161,7 +164,9 @@ Hooks.once("ready", () => {
       declareBoarding: declareSelectedShipBoarding,
       resolveBoarding: resolveSelectedBoarding,
       resolveHitAndRun: resolveSelectedPendingHitAndRun,
-      teleportHitAndRun: resolveSelectedTeleportHitAndRun
+      teleportHitAndRun: resolveSelectedTeleportHitAndRun,
+      repairSystems: resolveSelectedDamageControl,
+      clearBlastMarkers: resolveBlastMarkerRemoval
     },
     shooting: {
       open: openShootingPlanner,
@@ -211,6 +216,11 @@ Hooks.on("bfgHelperCriticalStateChanged", async () => {
 });
 
 Hooks.on("bfgHelperCatastrophicStateChanged", async () => {
+  const { refreshTurnManagerApplication } = await import("./turn-manager-app.js");
+  refreshTurnManagerApplication();
+});
+
+Hooks.on("bfgHelperPendingActionsChanged", async () => {
   const { refreshTurnManagerApplication } = await import("./turn-manager-app.js");
   refreshTurnManagerApplication();
 });

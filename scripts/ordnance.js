@@ -277,11 +277,15 @@ export async function launchSelectedShipAttackCraft() {
 
   const fields = craft.map(item => `
     <label>${foundry.utils.escapeHTML(item.name)} (${item.speedCm} cm)</label>
-    <input type="number" name="${item.id}" value="0" min="0" max="${available}" step="1">`
+    <div class="bfg-quantity-stepper" data-bfg-stepper>
+      <button type="button" data-bfg-step="-1" aria-label="Remove one ${foundry.utils.escapeHTML(item.name)}"><i class="fa-solid fa-minus"></i></button>
+      <input type="number" name="${item.id}" value="0" min="0" max="${available}" step="1" readonly aria-label="${foundry.utils.escapeHTML(item.name)} squadrons">
+      <button type="button" data-bfg-step="1" aria-label="Add one ${foundry.utils.escapeHTML(item.name)}"><i class="fa-solid fa-plus"></i></button>
+    </div>`
   ).join("");
   const result = await foundry.applications.api.DialogV2.input({
     window: { title: `Launch Attack Craft: ${ship.name}` },
-    content: `<div class="bfg-dialog"><p>Launch up to ${available} squadron markers. Any amount expends this ship's loaded attack craft.</p>${fields}</div>`,
+    content: `<div class="bfg-dialog" data-bfg-step-group data-bfg-step-group-max="${available}"><p>Launch up to ${available} squadron markers. Any amount expends this ship's loaded attack craft.</p>${fields}</div>`,
     ok: { label: "Launch", icon: "fa-solid fa-jet-fighter-up" },
     rejectClose: false,
     modal: true

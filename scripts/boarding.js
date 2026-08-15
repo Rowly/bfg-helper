@@ -81,11 +81,13 @@ async function setPairState(attacker, defender, extra = {}) {
   };
   await attacker.document.setFlag(MODULE_ID, BOARDING_FLAG, { ...common, partnerId: defender.document.id });
   await defender.document.setFlag(MODULE_ID, BOARDING_FLAG, { ...common, partnerId: attacker.document.id });
+  Hooks.callAll("bfgHelperPendingActionsChanged", attacker.document, defender.document);
 }
 
 async function clearPairState(first, second) {
   await first?.document?.unsetFlag(MODULE_ID, BOARDING_FLAG);
   await second?.document?.unsetFlag(MODULE_ID, BOARDING_FLAG);
+  Hooks.callAll("bfgHelperPendingActionsChanged", first?.document, second?.document);
 }
 
 function boardingErrors(attacker, defender) {
@@ -343,6 +345,7 @@ export async function resolveSelectedPendingHitAndRun() {
       if (outcome.catastrophic) await setCatastrophicState(target, outcome.catastrophic);
       await setCombatState(target, { currentHits: outcome.remainingHull, currentShields: current.currentShields });
       await target.document.unsetFlag(MODULE_ID, HIT_AND_RUN_FLAG);
+      Hooks.callAll("bfgHelperPendingActionsChanged", target.document);
       await ChatMessage.create({ content: `<strong>${target.name}: ${count} Hit-and-Run attack(s)</strong><br>${outcome.results.map(result => result.escortDestroyed ? `${result.roll}: escort destroyed` : result.failed ? "1: failed" : `${result.roll}: ${result.critical.name}`).join("; ")}` });
     }
   });
@@ -407,4 +410,5 @@ export async function resetBoardingState() {
     if (token.document.getFlag(MODULE_ID, BOARDING_FLAG) !== undefined) await token.document.unsetFlag(MODULE_ID, BOARDING_FLAG);
     if (token.document.getFlag(MODULE_ID, TELEPORT_FLAG) !== undefined) await token.document.unsetFlag(MODULE_ID, TELEPORT_FLAG);
   }
+  Hooks.callAll("bfgHelperPendingActionsChanged");
 }

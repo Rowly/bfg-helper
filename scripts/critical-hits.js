@@ -196,6 +196,12 @@ export async function applyCriticalTableResult(tokenOrDocument, rolledTotal, opt
 export async function setCriticalState(tokenOrDocument, state) {
   const document = asTokenDocument(tokenOrDocument);
   if (!document) throw new Error("A deployed ship token is required.");
+  // Foundry deep-merges object-valued flags. Remove the previous value first
+  // so repaired or GM-corrected effects which are absent from the new state
+  // are genuinely deleted rather than retained as stale nested keys.
+  if (document.getFlag(MODULE_ID, CRITICAL_HITS_FLAG) !== undefined) {
+    await document.unsetFlag(MODULE_ID, CRITICAL_HITS_FLAG);
+  }
   await document.setFlag(MODULE_ID, CRITICAL_HITS_FLAG, {
     repairable: state?.repairable ?? {},
     permanent: state?.permanent ?? []

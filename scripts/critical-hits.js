@@ -159,6 +159,40 @@ export async function rollCriticalHits(tokenOrDocument, hullDamage) {
   return { checks, checkResults: checkRoll.values, triggers, escortDestroyed: false, results, extraDamage, before, after };
 }
 
+/** Apply one specified Critical Hits table result, used by Hit-and-Run and boarding. */
+export async function previewCriticalTableResult(tokenOrDocument, rolledTotal, { flavor = "Critical effect", state = null } = {}) {
+  const document = asTokenDocument(tokenOrDocument);
+  const shipData = getShipData(document);
+  if (!document || !shipData) throw new Error("A configured deployed ship is required.");
+  const before = state ? foundry.utils.deepClone(state) : getCriticalState(document);
+  const after = foundry.utils.deepClone(before);
+  const applicable = resolveApplicableResult(Math.max(2, Math.min(12, Math.trunc(Number(rolledTotal)))), shipData, after);
+  let extraDamage = 0;
+  let extraDice = [];
+  if (applicable.result.extra) {
+    const extra = await rollValues(applicable.result.extra, `${document.name}: ${flavor}, ${applicable.result.name}`, document);
+    extraDamage = extra.total;
+    extraDice = extra.values;
+  }
+  addEffect(after, applicable.result);
+  return {
+    rolledTotal: Number(rolledTotal),
+    appliedTotal: applicable.total,
+    shifted: applicable.total !== Number(rolledTotal),
+    ...applicable.result,
+    extraDamage,
+    extraDice,
+    before,
+    after
+  };
+}
+
+export async function applyCriticalTableResult(tokenOrDocument, rolledTotal, options = {}) {
+  const result = await previewCriticalTableResult(tokenOrDocument, rolledTotal, options);
+  await setCriticalState(tokenOrDocument, result.after);
+  return result;
+}
+
 export async function setCriticalState(tokenOrDocument, state) {
   const document = asTokenDocument(tokenOrDocument);
   if (!document) throw new Error("A deployed ship token is required.");

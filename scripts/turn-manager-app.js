@@ -12,6 +12,24 @@ import { getFleetShips, assignSelectedShipToFleet, clearSelectedShipFleet } from
 import { lockSelectedShipRotation, unlockSelectedShipRotation } from "./rotation-locking.js";
 import { editSelectedShipCombatState, resetSelectedShipCombatState } from "./combat-state.js";
 import { editSelectedShipCriticalState } from "./critical-hits.js";
+import { openMovementPlanner } from "./movement.js";
+import { openShootingPlanner } from "./shooting.js";
+import {
+  clearAllOrdnanceTrails,
+  getOrdnanceMarker,
+  launchSelectedShipAttackCraft,
+  moveSelectedOrdnance
+} from "./ordnance.js";
+import { launchSelectedShipTorpedoes, resolveSelectedTorpedoAttack } from "./torpedoes.js";
+import { assignSelectedFighterToCAP, resolveSelectedAttackCraft } from "./attack-craft.js";
+import { clearAllWeaponArcs, toggleWeaponDialog } from "./weapon-arcs.js";
+import { refreshEngines } from "./engine-effects.js";
+import {
+  declareSelectedShipBoarding,
+  resolveSelectedBoarding,
+  resolveSelectedPendingHitAndRun,
+  resolveSelectedTeleportHitAndRun
+} from "./boarding.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -45,6 +63,11 @@ export class BFGTurnManagerApplication extends HandlebarsApplicationMixin(Applic
     }
   };
 
+  constructor(options = {}) {
+    super(options);
+    this.activeTab = "management";
+  }
+
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
     const state = getTurnState();
@@ -58,6 +81,13 @@ export class BFGTurnManagerApplication extends HandlebarsApplicationMixin(Applic
       activeFleetName: activeFleet?.name ?? "Unassigned",
       activeFleetLabel: state.phase === "ordnance" ? "Acting fleet" : "Active fleet",
       currentPhaseLabel: currentPhase?.label ?? state.phase,
+      managementTab: this.activeTab === "management",
+      fleetsTab: this.activeTab === "fleets",
+      toolsTab: this.activeTab === "tools",
+      movementPhase: state.phase === "movement",
+      shootingPhase: state.phase === "shooting",
+      ordnancePhase: state.phase === "ordnance",
+      endPhase: state.phase === "end",
       phases: PHASES.map(phase => ({
         ...phase,
         active: phase.id === state.phase,
@@ -89,6 +119,52 @@ export class BFGTurnManagerApplication extends HandlebarsApplicationMixin(Applic
         await handler(event);
       });
     };
+
+    for (const tab of this.element.querySelectorAll("[data-bfg-tab]")) {
+      tab.addEventListener("click", async event => {
+        event.preventDefault();
+        this.activeTab = tab.dataset.bfgTab;
+        await this.render({ force: true });
+      });
+    }
+
+    bind('[data-bfg-action="move-ship"]', () => openMovementPlanner());
+    bind('[data-bfg-action="declare-boarding"]', () => declareSelectedShipBoarding());
+    bind('[data-bfg-action="fire-weaponry"]', () => openShootingPlanner());
+    bind('[data-bfg-action="weapon-arcs"]', () => toggleWeaponDialog());
+    bind('[data-bfg-action="clear-weapon-arcs"]', () => clearAllWeaponArcs());
+    bind('[data-bfg-action="launch-ordnance"]', async () => {
+      const choice = await foundry.applications.api.DialogV2.input({
+        window: { title: "Launch Ordnance" },
+        content: `<div class="bfg-dialog"><label>Ordnance type</label><select name="type"><option value="attack-craft">Attack craft</option><option value="torpedoes">Torpedoes</option></select></div>`,
+        ok: { label: "Continue", icon: "fa-solid fa-rocket" },
+        rejectClose: false,
+        modal: true
+      });
+      if (choice?.type === "attack-craft") await launchSelectedShipAttackCraft();
+      if (choice?.type === "torpedoes") await launchSelectedShipTorpedoes();
+    });
+    bind('[data-bfg-action="move-ordnance"]', () => moveSelectedOrdnance());
+    bind('[data-bfg-action="assign-cap"]', () => assignSelectedFighterToCAP());
+    bind('[data-bfg-action="clear-ordnance-paths"]', () => clearAllOrdnanceTrails());
+    bind('[data-bfg-action="ordnance-attack"]', async () => {
+      const selected = canvas.tokens?.controlled ?? [];
+      if (!selected.length) {
+        ui.notifications.warn("Select an attack-craft marker or torpedo salvo.");
+        return;
+      }
+      const categories = new Set(selected.map(token => getOrdnanceMarker(token)?.category));
+      if (categories.size !== 1 || categories.has(undefined)) {
+        ui.notifications.warn("Select only attack craft or exactly one torpedo salvo.");
+        return;
+      }
+      if (categories.has("attackCraft")) await resolveSelectedAttackCraft();
+      else if (categories.has("torpedo") && selected.length === 1) await resolveSelectedTorpedoAttack();
+      else ui.notifications.warn("Select exactly one torpedo salvo.");
+    });
+    bind('[data-bfg-action="resolve-boarding"]', () => resolveSelectedBoarding());
+    bind('[data-bfg-action="resolve-hit-and-run"]', () => resolveSelectedPendingHitAndRun());
+    bind('[data-bfg-action="teleport-hit-and-run"]', () => resolveSelectedTeleportHitAndRun());
 
     bind('[data-bfg-action="next"]', async () => {
       if (await nextPhase()) await this.render({ force: true });
@@ -130,6 +206,8 @@ export class BFGTurnManagerApplication extends HandlebarsApplicationMixin(Applic
     bind('[data-bfg-action="edit-critical-state"]', async () => {
       if (await editSelectedShipCriticalState()) await this.render({ force: true });
     });
+
+    bind('[data-bfg-action="refresh-engines"]', () => refreshEngines());
 
     bind('[data-bfg-action="end"]', async () => {
       if (await endBattle()) await this.render({ force: true });

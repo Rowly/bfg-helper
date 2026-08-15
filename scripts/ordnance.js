@@ -4,6 +4,7 @@ import { getCombatState, halveRoundedUp } from "./combat-state.js";
 import { getTokenFleetId } from "./fleet-assignment.js";
 import { getActingFleetIndex, getTurnState } from "./turn-manager.js";
 import { publishBFGDice } from "./dice.js";
+import { getBoardingState, hasDeclaredBoarding } from "./boarding.js";
 
 export const ORDNANCE_MARKER_FLAG = "ordnanceMarker";
 export const ORDNANCE_STATE_FLAG = "ordnanceState";
@@ -167,6 +168,7 @@ function launchErrors(token, state, fleetId) {
   const activeFleet = state.fleets?.[state.activeFleetIndex];
   if (fleetId && activeFleet?.id !== fleetId) errors.push(`${token.name} does not belong to the active fleet.`);
   if (combat?.outOfAction) errors.push(`${token.name} is out of action.`);
+  if (hasDeclaredBoarding(token) || getBoardingState(token)?.drawn) errors.push(`${token.name} is committed to a boarding action.`);
   return errors;
 }
 

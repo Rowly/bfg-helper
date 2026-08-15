@@ -1,0 +1,27 @@
+<div class="bfg-action-resolution-panel">
+  <header><p class="bfg-turn-manager-kicker">Action resolution</p><h2>{{heading}}</h2></header>
+  {{#if error}}<p class="notification error">{{error}}</p>{{/if}}
+  {{#if detailsStage}}
+    <section class="bfg-action-resolution-content">{{{detailsHtml}}}</section>
+    <div class="bfg-turn-primary-actions">
+      <button type="button" data-bfg-action="cancel"><i class="fa-solid fa-xmark"></i> Cancel</button>
+      <button type="button" data-bfg-action="roll" class="bfg-primary-button"><i class="fa-solid fa-dice-d6"></i> {{rollLabel}}</button>
+    </div>
+  {{/if}}
+  {{#if waitingStage}}
+    <section class="bfg-shooting-waiting" aria-live="polite" aria-busy="true"><i class="fa-solid fa-dice-d6"></i><strong>Rolling...</strong><span>Resolving dice and preparing the result.</span></section>
+  {{/if}}
+  {{#if resultStage}}
+    <section class="bfg-action-resolution-content">{{{resultHtml}}}</section>
+    {{#if canApply}}
+      <div class="bfg-turn-primary-actions">
+        <button type="button" data-bfg-action="cancel"><i class="fa-solid fa-xmark"></i> Cancel without applying</button>
+        <button type="button" data-bfg-action="apply" class="bfg-primary-button"><i class="fa-solid fa-check"></i> {{applyLabel}}</button>
+      </div>
+    {{else}}<p class="notes">A Gamemaster must apply this result.</p>{{/if}}
+  {{/if}}
+  {{#if appliedStage}}
+    <p class="bfg-resolution-committed"><i class="fa-solid fa-check"></i> Result applied.</p>
+    <button type="button" data-bfg-action="close" class="bfg-full-width">Close</button>
+  {{/if}}
+</div>

@@ -4,6 +4,7 @@ import { getTurnState, PHASES } from "./turn-manager.js";
 import { ROTATION_UPDATE_OVERRIDE } from "./rotation-locking.js";
 import { MODULE_ID } from "./constants.js";
 import { getCombatState } from "./combat-state.js";
+import { isBoardingParticipant } from "./boarding.js";
 
 const PREVIEW_NAME = "bfg-movement-preview";
 const MOVEMENT_STATE_FLAG = "movementState";
@@ -153,6 +154,9 @@ export function getMovementContext(token = canvas.tokens.controlled[0]) {
   const phase = PHASES.find(item => item.id === turnState.phase) ?? null;
 
   const warnings = [];
+  if (isBoardingParticipant(token)) {
+    return { ok: false, error: `${token.name} is involved in a boarding action and cannot move.` };
+  }
   if (combatState?.crippled) warnings.push("Crippled: speed is reduced by 5 cm.");
   if (combatState?.thrusterDamage > 0) warnings.push("Thrusters Damaged: speed is reduced by 10 cm.");
   if (combatState?.engineRoomDamage > 0) warnings.push("Engine Room Damaged: this ship cannot turn.");

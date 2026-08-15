@@ -71,6 +71,13 @@ import {
   resolveSelectedTorpedoAttack
 } from "./torpedoes.js";
 import { assignSelectedFighterToCAP, resolveSelectedAttackCraft } from "./attack-craft.js";
+import {
+  declareSelectedShipBoarding,
+  getBoardingState,
+  resolveSelectedBoarding,
+  resolveSelectedPendingHitAndRun,
+  resolveSelectedTeleportHitAndRun
+} from "./boarding.js";
 
 Hooks.once("init", () => {
   console.log("BFG Helper | Initialising");
@@ -148,6 +155,13 @@ Hooks.once("ready", () => {
     catastrophicDamage: {
       getState: getCatastrophicState,
       setState: setCatastrophicState
+    },
+    endPhase: {
+      getBoardingState,
+      declareBoarding: declareSelectedShipBoarding,
+      resolveBoarding: resolveSelectedBoarding,
+      resolveHitAndRun: resolveSelectedPendingHitAndRun,
+      teleportHitAndRun: resolveSelectedTeleportHitAndRun
     },
     shooting: {
       open: openShootingPlanner,

@@ -1,156 +1,119 @@
 <div class="bfg-turn-manager-panel">
   <header class="bfg-turn-manager-heading">
-    <div>
-      <p class="bfg-turn-manager-kicker">Battle status</p>
-      <h2>{{battleStatus}}</h2>
-    </div>
-    <div class="bfg-turn-round-badge" title="Current battle round">
-      <span>Round</span>
-      <strong>{{state.round}}</strong>
-    </div>
+    <div><p class="bfg-turn-manager-kicker">Battle status</p><h2>{{battleStatus}}</h2></div>
+    <div class="bfg-turn-round-badge" title="Current battle round"><span>Round</span><strong>{{state.round}}</strong></div>
   </header>
 
-  <section class="bfg-turn-active-state" aria-label="Current turn state">
-    <div>
-      <span>{{activeFleetLabel}}</span>
-      <strong>{{activeFleetName}}</strong>
-    </div>
-    <div>
-      <span>Current phase</span>
-      <strong>{{currentPhaseLabel}}</strong>
-    </div>
-  </section>
+  <nav class="bfg-turn-tabs" aria-label="Turn Manager sections">
+    <button type="button" data-bfg-tab="management" class="{{#if managementTab}}active{{/if}}"><i class="fa-solid fa-compass"></i> Management</button>
+    <button type="button" data-bfg-tab="fleets" class="{{#if fleetsTab}}active{{/if}}"><i class="fa-solid fa-people-group"></i> Fleets</button>
+    <button type="button" data-bfg-tab="tools" class="{{#if toolsTab}}active{{/if}}"><i class="fa-solid fa-screwdriver-wrench"></i> Tools</button>
+  </nav>
 
-  <ol class="bfg-turn-phases" aria-label="Battlefleet Gothic phase order">
-    {{#each phases}}
-      <li class="bfg-turn-phase{{#if active}} active{{/if}}">
-        <i class="fa-solid {{icon}}" aria-hidden="true"></i>
-        <span>{{label}}</span>
-      </li>
-    {{/each}}
-  </ol>
+  {{#if managementTab}}
+    <section class="bfg-turn-active-state" aria-label="Current turn state">
+      <div><span>{{activeFleetLabel}}</span><strong>{{activeFleetName}}</strong></div>
+      <div><span>Current phase</span><strong>{{currentPhaseLabel}}</strong></div>
+    </section>
+    <ol class="bfg-turn-phases" aria-label="Battlefleet Gothic phase order">
+      {{#each phases}}<li class="bfg-turn-phase{{#if active}} active{{/if}}"><i class="fa-solid {{icon}}" aria-hidden="true"></i><span>{{label}}</span></li>{{/each}}
+    </ol>
 
-  <section class="bfg-fleet-rosters" aria-label="Fleet assignments">
-    {{#each fleetCards}}
-      <article class="bfg-fleet-card{{#if active}} active{{/if}}">
-        <header>
-          <strong>{{name}}</strong>
-          <span>{{shipCount}} assigned</span>
-        </header>
-        {{#if hasShips}}
-          <ul>
-            {{#each ships}}
-              <li>
-                <span>{{actorName}}</span>
-                <small>{{shipClass}}</small>
-                {{#if hasCombatState}}
-                  <div class="bfg-combat-summary{{#if combatState.crippled}} crippled{{/if}}{{#if combatState.outOfAction}} out-of-action{{/if}}">
-                    <span title="Current and maximum hits">
-                      <i class="fa-solid fa-heart"></i>
-                      {{combatState.currentHits}}/{{combatState.maximumHits}}
-                    </span>
-                    <span title="Current and maximum shields">
-                      <i class="fa-solid fa-shield-halved"></i>
-                      {{combatState.currentShields}}/{{combatState.maximumShields}}
-                    </span>
-                    <strong>{{combatStatus}}</strong>
-                  </div>
-                  {{#if combatState.criticals.length}}
-                    <div class="bfg-critical-summary">
-                      <i class="fa-solid fa-burst"></i>
-                      {{#each combatState.criticals}}{{name}}{{#if count}} x{{count}}{{/if}}{{#unless @last}}; {{/unless}}{{/each}}
-                    </div>
-                  {{/if}}
-                {{/if}}
-              </li>
-            {{/each}}
-          </ul>
-        {{else}}
-          <p class="notes">No ships assigned.</p>
-        {{/if}}
-      </article>
-    {{/each}}
-  </section>
-
-  {{#if canManage}}
-    <section class="bfg-turn-manager-controls" aria-label="Gamemaster turn controls">
+    {{#if canManage}}
       {{#if state.battleStarted}}
         <div class="bfg-turn-primary-actions">
-          <button type="button" data-bfg-action="previous">
-            <i class="fa-solid fa-backward-step"></i>
-            Previous
-          </button>
-          <button type="button" data-bfg-action="next" class="bfg-primary-button">
-            Next phase
-            <i class="fa-solid fa-forward-step"></i>
-          </button>
-        </div>
-
-        <div class="bfg-turn-secondary-actions">
-          <button type="button" data-bfg-action="setup">
-            <i class="fa-solid fa-pen-to-square"></i>
-            Configure battle
-          </button>
-          <button type="button" data-bfg-action="end">
-            <i class="fa-solid fa-flag-checkered"></i>
-            End battle
-          </button>
+          <button type="button" data-bfg-action="previous"><i class="fa-solid fa-backward-step"></i> Previous</button>
+          <button type="button" data-bfg-action="next" class="bfg-primary-button">Next phase <i class="fa-solid fa-forward-step"></i></button>
         </div>
       {{else}}
-        <button type="button" data-bfg-action="setup" class="bfg-primary-button bfg-full-width">
-          <i class="fa-solid fa-flag"></i>
-          Set up and start battle
-        </button>
+        <button type="button" data-bfg-action="setup" class="bfg-primary-button bfg-full-width"><i class="fa-solid fa-flag"></i> Set up and start battle</button>
       {{/if}}
+    {{/if}}
 
-      <div class="bfg-turn-secondary-actions">
-        <button type="button" data-bfg-action="assign-fleet">
-          <i class="fa-solid fa-people-group"></i>
-          Assign selected ship
-        </button>
-        <button type="button" data-bfg-action="clear-fleet">
-          <i class="fa-solid fa-link-slash"></i>
-          Clear assignment
-        </button>
-      </div>
-
-      <button type="button" data-bfg-action="edit-critical-state" class="bfg-full-width">
-        <i class="fa-solid fa-burst"></i>
-        Edit selected critical effects
-      </button>
-
-      {{#if state.battleStarted}}
-        <div class="bfg-turn-secondary-actions">
-          <button type="button" data-bfg-action="lock-selected-rotation">
-            <i class="fa-solid fa-lock"></i>
-            Lock selected rotation
-          </button>
-          <button type="button" data-bfg-action="unlock-selected-rotation">
-            <i class="fa-solid fa-lock-open"></i>
-            GM correction unlock
-          </button>
+    {{#if state.battleStarted}}
+      <section class="bfg-phase-actions" aria-label="Current phase actions">
+        <header><span>{{currentPhaseLabel}}</span><strong>Available actions</strong></header>
+        <div class="bfg-phase-action-grid">
+          {{#if movementPhase}}
+            <button type="button" disabled title="Special orders have not yet been implemented"><i class="fa-solid fa-scroll"></i> Assign Orders <small>Coming later</small></button>
+            <button type="button" data-bfg-action="move-ship" class="bfg-primary-button"><i class="fa-solid fa-route"></i> Move Ship</button>
+            <button type="button" data-bfg-action="declare-boarding"><i class="fa-solid fa-link"></i> Declare Boarding</button>
+          {{/if}}
+          {{#if shootingPhase}}
+            <button type="button" data-bfg-action="fire-weaponry" class="bfg-primary-button"><i class="fa-solid fa-crosshairs"></i> Fire Weaponry</button>
+            <button type="button" data-bfg-action="launch-ordnance"><i class="fa-solid fa-rocket"></i> Launch Ordnance</button>
+            <button type="button" data-bfg-action="weapon-arcs"><i class="fa-solid fa-fan"></i> Show Weapon Arcs</button>
+            <button type="button" data-bfg-action="clear-weapon-arcs"><i class="fa-solid fa-eraser"></i> Clear Weapon Arcs</button>
+          {{/if}}
+          {{#if ordnancePhase}}
+            <button type="button" data-bfg-action="move-ordnance" class="bfg-primary-button"><i class="fa-solid fa-route"></i> Move Ordnance</button>
+            <button type="button" data-bfg-action="ordnance-attack"><i class="fa-solid fa-burst"></i> Ordnance Attack</button>
+            <button type="button" data-bfg-action="assign-cap"><i class="fa-solid fa-shield-halved"></i> Assign Fighter CAP</button>
+            <button type="button" data-bfg-action="clear-ordnance-paths"><i class="fa-solid fa-eraser"></i> Clear Ordnance Paths</button>
+          {{/if}}
+          {{#if endPhase}}
+            <button type="button" data-bfg-action="declare-boarding"><i class="fa-solid fa-link"></i> Declare Boarding</button>
+            <button type="button" data-bfg-action="resolve-boarding"><i class="fa-solid fa-hand-fist"></i> Resolve Boarding</button>
+            <button type="button" data-bfg-action="resolve-hit-and-run"><i class="fa-solid fa-person-running"></i> Resolve Hit and Run</button>
+            <button type="button" data-bfg-action="teleport-hit-and-run"><i class="fa-solid fa-bolt"></i> Teleport Hit and Run</button>
+            <button type="button" disabled title="Damage control has not yet been implemented"><i class="fa-solid fa-screwdriver-wrench"></i> Repair Systems <small>Coming later</small></button>
+            <button type="button" disabled title="Blast Marker removal has not yet been implemented"><i class="fa-solid fa-broom"></i> Clear Blast Markers <small>Coming later</small></button>
+          {{/if}}
         </div>
-      {{/if}}
+      </section>
+    {{else}}
+      {{#unless canManage}}<p class="notes bfg-turn-viewer-note">A Gamemaster must start the battle before phase actions become available.</p>{{/unless}}
+    {{/if}}
+  {{/if}}
 
-      <div class="bfg-turn-secondary-actions">
-        <button type="button" data-bfg-action="edit-combat-state">
-          <i class="fa-solid fa-heart-pulse"></i>
-          Edit selected combat state
-        </button>
-        <button type="button" data-bfg-action="reset-combat-state">
-          <i class="fa-solid fa-kit-medical"></i>
-          Restore selected ship
-        </button>
-      </div>
-
-      <button type="button" data-bfg-action="reset" class="bfg-danger-button bfg-full-width">
-        <i class="fa-solid fa-rotate-left"></i>
-        Reset battle and restore ships
-      </button>
+  {{#if fleetsTab}}
+    <section class="bfg-fleet-rosters" aria-label="Fleet assignments">
+      {{#each fleetCards}}
+        <article class="bfg-fleet-card{{#if active}} active{{/if}}">
+          <header><strong>{{name}}</strong><span>{{shipCount}} assigned</span></header>
+          {{#if hasShips}}
+            <ul>{{#each ships}}<li>
+              <span>{{actorName}}</span><small>{{shipClass}}</small>
+              {{#if hasCombatState}}
+                <div class="bfg-combat-summary{{#if combatState.crippled}} crippled{{/if}}{{#if combatState.outOfAction}} out-of-action{{/if}}">
+                  <span title="Current and maximum hits"><i class="fa-solid fa-heart"></i> {{combatState.currentHits}}/{{combatState.maximumHits}}</span>
+                  <span title="Current and maximum shields"><i class="fa-solid fa-shield-halved"></i> {{combatState.currentShields}}/{{combatState.maximumShields}}</span>
+                  <strong>{{combatStatus}}</strong>
+                </div>
+                {{#if combatState.criticals.length}}<div class="bfg-critical-summary"><i class="fa-solid fa-burst"></i> {{#each combatState.criticals}}{{name}}{{#if count}} x{{count}}{{/if}}{{#unless @last}}; {{/unless}}{{/each}}</div>{{/if}}
+              {{/if}}
+            </li>{{/each}}</ul>
+          {{else}}<p class="notes">No ships assigned.</p>{{/if}}
+        </article>
+      {{/each}}
     </section>
-  {{else}}
-    <p class="notes bfg-turn-viewer-note">
-      This tracker updates automatically. Only a Gamemaster can change the turn state.
-    </p>
+    {{#if canManage}}
+      <div class="bfg-turn-secondary-actions">
+        <button type="button" data-bfg-action="assign-fleet"><i class="fa-solid fa-people-group"></i> Assign selected ship</button>
+        <button type="button" data-bfg-action="clear-fleet"><i class="fa-solid fa-link-slash"></i> Clear assignment</button>
+      </div>
+    {{else}}<p class="notes bfg-turn-viewer-note">Only a Gamemaster can change fleet assignments.</p>{{/if}}
+  {{/if}}
+
+  {{#if toolsTab}}
+    {{#if canManage}}
+      <section class="bfg-turn-manager-controls" aria-label="Gamemaster tools">
+        <div class="bfg-turn-secondary-actions">
+          <button type="button" data-bfg-action="setup"><i class="fa-solid fa-pen-to-square"></i> Configure battle</button>
+          <button type="button" data-bfg-action="end" {{#unless state.battleStarted}}disabled{{/unless}}><i class="fa-solid fa-flag-checkered"></i> End battle</button>
+        </div>
+        <button type="button" data-bfg-action="edit-critical-state" class="bfg-full-width"><i class="fa-solid fa-burst"></i> Edit selected critical effects</button>
+        <div class="bfg-turn-secondary-actions">
+          <button type="button" data-bfg-action="lock-selected-rotation"><i class="fa-solid fa-lock"></i> Lock selected rotation</button>
+          <button type="button" data-bfg-action="unlock-selected-rotation"><i class="fa-solid fa-lock-open"></i> GM correction unlock</button>
+        </div>
+        <div class="bfg-turn-secondary-actions">
+          <button type="button" data-bfg-action="edit-combat-state"><i class="fa-solid fa-heart-pulse"></i> Edit selected combat state</button>
+          <button type="button" data-bfg-action="reset-combat-state"><i class="fa-solid fa-kit-medical"></i> Restore selected ship</button>
+        </div>
+        <button type="button" data-bfg-action="refresh-engines" class="bfg-full-width"><i class="fa-solid fa-wind"></i> Refresh Engine Effects</button>
+        <button type="button" data-bfg-action="reset" class="bfg-danger-button bfg-full-width"><i class="fa-solid fa-rotate-left"></i> Reset battle and restore ships</button>
+      </section>
+    {{else}}<p class="notes bfg-turn-viewer-note">The Tools tab contains Gamemaster correction and battle-management controls.</p>{{/if}}
   {{/if}}
 </div>

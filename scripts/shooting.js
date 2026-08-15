@@ -23,6 +23,7 @@ import {
 } from "./catastrophic-damage.js";
 import { diceFaces, publishBFGDice } from "./dice.js";
 import { getOrdnanceMarker } from "./ordnance.js";
+import { getBoardingState, hasDeclaredBoarding, isBoardingParticipant } from "./boarding.js";
 
 const FIRED_WEAPONS_FLAG = "firedWeapons";
 
@@ -147,6 +148,8 @@ export function getShootingContext(token = canvas.tokens.controlled[0]) {
   }
 
   if (combatState?.outOfAction) restrict(`${token.name} is out of action.`);
+  const boarding = getBoardingState(token);
+  if (hasDeclaredBoarding(token) || boarding?.drawn) restrict(`${token.name} is committed to a boarding action.`);
   if (blocked) return { ok: false, error: "This ship cannot fire during the current battle state." };
 
   return {
@@ -226,6 +229,7 @@ export function analyseDirectFire(attacker, target, weapon) {
     : profileStrength;
   if (!targetFleetId) warnings.push(`${target.name} is not assigned to a fleet.`);
   if (sameFleet) warnings.push(`${target.name} belongs to the firing ship's fleet.`);
+  if (!isOrdnance && isBoardingParticipant(target)) warnings.push(`${target.name} is involved in a boarding action and cannot be fired upon.`);
   if (targetCombatState?.hulk) warnings.push(`${target.name} is a hulk; hits will trigger one Catastrophic Damage roll.`);
   else if (targetCombatState?.outOfAction) warnings.push(`${target.name} is already out of action and cannot be targeted.`);
   if (weaponFired) warnings.push(`${weapon.name} has already fired during this Shooting phase.`);
@@ -256,8 +260,8 @@ export function analyseDirectFire(attacker, target, weapon) {
     weaponFired,
     weaponDisabled,
     warnings,
-    legalTarget: !sameFleet && Boolean(targetFleetId) && (isOrdnance || !targetCombatState.outOfAction || targetCombatState.hulk),
-    legal: inRange && inArc && !sameFleet && Boolean(targetFleetId) && (isOrdnance || !targetCombatState.outOfAction || targetCombatState.hulk) && !weaponFired && !weaponDisabled
+    legalTarget: !sameFleet && Boolean(targetFleetId) && (isOrdnance || (!isBoardingParticipant(target) && (!targetCombatState.outOfAction || targetCombatState.hulk))),
+    legal: inRange && inArc && !sameFleet && Boolean(targetFleetId) && (isOrdnance || (!isBoardingParticipant(target) && (!targetCombatState.outOfAction || targetCombatState.hulk))) && !weaponFired && !weaponDisabled
   };
 }
 

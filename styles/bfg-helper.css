@@ -13,6 +13,53 @@
   width: 100%;
 }
 
+.bfg-action-confirmation h3,
+.bfg-action-confirmation p {
+  margin: 0;
+}
+
+.bfg-action-confirmation > div {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.8fr) minmax(0, 1.2fr);
+  gap: 0.65rem;
+  align-items: baseline;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid rgba(127, 127, 127, 0.25);
+}
+
+.bfg-action-confirmation > div span {
+  font-size: 0.78rem;
+  opacity: 0.72;
+}
+
+.bfg-action-confirmation > div strong {
+  overflow-wrap: anywhere;
+}
+
+.bfg-action-resolution-window .window-content {
+  padding: 0;
+  overflow: auto;
+}
+
+.bfg-action-resolution-panel {
+  display: grid;
+  gap: 0.8rem;
+  padding: 0.9rem;
+}
+
+.bfg-action-resolution-panel header h2,
+.bfg-action-resolution-panel header p {
+  margin: 0;
+}
+
+.bfg-action-resolution-content {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.7rem;
+  border: 1px solid var(--color-border-light-primary, #777);
+  border-radius: 5px;
+}
+
 .bfg-turn-manager {
   min-width: 360px;
 }
@@ -131,6 +178,31 @@
   line-height: 1.1;
 }
 
+.bfg-turn-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.35rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid rgba(127, 127, 127, 0.35);
+}
+
+.bfg-turn-tabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-width: 0;
+  min-height: 32px;
+  margin: 0;
+  padding: 0.35rem 0.45rem;
+}
+
+.bfg-turn-tabs button.active {
+  border-color: rgba(214, 166, 77, 0.9);
+  background: rgba(178, 124, 36, 0.28);
+  font-weight: 700;
+}
+
 .bfg-turn-active-state {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -163,6 +235,50 @@
   display: grid;
   gap: 0.55rem;
   padding-top: 0.2rem;
+}
+
+.bfg-phase-actions {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.65rem;
+  border: 1px solid rgba(214, 166, 77, 0.55);
+  border-radius: 5px;
+  background: rgba(178, 124, 36, 0.08);
+}
+
+.bfg-phase-actions > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.bfg-phase-actions > header span {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.72;
+}
+
+.bfg-phase-action-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.bfg-phase-action-grid button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 38px;
+  margin: 0;
+}
+
+.bfg-phase-action-grid button small {
+  display: block;
+  font-size: 0.65rem;
+  opacity: 0.65;
 }
 
 .bfg-turn-primary-actions,

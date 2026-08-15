@@ -124,6 +124,8 @@ export async function resetBattle() {
   await resetAllCombatStates();
   const { resetOrdnance } = await import("./ordnance.js");
   await resetOrdnance();
+  const { resetBoardingState } = await import("./boarding.js");
+  await resetBoardingState();
   for (const token of canvas.tokens?.placeables ?? []) {
     if (token.document.getFlag(MODULE_ID, "firedWeapons") !== undefined) {
       await token.document.unsetFlag(MODULE_ID, "firedWeapons");

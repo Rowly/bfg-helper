@@ -7,6 +7,7 @@ import { rollCatastrophicDamage, setCatastrophicState } from "./catastrophic-dam
 import { diceFaces, publishBFGDice } from "./dice.js";
 import { getTurnState } from "./turn-manager.js";
 import { openActionResolution } from "./action-resolution-app.js";
+import { rollBraceSaves } from "./special-orders.js";
 
 export const BOARDING_FLAG = "boardingAction";
 export const HIT_AND_RUN_FLAG = "pendingHitAndRun";
@@ -271,7 +272,7 @@ export async function resolveSelectedBoarding() {
       await setCombatState(loser, { currentHits: outcome.winnerCritical.finalHits, currentShields: loserCombat.currentShields });
       if (outcome.loserCritical.catastrophic) await setCatastrophicState(winner, outcome.loserCritical.catastrophic);
       if (outcome.winnerCritical.catastrophic) await setCatastrophicState(loser, outcome.winnerCritical.catastrophic);
-      else if (outcome.loserAfterDamage === 0) await setCatastrophicState(loser, { type: "drifting-hulk", name: "Drifting Hulk", blastMarkers: 1, futureMovement: "4d6 cm forward in each subsequent Movement phase", instruction: "Place one Blast Marker in contact with the hulk after each move." });
+      else if (outcome.loserAfterDamage === 0) await setCatastrophicState(loser, { type: "drifting-hulk", name: "Drifting Hulk", blastMarkers: 1, futureMovement: "4d6 cm forward in each subsequent Movement phase", instruction: "Place 1 Blast Marker in contact with the hulk after each move." });
       await clearPairState(attacker, defender);
       await ChatMessage.create({ content: `<div><strong>${foundry.utils.escapeHTML(outcome.resultName)}: ${foundry.utils.escapeHTML(winner.name)} wins the boarding action</strong><br>Scores: ${foundry.utils.escapeHTML(attacker.name)} ${outcome.attackerScore}, ${foundry.utils.escapeHTML(defender.name)} ${outcome.defenderScore}.<br>${foundry.utils.escapeHTML(loser.name)} suffers ${outcome.difference} hull damage and has ${outcome.winnerCritical.finalHits} hull remaining.<br>${foundry.utils.escapeHTML(winner.name)} scores a critical against ${foundry.utils.escapeHTML(loser.name)} on ${outcome.winnerThreshold <= 1 ? "an automatic success" : `${outcome.winnerThreshold}+`}: ${criticalCheckSummary(outcome.winnerCritical, outcome.winnerThreshold)}. Effect: ${foundry.utils.escapeHTML(outcome.winnerCritical.result?.critical?.name ?? (outcome.winnerCritical.result?.escortDestroyed ? "Escort destroyed" : "None"))}.<br>${foundry.utils.escapeHTML(loser.name)} scores a critical against ${foundry.utils.escapeHTML(winner.name)} on ${outcome.loserThreshold > 6 ? "no result" : `${outcome.loserThreshold}+`}: ${criticalCheckSummary(outcome.loserCritical, outcome.loserThreshold)}. Effect: ${foundry.utils.escapeHTML(outcome.loserCritical.result?.critical?.name ?? (outcome.loserCritical.result?.escortDestroyed ? "Escort destroyed" : "None"))}.</div>` });
     }
@@ -286,6 +287,13 @@ async function rollHitAndRunOutcome(target, count, source) {
   const results = [];
   for (let index = 0; index < count; index += 1) {
     const roll = await rollDice("1d6", `${target.name}: ${source} Hit-and-Run / Critical Hits table die`, target);
+    if (roll.total > 1) {
+      const brace = await rollBraceSaves(target, 1, "Brace save against Hit-and-Run");
+      if (brace.saved) {
+        results.push({ roll: roll.total, saved: true, brace });
+        continue;
+      }
+    }
     const escort = String(getShipData(target)?.stats?.targetClass ?? "capital").toLowerCase() === "escort";
     if (escort && roll.total >= 4) {
       remainingHull = 0;
@@ -336,7 +344,7 @@ export async function resolveSelectedPendingHitAndRun() {
     </div>`,
     roll: async () => {
       const outcome = await rollHitAndRunOutcome(target, count, "Assault boat");
-      return { ...outcome, resultHtml: `<h3>Hit-and-Run result</h3><div class="bfg-action-confirmation"><div><span>Hit-and-Run dice (${count}d6, needing 2+)</span><strong>${outcome.results.map(result => result.roll).join(", ")}</strong></div><div><span>Effects</span><strong>${outcome.results.map(result => result.escortDestroyed ? "Escort destroyed" : result.failed ? "Failed" : result.critical.name).join("; ")}</strong></div><div><span>Remaining hull</span><strong>${outcome.remainingHull}</strong></div></div><p>Review these critical effects before applying them.</p>` };
+      return { ...outcome, resultHtml: `<h3>Hit-and-Run result</h3><div class="bfg-action-confirmation"><div><span>Hit-and-Run dice (${count}d6, needing 2+)</span><strong>${outcome.results.map(result => result.roll).join(", ")}</strong></div><div><span>Effects</span><strong>${outcome.results.map(result => result.saved ? "Saved by Brace for Impact" : result.escortDestroyed ? "Escort destroyed" : result.failed ? "Failed" : result.critical.name).join("; ")}</strong></div><div><span>Remaining hull</span><strong>${outcome.remainingHull}</strong></div></div><p>Review these critical effects before applying them.</p>` };
     },
     apply: async outcome => {
       const current = getCombatState(target);
@@ -346,7 +354,7 @@ export async function resolveSelectedPendingHitAndRun() {
       await setCombatState(target, { currentHits: outcome.remainingHull, currentShields: current.currentShields });
       await target.document.unsetFlag(MODULE_ID, HIT_AND_RUN_FLAG);
       Hooks.callAll("bfgHelperPendingActionsChanged", target.document);
-      await ChatMessage.create({ content: `<strong>${target.name}: ${count} Hit-and-Run attack(s)</strong><br>${outcome.results.map(result => result.escortDestroyed ? `${result.roll}: escort destroyed` : result.failed ? "1: failed" : `${result.roll}: ${result.critical.name}`).join("; ")}` });
+      await ChatMessage.create({ content: `<strong>${target.name}: ${count} Hit-and-Run attack(s)</strong><br>${outcome.results.map(result => result.saved ? `${result.roll}: saved by Brace for Impact` : result.escortDestroyed ? `${result.roll}: escort destroyed` : result.failed ? "1: failed" : `${result.roll}: ${result.critical.name}`).join("; ")}` });
     }
   });
 }
@@ -390,7 +398,7 @@ export async function resolveSelectedTeleportHitAndRun() {
     roll: async () => {
       const outcome = await rollHitAndRunOutcome(target, 1, `Teleport attack from ${attacker.name}`);
       const result = outcome.results[0];
-      return { ...outcome, resultHtml: `<h3>Teleport attack result</h3><div class="bfg-action-confirmation"><div><span>Hit-and-Run / Critical Hits table die (1d6)</span><strong>${result.roll}</strong></div><div><span>Attack</span><strong>${result.failed ? "Failed" : "Successful"}</strong></div><div><span>Critical result</span><strong>${result.failed ? "None" : result.escortDestroyed ? "Escort destroyed" : result.critical.name}</strong></div><div><span>Remaining hull</span><strong>${outcome.remainingHull}</strong></div></div><p>The displayed D6 determined both whether the attack succeeded and its Critical Hits table result.</p>` };
+      return { ...outcome, resultHtml: `<h3>Teleport attack result</h3><div class="bfg-action-confirmation"><div><span>Hit-and-Run / Critical Hits table die (1d6)</span><strong>${result.roll}</strong></div><div><span>Attack</span><strong>${result.failed ? "Failed" : "Successful"}</strong></div><div><span>Critical result</span><strong>${result.saved ? "Saved by Brace for Impact" : result.failed ? "None" : result.escortDestroyed ? "Escort destroyed" : result.critical.name}</strong></div><div><span>Remaining hull</span><strong>${outcome.remainingHull}</strong></div></div><p>The displayed D6 determined both whether the attack succeeded and its Critical Hits table result.</p>` };
     },
     apply: async outcome => {
       const current = getCombatState(target);
@@ -400,7 +408,7 @@ export async function resolveSelectedTeleportHitAndRun() {
       await setCombatState(target, { currentHits: outcome.remainingHull, currentShields: current.currentShields });
       await attacker.document.setFlag(MODULE_ID, TELEPORT_FLAG, { activation: activationKey(state), targetId: target.document.id });
       const result = outcome.results[0];
-      await ChatMessage.create({ content: `<strong>${attacker.name} teleports troops onto ${target.name}</strong><br>Hit-and-Run / Critical Hits table die: ${result.roll}.<br>${result.failed ? "Attack: Failed. Critical result: None." : result.escortDestroyed ? "Attack: Successful. Critical result: Escort destroyed." : `Attack: Successful. Critical result: ${result.critical.name}.`}` });
+      await ChatMessage.create({ content: `<strong>${attacker.name} teleports troops onto ${target.name}</strong><br>Hit-and-Run / Critical Hits table die: ${result.roll}.<br>${result.saved ? "Attack: Successful. Critical result saved by Brace for Impact." : result.failed ? "Attack: Failed. Critical result: None." : result.escortDestroyed ? "Attack: Successful. Critical result: Escort destroyed." : `Attack: Successful. Critical result: ${result.critical.name}.`}` });
     }
   });
 }

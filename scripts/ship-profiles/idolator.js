@@ -5,12 +5,13 @@ export function idolatorProfile() {
     faction: "Chaos",
     shipClass: "Idolator-class Raider",
     tokenSize: { width: 3.2, height: 3.2 },
-    tokenTexture: { anchorX: 0.5, anchorY: 0.5, scaleX: 1, scaleY: 1, fit: "width" },
+    tokenTexture: { anchorX: 0.5, anchorY: 0.6, scaleX: 1, scaleY: 1, fit: "width" },
     movement: {
       speedCm: 30,
       minimumBeforeTurnCm: 0,
       maximumTurnDegrees: 90,
-      maximumTurns: 1
+      maximumTurns: 1,
+      canComeToNewHeading: true
     },
     stats: {
       points: 45,

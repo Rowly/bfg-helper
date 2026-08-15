@@ -9,6 +9,7 @@ import {
 import { clearWeaponArc } from "./weapon-arcs.js";
 import { calculateBatteryDice } from "./gunnery-table.js";
 import { isWeaponDisabledByCritical } from "./critical-hits.js";
+import { effectiveWeaponStrength, getSpecialOrder } from "./special-orders.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -95,6 +96,7 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
           profileStrength: this.analysis.profileStrength,
           effectiveStrength: this.analysis.effectiveStrength,
           attackerCrippled: this.analysis.attackerCrippled,
+          attackerSpecialOrder: this.analysis.attackerSpecialOrder,
           rangeLabel: this.analysis.rangeLabel,
           maximumRangeCm: this.analysis.maximumRangeCm,
           inRange: this.analysis.inRange,
@@ -136,9 +138,8 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
           .replace(/^./, character => character.toUpperCase()),
         rangeCm: weapon.rangeCm,
         arcDegrees: weapon.arcDegrees,
-        strength: shooting.combatState?.crippled
-          ? Math.ceil(Number(weapon.strength ?? 0) / 2)
-          : weapon.strength ?? "-",
+        strength: effectiveWeaponStrength(shooting.token, weapon.strength ?? 0),
+        specialOrder: getSpecialOrder(shooting.token)?.name ?? null,
         fired: hasWeaponFired(shooting.token, weapon.id, shooting.state),
         criticallyDisabled: isWeaponDisabledByCritical(weapon, shooting.criticalState),
         selected: index === this.weaponIndex

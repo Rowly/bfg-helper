@@ -35,7 +35,7 @@
         <header><span>{{currentPhaseLabel}}</span><strong>Available actions</strong></header>
         <div class="bfg-phase-action-grid">
           {{#if movementPhase}}
-            <button type="button" disabled title="Special orders have not yet been implemented"><i class="fa-solid fa-scroll"></i> Assign Orders <small>Coming later</small></button>
+            <button type="button" data-bfg-action="assign-orders"><i class="fa-solid fa-scroll"></i> Assign Orders</button>
             <button type="button" data-bfg-action="move-ship"><i class="fa-solid fa-route"></i> Move Ship</button>
             <button type="button" data-bfg-action="declare-boarding"><i class="fa-solid fa-link"></i> Declare Boarding</button>
           {{/if}}
@@ -59,6 +59,7 @@
             <button type="button" data-bfg-action="repair-systems"><i class="fa-solid fa-screwdriver-wrench"></i> Repair Systems</button>
             <button type="button" data-bfg-action="clear-blast-markers"><i class="fa-solid fa-broom"></i> Clear Blast Markers</button>
           {{/if}}
+          <button type="button" data-bfg-action="brace-for-impact"><i class="fa-solid fa-shield"></i> Brace for Impact</button>
         </div>
       </section>
     {{else}}

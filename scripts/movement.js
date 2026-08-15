@@ -5,6 +5,7 @@ import { ROTATION_UPDATE_OVERRIDE } from "./rotation-locking.js";
 import { MODULE_ID } from "./constants.js";
 import { getCombatState } from "./combat-state.js";
 import { isBoardingParticipant } from "./boarding.js";
+import { getMovementSpecialOrder } from "./special-orders.js";
 
 const PREVIEW_NAME = "bfg-movement-preview";
 const MOVEMENT_STATE_FLAG = "movementState";
@@ -135,17 +136,28 @@ export function getMovementContext(token = canvas.tokens.controlled[0]) {
 
   const turnState = getTurnState();
   const combatState = getCombatState(token);
+  const specialOrder = getMovementSpecialOrder(token);
+  const damagedSpeedCm = Math.max(
+    0,
+    Number(profileMovement.speedCm)
+      - (combatState?.crippled ? 5 : 0)
+      - (combatState?.thrusterDamage > 0 ? 10 : 0)
+  );
   const movement = {
     ...profileMovement,
     profileSpeedCm: Number(profileMovement.speedCm),
-    speedCm: Math.max(
-      0,
-      Number(profileMovement.speedCm)
-        - (combatState?.crippled ? 5 : 0)
-        - (combatState?.thrusterDamage > 0 ? 10 : 0)
-    ),
+    speedCm: specialOrder?.id === "all-ahead-full"
+      ? damagedSpeedCm + Math.max(0, Number(specialOrder.allAheadFullBonusCm) || 0)
+      : specialOrder?.id === "burn-retros" ? Math.ceil(damagedSpeedCm / 2) : damagedSpeedCm,
+    minimumMovementCmOverride: specialOrder?.id === "all-ahead-full"
+      ? damagedSpeedCm + Math.max(0, Number(specialOrder.allAheadFullBonusCm) || 0)
+      : specialOrder?.id === "burn-retros" ? 0 : null,
+    minimumBeforeTurnCm: specialOrder?.id === "burn-retros" ? 0 : profileMovement.minimumBeforeTurnCm,
+    maximumTurns: specialOrder?.id === "come-to-new-heading" ? 2 : profileMovement.maximumTurns,
     maximumTurnDegrees: combatState?.engineRoomDamage > 0
       ? 0
+      : ["all-ahead-full", "lock-on"].includes(specialOrder?.id)
+        ? 0
       : Number(profileMovement.maximumTurnDegrees)
   };
   const activeFleet = turnState.fleets?.[turnState.activeFleetIndex] ?? null;
@@ -160,6 +172,7 @@ export function getMovementContext(token = canvas.tokens.controlled[0]) {
   if (combatState?.crippled) warnings.push("Crippled: speed is reduced by 5 cm.");
   if (combatState?.thrusterDamage > 0) warnings.push("Thrusters Damaged: speed is reduced by 10 cm.");
   if (combatState?.engineRoomDamage > 0) warnings.push("Engine Room Damaged: this ship cannot turn.");
+  if (specialOrder) warnings.push(`Special Order: ${specialOrder.name}.`);
   let blocked = false;
 
   if (!turnState.battleStarted) {
@@ -205,7 +218,8 @@ export function getMovementContext(token = canvas.tokens.controlled[0]) {
     turnState,
     activeFleet,
     tokenFleet,
-    warnings
+    warnings,
+    specialOrder
   };
 }
 
@@ -222,9 +236,12 @@ export function calculateMovementPath(token, movement, values = {}) {
   const moveThroughBlastMarker = Boolean(values.moveThroughBlastMarker);
   const profileSpeedCm = Number(movement.profileSpeedCm ?? movement.speedCm);
   const speedCm = Math.max(0, Number(movement.speedCm) - (moveThroughBlastMarker ? 5 : 0));
-  const minimumMovementCm = Math.min(speedCm, profileSpeedCm / 2);
+  const minimumMovementCm = movement.minimumMovementCmOverride === null || movement.minimumMovementCmOverride === undefined
+    ? Math.min(speedCm, profileSpeedCm / 2)
+    : Math.min(speedCm, Math.max(0, Number(movement.minimumMovementCmOverride)));
   const minimumBeforeTurnCm = Math.max(0, Number(movement.minimumBeforeTurnCm ?? 0));
   const maximumTurnDegrees = Math.max(0, Number(movement.maximumTurnDegrees ?? 0));
+  const maximumTurns = Math.max(0, Math.trunc(Number(movement.maximumTurns ?? 1)));
 
   const distanceCm = Number(values.distanceCm);
   let beforeTurnCm = Number(values.beforeTurnCm);
@@ -272,6 +289,10 @@ export function calculateMovementPath(token, movement, values = {}) {
 
   if (!Number.isFinite(beforeTurnCm) || beforeTurnCm < 0) beforeTurnCm = 0;
   if (!Number.isFinite(signedTurnDegrees)) signedTurnDegrees = 0;
+  let beforeSecondTurnCm = Number(values.beforeSecondTurnCm ?? 0);
+  let secondSignedTurnDegrees = Number(values.secondSignedTurnDegrees ?? 0);
+  if (!Number.isFinite(beforeSecondTurnCm) || beforeSecondTurnCm < 0) beforeSecondTurnCm = 0;
+  if (!Number.isFinite(secondSignedTurnDegrees)) secondSignedTurnDegrees = 0;
 
   /*
    * The slider constrains this already, but clamp again here so movement
@@ -282,6 +303,7 @@ export function calculateMovementPath(token, movement, values = {}) {
     -maximumTurnDegrees,
     Math.min(maximumTurnDegrees, signedTurnDegrees)
   );
+  secondSignedTurnDegrees = Math.max(-maximumTurnDegrees, Math.min(maximumTurnDegrees, secondSignedTurnDegrees));
 
   const turnDegrees = Math.abs(signedTurnDegrees);
   const turnDirection = signedTurnDegrees < 0
@@ -291,6 +313,7 @@ export function calculateMovementPath(token, movement, values = {}) {
       : "none";
 
   const hasTurn = turnDegrees > 0;
+  const hasSecondTurn = maximumTurns > 1 && hasTurn && Math.abs(secondSignedTurnDegrees) > 0;
 
   if (hasTurn) {
     if (beforeTurnCm < minimumBeforeTurnCm) {
@@ -305,6 +328,13 @@ export function calculateMovementPath(token, movement, values = {}) {
   } else {
     // A straight move has no meaningful turn point.
     beforeTurnCm = distanceCm;
+  }
+
+  if (Math.abs(secondSignedTurnDegrees) > 0 && maximumTurns < 2) throw new Error("This ship may only make one turn.");
+  if (Math.abs(secondSignedTurnDegrees) > 0 && !hasTurn) throw new Error("A second turn requires a first turn.");
+  if (hasSecondTurn) {
+    if (beforeSecondTurnCm < minimumBeforeTurnCm) throw new Error(`This ship must move at least ${minimumBeforeTurnCm} cm between turns.`);
+    if (beforeTurnCm + beforeSecondTurnCm > distanceCm) throw new Error("The second turn point cannot be beyond the total movement distance.");
   }
 
   const start = {
@@ -323,15 +353,25 @@ export function calculateMovementPath(token, movement, values = {}) {
 
   const signedTurn = hasTurn ? signedTurnDegrees : 0;
 
-  const finalRotationRaw = startRotation + signedTurn;
-  const finalRotation = normaliseRotation(finalRotationRaw);
-  const secondVector = forwardVector(finalRotationRaw);
-  const remainingCm = Math.max(0, distanceCm - beforeTurnCm);
-  const secondDistancePixels = remainingCm * pixelsPerCm;
+  const firstTurnRotationRaw = startRotation + signedTurn;
+  const intermediateCm = hasSecondTurn ? beforeSecondTurnCm : Math.max(0, distanceCm - beforeTurnCm);
+  const secondVector = forwardVector(firstTurnRotationRaw);
+  const secondDistancePixels = intermediateCm * pixelsPerCm;
 
-  const finalCenter = {
+  const secondTurnPoint = {
     x: turnPoint.x + secondVector.x * secondDistancePixels,
     y: turnPoint.y + secondVector.y * secondDistancePixels
+  };
+  const secondSignedTurn = hasSecondTurn ? secondSignedTurnDegrees : 0;
+  const finalRotationRaw = firstTurnRotationRaw + secondSignedTurn;
+  const finalRotation = normaliseRotation(finalRotationRaw);
+  const finalVector = forwardVector(finalRotationRaw);
+  const remainingCm = hasSecondTurn ? Math.max(0, distanceCm - beforeTurnCm - beforeSecondTurnCm) : 0;
+  const finalDistancePixels = remainingCm * pixelsPerCm;
+
+  const finalCenter = {
+    x: secondTurnPoint.x + finalVector.x * finalDistancePixels,
+    y: secondTurnPoint.y + finalVector.y * finalDistancePixels
   };
 
   return {
@@ -344,15 +384,24 @@ export function calculateMovementPath(token, movement, values = {}) {
     turnDegrees: hasTurn ? turnDegrees : 0,
     signedTurnDegrees: hasTurn ? signedTurn : 0,
     hasTurn,
+    beforeSecondTurnCm: hasSecondTurn ? beforeSecondTurnCm : 0,
+    secondSignedTurnDegrees: secondSignedTurn,
+    secondTurnDegrees: Math.abs(secondSignedTurn),
+    secondTurnDirection: secondSignedTurn < 0 ? "port" : secondSignedTurn > 0 ? "starboard" : "none",
+    hasSecondTurn,
+    intermediateCm,
     speedCm,
     profileSpeedCm,
     minimumMovementCm,
     moveThroughBlastMarker,
     minimumBeforeTurnCm,
     maximumTurnDegrees,
+    maximumTurns,
     pixelsPerCm,
     start,
     turnPoint,
+    secondTurnPoint,
+    firstTurnRotationRaw,
     finalCenter,
     startRotation,
     finalRotation,
@@ -414,6 +463,8 @@ export async function executeMovementPath(token, previewPath) {
     distanceCm: previewPath.distanceCm,
     beforeTurnCm: previewPath.beforeTurnCm,
     signedTurnDegrees: previewPath.signedTurnDegrees,
+    beforeSecondTurnCm: previewPath.beforeSecondTurnCm,
+    secondSignedTurnDegrees: previewPath.secondSignedTurnDegrees,
     moveThroughBlastMarker: previewPath.moveThroughBlastMarker
   });
 
@@ -424,6 +475,7 @@ export async function executeMovementPath(token, previewPath) {
     || recalculatedPath.moveThroughBlastMarker !== previewPath.moveThroughBlastMarker
     || !numbersMatch(recalculatedPath.minimumBeforeTurnCm, previewPath.minimumBeforeTurnCm)
     || !numbersMatch(recalculatedPath.maximumTurnDegrees, previewPath.maximumTurnDegrees)
+    || !numbersMatch(recalculatedPath.maximumTurns, previewPath.maximumTurns)
     || !pointsMatch(recalculatedPath.finalCenter, previewPath.finalCenter)
     || !rotationsMatch(recalculatedPath.finalRotation, previewPath.finalRotation)
   ) {
@@ -452,15 +504,20 @@ export async function executeMovementPath(token, previewPath) {
 
     // Pivot at the turn point and wait for the rotation to finish.
     await updateTokenAnimationStage(context.token, {
-      rotation: recalculatedPath.finalRotation
+      rotation: normaliseRotation(recalculatedPath.firstTurnRotationRaw)
     });
 
-    // Complete the remaining distance along the new bearing.
-    if (!pointsMatch(recalculatedPath.turnPoint, recalculatedPath.finalCenter)) {
+    // Travel on the first new bearing.
+    if (!pointsMatch(recalculatedPath.turnPoint, recalculatedPath.secondTurnPoint)) {
       await updateTokenAnimationStage(
         context.token,
-        toTopLeft(recalculatedPath.finalCenter)
+        toTopLeft(recalculatedPath.secondTurnPoint)
       );
+    }
+
+    if (recalculatedPath.hasSecondTurn) await updateTokenAnimationStage(context.token, { rotation: recalculatedPath.finalRotation });
+    if (!pointsMatch(recalculatedPath.secondTurnPoint, recalculatedPath.finalCenter)) {
+      await updateTokenAnimationStage(context.token, toTopLeft(recalculatedPath.finalCenter));
     }
   } else {
     await updateTokenAnimationStage(
@@ -529,7 +586,7 @@ export function drawMovementPreview(token, path) {
     // Small turn arc to make the direction of rotation obvious.
     const turnArcRadius = Math.max(baseRadius * 0.45, gridSize * 0.8);
     const startAngle = (path.startRotation - 90) * Math.PI / 180;
-    const endAngle = (path.finalRotationRaw - 90) * Math.PI / 180;
+    const endAngle = (path.firstTurnRotationRaw - 90) * Math.PI / 180;
     graphics.lineStyle(lineWidth * 0.8, 0xffcc66, 0.95);
     graphics.arc(
       path.turnPoint.x,
@@ -543,7 +600,22 @@ export function drawMovementPreview(token, path) {
     // Second movement segment.
     graphics.lineStyle(lineWidth, 0xffcc66, 0.95);
     graphics.moveTo(path.turnPoint.x, path.turnPoint.y);
-    graphics.lineTo(path.finalCenter.x, path.finalCenter.y);
+    graphics.lineTo(path.secondTurnPoint.x, path.secondTurnPoint.y);
+
+    if (path.hasSecondTurn) {
+      graphics.beginFill(0xff9966, 0.9);
+      graphics.drawCircle(path.secondTurnPoint.x, path.secondTurnPoint.y, markerRadius);
+      graphics.endFill();
+      const secondArcRadius = Math.max(baseRadius * 0.45, gridSize * 0.8);
+      graphics.lineStyle(lineWidth * 0.8, 0xff9966, 0.95);
+      graphics.arc(path.secondTurnPoint.x, path.secondTurnPoint.y, secondArcRadius,
+        (path.firstTurnRotationRaw - 90) * Math.PI / 180,
+        (path.finalRotationRaw - 90) * Math.PI / 180,
+        path.secondTurnDirection === "port");
+      graphics.lineStyle(lineWidth, 0xff9966, 0.95);
+      graphics.moveTo(path.secondTurnPoint.x, path.secondTurnPoint.y);
+      graphics.lineTo(path.finalCenter.x, path.finalCenter.y);
+    }
   }
 
   // Final base position ghost.

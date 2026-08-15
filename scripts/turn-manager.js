@@ -128,6 +128,8 @@ export async function resetBattle() {
   await resetBoardingState();
   const { resetEndPhaseState } = await import("./end-phase.js");
   await resetEndPhaseState();
+  const { resetSpecialOrders } = await import("./special-orders.js");
+  await resetSpecialOrders();
   for (const token of canvas.tokens?.placeables ?? []) {
     if (token.document.getFlag(MODULE_ID, "firedWeapons") !== undefined) {
       await token.document.unsetFlag(MODULE_ID, "firedWeapons");
@@ -160,6 +162,11 @@ export async function nextPhase() {
       ui.notifications.warn(`Resolve Damage Control for ships with active fires before leaving the End Phase: ${unresolved.map(token => token.name).join(", ")}.`);
       return false;
     }
+    const { clearFleetOrders } = await import("./special-orders.js");
+    await clearFleetOrders(state.fleets?.[state.activeFleetIndex]?.id, state, {
+      clearNormalOrders: false,
+      clearExpiringBrace: true
+    });
   }
 
   if (state.phase === "ordnance") {
@@ -190,6 +197,14 @@ export async function nextPhase() {
     state.activeFleetIndex = isLastFleet ? 0 : state.activeFleetIndex + 1;
     if (isLastFleet) state.round += 1;
     state.phase = PHASES[0].id;
+  }
+
+  if (state.phase === "movement") {
+    const { clearFleetOrders } = await import("./special-orders.js");
+    await clearFleetOrders(state.fleets?.[state.activeFleetIndex]?.id, state, {
+      clearNormalOrders: true,
+      clearExpiringBrace: false
+    });
   }
 
   await setTurnState(state);

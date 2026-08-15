@@ -5,6 +5,7 @@ import { getTokenFleetId } from "./fleet-assignment.js";
 import { getActingFleetIndex, getTurnState } from "./turn-manager.js";
 import { publishBFGDice } from "./dice.js";
 import { getBoardingState, hasDeclaredBoarding } from "./boarding.js";
+import { effectiveOrdnanceStrength } from "./special-orders.js";
 
 export const ORDNANCE_MARKER_FLAG = "ordnanceMarker";
 export const ORDNANCE_STATE_FLAG = "ordnanceState";
@@ -15,13 +16,15 @@ const blastMarkerChoices = new Map();
 const pendingAttackCraftDrags = new Map();
 const pendingCAPShipMoves = new Map();
 const ATTACK_CRAFT_IMAGES = Object.freeze({
+  swiftdeath: "modules/bfg-helper/assets/chaos-fighter-craft.svg",
+  doomfire: "modules/bfg-helper/assets/chaos-bomber-craft.svg",
   fighter: "modules/bfg-helper/assets/attack-craft-fighters.svg",
   bomber: "modules/bfg-helper/assets/attack-craft-bombers.svg",
   "assault-boat": "modules/bfg-helper/assets/attack-craft-boarding.svg"
 });
 
 function attackCraftImage(craft) {
-  return ATTACK_CRAFT_IMAGES[craft?.role] ?? ATTACK_CRAFT_IMAGES.fighter;
+  return ATTACK_CRAFT_IMAGES[craft?.id] ?? ATTACK_CRAFT_IMAGES[craft?.role] ?? ATTACK_CRAFT_IMAGES.fighter;
 }
 
 export async function refreshAttackCraftArtwork() {
@@ -136,11 +139,11 @@ export function getOrdnanceState(tokenOrDocument) {
   };
 }
 
-function effectiveBayCapacity(shipData, combatState) {
+function effectiveBayCapacity(shipData, combatState, token = null) {
   const total = (shipData?.ordnance ?? []).reduce(
     (sum, bay) => sum + Math.max(0, Number(bay.capacity) || 0), 0
   );
-  return combatState?.crippled ? halveRoundedUp(total) : total;
+  return token ? effectiveOrdnanceStrength(token, total) : combatState?.crippled ? halveRoundedUp(total) : total;
 }
 
 function fleetAttackCraftInPlay(fleetId) {
@@ -155,7 +158,7 @@ function fleetLaunchBayLimit(fleetId) {
     if (getTokenFleetId(token) !== fleetId) return sum;
     const combat = getCombatState(token);
     if (!combat || combat.outOfAction) return sum;
-    return sum + effectiveBayCapacity(getShipData(token), combat);
+    return sum + effectiveBayCapacity(getShipData(token), combat, token);
   }, 0);
 }
 
@@ -266,7 +269,7 @@ export async function launchSelectedShipAttackCraft() {
     return false;
   }
 
-  const shipCapacity = effectiveBayCapacity(shipData, getCombatState(ship));
+  const shipCapacity = effectiveBayCapacity(shipData, getCombatState(ship), ship);
   const fleetLimit = fleetLaunchBayLimit(fleetId);
   const inPlay = fleetAttackCraftInPlay(fleetId);
   const available = Math.max(0, Math.min(shipCapacity, fleetLimit - inPlay));
@@ -710,7 +713,7 @@ export async function reloadSelectedShipOrdnance() {
     return false;
   }
   if (!game.user?.isGM) {
-    ui.notifications.warn("Reload Ordnance special orders are not implemented yet; only a Gamemaster can set this testing state.");
+    ui.notifications.warn("Only a Gamemaster can update the shared ordnance state.");
     return false;
   }
   await ship.document.setFlag(MODULE_ID, ORDNANCE_STATE_FLAG, {

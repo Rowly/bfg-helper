@@ -64,7 +64,7 @@
     {{#if hasAnalysis}}
       <section class="bfg-firing-analysis{{#unless analysis.legal}} illegal{{/unless}}">
         <div><span>Weapon type</span><strong>{{analysis.weaponType}}</strong></div>
-        <div><span>Effective strength</span><strong>{{analysis.effectiveStrength}}{{#if analysis.attackerCrippled}} (crippled; profile {{analysis.profileStrength}}){{/if}}</strong></div>
+        <div><span>Effective strength</span><strong>{{analysis.effectiveStrength}} (profile {{analysis.profileStrength}}{{#if analysis.attackerCrippled}}; crippled{{/if}}{{#if analysis.attackerSpecialOrder}}; {{analysis.attackerSpecialOrder}}{{/if}})</strong></div>
         <div><span>Measured range</span><strong>{{analysis.rangeLabel}} / {{analysis.maximumRangeCm}} cm</strong></div>
         <div><span>Range check</span><strong>{{#if analysis.inRange}}In range{{else}}Out of range{{/if}}</strong></div>
         <div><span>Arc check</span><strong>{{#if analysis.inArc}}In arc{{else}}Outside arc{{/if}}</strong></div>
@@ -132,10 +132,10 @@
         {{else}}
         <div><span>Shield hits</span><strong>{{resolution.damage.shieldHits}}</strong></div>
         {{#if resolution.damage.shieldHits}}
-          <p><i class="fa-solid fa-circle-exclamation"></i> Place one Blast Marker token manually for this attack's shield hits.</p>
+          <p><i class="fa-solid fa-circle-exclamation"></i> Place {{resolution.damage.shieldHits}} Blast Marker token(s) manually for this attack's {{resolution.damage.shieldHits}} shield hit(s).</p>
         {{/if}}
         <div><span>Hull damage</span><strong>{{resolution.damage.hullHits}}</strong></div>
-        <div><span>Critical checks</span><strong>{{resolution.damage.critical.checks}}d6: {{resolution.criticalChecksLabel}}</strong></div>
+        <div><span>Critical checks ({{resolution.damage.critical.checks}}d6, needing 6)</span><strong>{{resolution.criticalChecksLabel}}</strong></div>
         <div><span>Critical damage</span><strong>{{resolution.damage.extraCriticalDamage}}</strong></div>
         {{#if resolution.damage.critical.escortDestroyed}}
           <p><i class="fa-solid fa-skull"></i> Escort destroyed by critical hit.</p>
@@ -146,8 +146,8 @@
         {{#if resolution.damage.catastrophic}}
           <p class="bfg-catastrophic-result"><i class="fa-solid fa-explosion"></i> Catastrophic Damage{{#if resolution.damage.catastrophic.tableTotal}} (2D6 roll {{resolution.damage.catastrophic.tableTotal}}){{/if}}: <strong>{{resolution.damage.catastrophic.name}}</strong></p>
           <p>{{resolution.damage.catastrophic.instruction}}</p>
-          <p>Place {{resolution.damage.catastrophic.blastMarkers}} Blast Marker token(s) manually.</p>
           {{#if resolution.damage.catastrophic.explosionRangeCm}}
+            <p>Place {{resolution.damage.catastrophic.blastMarkers}} Blast Marker token(s) manually.</p>
             <p>Explosion range: {{resolution.damage.catastrophic.explosionRangeCm}} cm (3D6: {{resolution.catastrophicRangeLabel}}). Lance Strength: {{resolution.damage.catastrophic.explosionStrength}}.</p>
           {{/if}}
         {{/if}}

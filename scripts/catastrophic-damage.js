@@ -44,7 +44,7 @@ export async function rollCatastrophicDamage(tokenOrDocument) {
       tableDice: [],
       tableTotal: null,
       blastMarkers: 1,
-      instruction: "Replace the escort with one centrally placed Blast Marker."
+      instruction: "Replace the escort with 1 centrally placed Blast Marker."
     };
   }
 
@@ -57,7 +57,7 @@ export async function rollCatastrophicDamage(tokenOrDocument) {
       tableTotal: table.total,
       blastMarkers: 1,
       futureMovement: "4d6 cm forward in each subsequent Movement phase",
-      instruction: "Place one Blast Marker in contact with the hulk after each move."
+      instruction: "Place 1 Blast Marker in contact with the hulk after each move."
     };
   }
   if (table.total <= 8) {
@@ -68,7 +68,7 @@ export async function rollCatastrophicDamage(tokenOrDocument) {
       tableTotal: table.total,
       blastMarkers: 1,
       futureMovement: "4d6 cm forward in each subsequent Movement phase",
-      instruction: "Place one Blast Marker after each move, then roll again on the Catastrophic Damage table."
+      instruction: "Place 1 Blast Marker after each move, then roll again on the Catastrophic Damage table."
     };
   }
 

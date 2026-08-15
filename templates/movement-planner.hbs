@@ -72,7 +72,7 @@
       </label>
     </div>
 
-    <section class="bfg-turn-slider-section">
+    <section class="bfg-turn-slider-section{{#if turningUnavailable}} bfg-turn-slider-locked{{/if}}">
       <div class="bfg-turn-slider-heading">
         <span>Turn</span>
         <strong data-bfg-turn-slider-value data-direction="straight">Straight ahead</strong>
@@ -88,11 +88,12 @@
         class="bfg-turn-slider"
         type="range"
         name="signedTurnDegrees"
-        min="-{{maximumTurnDegrees}}"
-        max="{{maximumTurnDegrees}}"
+        min="-{{turnSliderMaximum}}"
+        max="{{turnSliderMaximum}}"
         value="{{defaultSignedTurnDegrees}}"
         step="1"
         aria-label="Turn angle: port through straight ahead to starboard"
+        {{#if turningUnavailable}}disabled{{/if}}
       >
 
       <div class="bfg-turn-slider-scale" aria-hidden="true">
@@ -100,7 +101,33 @@
         <span>0 degrees</span>
         <span>+{{maximumTurnDegrees}} degrees</span>
       </div>
+      {{#if turningUnavailable}}
+        <div class="bfg-turn-slider-lock-overlay">
+          <i class="fa-solid fa-crosshairs"></i>
+          <strong>{{turningLockTitle}}</strong>
+          <span>{{turningLockMessage}}</span>
+        </div>
+      {{/if}}
     </section>
+
+    {{#if allowsSecondTurn}}
+      <div class="bfg-movement-fields">
+        <label>
+          <span>Distance after first turn before second turn (cm)</span>
+          <input type="number" name="beforeSecondTurnCm" min="0" max="{{speedCm}}" value="{{defaultBeforeSecondTurnCm}}" step="0.5">
+        </label>
+      </div>
+      <section class="bfg-turn-slider-section">
+        <div class="bfg-turn-slider-heading">
+          <span>Second turn</span>
+          <strong data-bfg-second-turn-slider-value data-direction="straight">Straight ahead</strong>
+        </div>
+        <div class="bfg-turn-slider-labels" aria-hidden="true">
+          <span>Port {{maximumTurnDegrees}} degrees</span><span>Straight</span><span>Starboard {{maximumTurnDegrees}} degrees</span>
+        </div>
+        <input class="bfg-turn-slider" type="range" name="secondSignedTurnDegrees" min="-{{maximumTurnDegrees}}" max="{{maximumTurnDegrees}}" value="{{defaultSecondSignedTurnDegrees}}" step="1" aria-label="Second turn angle">
+      </section>
+    {{/if}}
 
     <p class="bfg-movement-status" data-bfg-movement-status data-status="normal">
       {{previewSummary}}

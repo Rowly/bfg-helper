@@ -10,7 +10,8 @@ export function swordProfile() {
       speedCm: 25,
       minimumBeforeTurnCm: 0,
       maximumTurnDegrees: 90,
-      maximumTurns: 1
+      maximumTurns: 1,
+      canComeToNewHeading: true
     },
     stats: {
       points: 35,

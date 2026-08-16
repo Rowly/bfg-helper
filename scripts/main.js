@@ -1,6 +1,7 @@
 import { configureSelectedShip, getShipData, setShipData } from "./ship-data.js";
 import {
   despoilerProfile,
+  dominatorProfile,
   idolatorProfile,
   retributionProfile,
   swordProfile
@@ -48,6 +49,7 @@ import {
   previewDirectFire,
   resolveDirectFire
 } from "./shooting.js";
+import { openNovaCannon } from "./nova-cannon.js";
 import { editSelectedShipCriticalState, getCriticalState, setCriticalState } from "./critical-hits.js";
 import { getCatastrophicState, setCatastrophicState } from "./catastrophic-damage.js";
 import {
@@ -108,11 +110,13 @@ Hooks.once("ready", () => {
     configureDespoiler: () => configureProfile(despoilerProfile),
     configureSword: () => configureProfile(swordProfile),
     configureIdolator: () => configureProfile(idolatorProfile),
+    configureDominator: () => configureProfile(dominatorProfile),
     profiles: {
       retribution: retributionProfile,
       despoiler: despoilerProfile,
       sword: swordProfile,
-      idolator: idolatorProfile
+      idolator: idolatorProfile,
+      dominator: dominatorProfile
     },
     getShipData,
     setShipData,
@@ -180,7 +184,8 @@ Hooks.once("ready", () => {
       analyse: analyseDirectFire,
       preview: previewDirectFire,
       resolve: resolveDirectFire,
-      commitDamage: commitDirectFireDamage
+      commitDamage: commitDirectFireDamage,
+      fireNovaCannon: openNovaCannon
     },
     ordnance: {
       getMarker: getOrdnanceMarker,

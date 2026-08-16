@@ -6,6 +6,7 @@ import { MODULE_ID } from "./constants.js";
 import { getCombatState } from "./combat-state.js";
 import { isBoardingParticipant } from "./boarding.js";
 import { getMovementSpecialOrder } from "./special-orders.js";
+import { findRamContact, resolveRamAtContact } from "./ramming.js";
 
 const PREVIEW_NAME = "bfg-movement-preview";
 const MOVEMENT_STATE_FLAG = "movementState";
@@ -173,6 +174,11 @@ export function getMovementContext(token = canvas.tokens.controlled[0]) {
   if (combatState?.thrusterDamage > 0) warnings.push("Thrusters Damaged: speed is reduced by 10 cm.");
   if (combatState?.engineRoomDamage > 0) warnings.push("Engine Room Damaged: this ship cannot turn.");
   if (specialOrder) warnings.push(`Special Order: ${specialOrder.name}.`);
+  if (specialOrder?.id === "all-ahead-full" && specialOrder.ram?.declared) {
+    warnings.push(specialOrder.ram.passed
+      ? `Ram declared against ${specialOrder.ram.targetName}. Contact along this movement will resolve the ram.`
+      : `Ram attempt against ${specialOrder.ram.targetName} failed its Leadership test.`);
+  }
   let blocked = false;
 
   if (!turnState.battleStarted) {
@@ -493,6 +499,41 @@ export async function executeMovementPath(token, previewPath) {
     y: point.y - heightPixels / 2
   });
 
+  const ram = context.specialOrder?.id === "all-ahead-full" ? context.specialOrder.ram : null;
+  const ramTarget = ram?.passed ? canvas.tokens?.get(ram.targetId) : null;
+  const ramContact = ramTarget
+    ? findRamContact(context.token, ramTarget, recalculatedPath.start, recalculatedPath.finalCenter)
+    : null;
+
+  if (ramContact) {
+    await updateTokenAnimationStage(context.token, toTopLeft(ramContact));
+    const applied = await resolveRamAtContact(context.token, ramTarget, ramContact);
+    if (!applied) {
+      clearMovementPreview();
+      if (context.turnState.battleStarted) await markMovedThisPhase(context.token, context.turnState);
+      return {
+        ...recalculatedPath,
+        ramTargetName: ramTarget.name,
+        ramResolved: false,
+        stoppedAtRamContact: true,
+        finalCenter: ramContact
+      };
+    }
+    const rammerAfter = getCombatState(context.token);
+    if (!rammerAfter?.outOfAction) {
+      await updateTokenAnimationStage(context.token, toTopLeft(recalculatedPath.finalCenter));
+    }
+    clearMovementPreview();
+    if (context.turnState.battleStarted) await markMovedThisPhase(context.token, context.turnState);
+    return {
+      ...recalculatedPath,
+      ramTargetName: ramTarget.name,
+      ramResolved: true,
+      stoppedAtRamContact: Boolean(rammerAfter?.outOfAction),
+      finalCenter: rammerAfter?.outOfAction ? ramContact : recalculatedPath.finalCenter
+    };
+  }
+
   if (recalculatedPath.hasTurn) {
     // First travel along the current bearing without changing the facing.
     if (!pointsMatch(recalculatedPath.start, recalculatedPath.turnPoint)) {
@@ -571,6 +612,13 @@ export function drawMovementPreview(token, path) {
   // Starting-base reference.
   graphics.lineStyle(lineWidth * 0.65, 0xffffff, 0.35);
   graphics.drawCircle(path.start.x, path.start.y, baseRadius);
+
+  if (path.ramContact) {
+    graphics.beginFill(0xff5533, 0.28);
+    graphics.lineStyle(lineWidth, 0xff5533, 0.95);
+    graphics.drawCircle(path.ramContact.x, path.ramContact.y, Math.max(markerRadius * 1.35, baseRadius * 0.3));
+    graphics.endFill();
+  }
 
   // First movement segment.
   graphics.lineStyle(lineWidth, 0x66ccff, 0.95);

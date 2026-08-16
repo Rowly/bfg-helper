@@ -38,6 +38,7 @@ export function retributionProfile() {
       shields: 4,
       armour: { front: "6+", other: "5+" },
       targetClass: "capital",
+      rammingSize: "battleship",
       turrets: 4,
       notes: ["Cannot use Come to New Heading special orders."],
       famousShips: ["Bloodhawk", "Cardinal Boras"]

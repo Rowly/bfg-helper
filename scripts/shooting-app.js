@@ -9,7 +9,7 @@ import {
 import { clearWeaponArc } from "./weapon-arcs.js";
 import { calculateBatteryDice } from "./gunnery-table.js";
 import { isWeaponDisabledByCritical } from "./critical-hits.js";
-import { effectiveWeaponStrength, getSpecialOrder } from "./special-orders.js";
+import { effectiveWeaponStrength, getSpecialOrder, resolveBraceReaction } from "./special-orders.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -92,6 +92,7 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
     const analysis = this.analysis
       ? {
           targetName: this.analysis.targetName,
+          isOrdnance: this.analysis.isOrdnance,
           weaponType: this.analysis.weaponType,
           profileStrength: this.analysis.profileStrength,
           effectiveStrength: this.analysis.effectiveStrength,
@@ -255,6 +256,12 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
         this.countsAsDefences = Boolean(
           this.element.querySelector('[name="countsAsDefences"]')?.checked
         );
+        const targetBrace = Boolean(this.element.querySelector('[name="targetBrace"]')?.checked);
+        const targetBraceBlastContact = Boolean(this.element.querySelector('[name="targetBraceBlastContact"]')?.checked);
+        if (!this.analysis.isOrdnance) {
+          const target = canvas.tokens?.get(this.analysis.targetId);
+          if (target) await resolveBraceReaction(target, { brace: targetBrace, blastContact: targetBraceBlastContact });
+        }
         this.isRolling = true;
         await this.render({ force: true });
         [this.resolution] = await Promise.all([

@@ -5,6 +5,7 @@ import {
   clearMovementPreview,
   executeMovementPath
 } from "./movement.js";
+import { findRamContact } from "./ramming.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -218,6 +219,14 @@ export class BFGMovementPlannerApplication extends HandlebarsApplicationMixin(Ap
         if (!movementContext.ok) throw new Error(movementContext.error);
 
         const path = calculateMovementPath(token, movementContext.movement, this.readValues());
+        const ram = movementContext.specialOrder?.id === "all-ahead-full"
+          ? movementContext.specialOrder.ram
+          : null;
+        const ramTarget = ram?.passed ? canvas.tokens?.get(ram.targetId) : null;
+        if (ramTarget) {
+          path.ramContact = findRamContact(token, ramTarget, path.start, path.finalCenter);
+          path.ramTargetName = ramTarget.name;
+        }
         drawMovementPreview(token, path);
         this.lastPath = path;
         this.setExecuteEnabled(true);
@@ -248,9 +257,14 @@ export class BFGMovementPlannerApplication extends HandlebarsApplicationMixin(Ap
 
         const turnText = describePath(executedPath);
 
+        const ramText = executedPath.ramTargetName
+          ? executedPath.ramResolved
+            ? ` Ram against ${executedPath.ramTargetName} resolved.`
+            : ` Movement stopped at contact with ${executedPath.ramTargetName}; the ram was not applied.`
+          : "";
         this.updateStatus(
-          `Movement executed: ${turnText}. Final facing ${executedPath.finalRotation.toFixed(0)} degrees.`,
-          "success"
+          `Movement executed: ${turnText}. Final facing ${executedPath.finalRotation.toFixed(0)} degrees.${ramText}`,
+          executedPath.ramTargetName && !executedPath.ramResolved ? "error" : "success"
         );
         ui.notifications.info(`${token.name} movement executed.`);
       } catch (error) {

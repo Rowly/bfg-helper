@@ -19,6 +19,7 @@ export function idolatorProfile() {
       shields: 1,
       armour: "5+",
       targetClass: "escort",
+      rammingSize: "escort",
       turrets: 2,
       famousSquadrons: ["Retaliators", "Purgators", "Unclean Ravagers", "Khorne's Disciples"]
     },

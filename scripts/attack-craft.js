@@ -9,7 +9,7 @@ import { getOrdnanceMarker, ORDNANCE_MARKER_FLAG } from "./ordnance.js";
 import { commitTurretDefenseChoice, getTurretDefenseChoice } from "./ordnance-defense.js";
 import { isBoardingParticipant } from "./boarding.js";
 import { openActionResolution } from "./action-resolution-app.js";
-import { rollBraceSaves } from "./special-orders.js";
+import { braceReactionControls, readBraceReactionOptions, resolveBraceReaction, rollBraceSaves } from "./special-orders.js";
 
 const HIT_AND_RUN_FLAG = "pendingHitAndRun";
 
@@ -177,8 +177,10 @@ async function resolveSelectedAgainstShip(selected, target, selectedMarker) {
     heading: "Attack-craft attack",
     rollLabel: "Roll attack-craft attack",
     applyLabel: "Apply damage and remove craft",
-    detailsHtml: attackCraftDetails(selected, target, selected.map(getOrdnanceMarker), null),
-    roll: async () => {
+    detailsHtml: attackCraftDetails(selected, target, selected.map(getOrdnanceMarker), null) + braceReactionControls(target),
+    readOptions: element => readBraceReactionOptions(element),
+    roll: async options => {
+      await resolveBraceReaction(target, options);
       const currentWave = [...wave];
       const intercepted = currentWave.slice(0, Math.min(cap.length, currentWave.length));
       const interceptedIds = new Set(intercepted.map(token => token.document.id));

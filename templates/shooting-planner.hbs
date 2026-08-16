@@ -32,7 +32,7 @@
       <select name="weaponIndex" {{#if isRolling}}disabled{{/if}}>
         {{#each weapons}}
           <option value="{{index}}" {{#if selected}}selected{{/if}} {{#if fired}}disabled{{/if}} {{#if criticallyDisabled}}disabled{{/if}}>
-            {{name}} - {{type}} - {{rangeCm}} cm - {{arcDegrees}}&deg; - Strength {{strength}}{{#if fired}} - Fired{{/if}}{{#if criticallyDisabled}} - Critically damaged{{/if}}
+            {{name}} - {{type}} - {{rangeLabel}} cm - {{arcDegrees}}&deg; - Strength {{strength}}{{#if fired}} - Fired{{/if}}{{#if criticallyDisabled}} - Critically damaged{{/if}}
           </option>
         {{/each}}
       </select>
@@ -73,6 +73,10 @@
         <div><span>Target class</span><strong>{{analysis.targetClass}}</strong></div>
         <div><span>Target armour</span><strong>{{analysis.targetArmour}}</strong></div>
         {{#unless analysis.isOrdnance}}
+          <div><span>Priority target</span><strong>{{analysis.priorityTargetName}}</strong></div>
+          <div><span>Leadership test</span><strong>{{#if analysis.targetPriorityRequired}}Required to retain selected target{{else}}Not required{{/if}}</strong></div>
+        {{/unless}}
+        {{#unless analysis.isOrdnance}}
           <div><span>Target hits</span><strong>{{analysis.targetCombatState.currentHits}}/{{analysis.targetCombatState.maximumHits}}</strong></div>
           <div><span>Target shields</span><strong>{{analysis.targetCombatState.currentShields}}/{{analysis.targetCombatState.maximumShields}}</strong></div>
         {{/unless}}
@@ -107,6 +111,17 @@
             <input type="checkbox" name="targetBraceBlastContact">
             Target has Blast Markers in base contact (-1 Leadership)
           </label>
+          {{#if analysis.targetPriorityRequired}}
+            <p class="notes">If the firing ship fails its target-priority test, the attack is redirected to {{analysis.priorityTargetName}}.</p>
+            <label>
+              <input type="checkbox" name="priorityTargetBrace">
+              Attempt to Brace {{analysis.priorityTargetName}} for Impact if the attack is redirected
+            </label>
+            <label>
+              <input type="checkbox" name="priorityTargetBraceBlastContact">
+              {{analysis.priorityTargetName}} has Blast Markers in base contact (-1 Leadership)
+            </label>
+          {{/if}}
         {{/unless}}
         <p class="notes">Range shifts are applied automatically.{{#unless analysis.isOrdnance}} Use Defences for a stationary ship that has not moved at least 5 cm.{{/unless}}</p>
         <button type="button" data-bfg-action="resolve-direct-fire" class="bfg-primary-button" {{#unless canResolveAttack}}disabled{{/unless}}>
@@ -131,6 +146,10 @@
     {{#if hasResolution}}
       <section class="bfg-firing-resolution">
         <h3>Attack result</h3>
+        <div><span>Target</span><strong>{{resolution.targetName}}</strong></div>
+        {{#if resolution.priorityCheck}}
+          <div><span>Target-priority test (2d6)</span><strong>{{resolution.priorityCheck.dice}} = {{resolution.priorityCheck.total}} against {{resolution.priorityCheck.leadership}}: {{#if resolution.priorityCheck.passed}}passed{{else}}failed; attack redirected{{/if}}</strong></div>
+        {{/if}}
         <div><span>Dice rolled</span><strong>{{resolution.attackDice}}d6</strong></div>
         <div><span>Required score</span><strong>{{resolution.hitTarget}}+</strong></div>
         <div><span>Die results</span><strong>{{resolution.resultsLabel}}</strong></div>

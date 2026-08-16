@@ -24,7 +24,7 @@ import {
 import { diceFaces, publishBFGDice } from "./dice.js";
 import { getOrdnanceMarker } from "./ordnance.js";
 import { getBoardingState, hasDeclaredBoarding, isBoardingParticipant } from "./boarding.js";
-import { effectiveWeaponStrength, getSpecialOrder, rollBraceSaves } from "./special-orders.js";
+import { DEFAULT_LEADERSHIP, effectiveWeaponStrength, getSpecialOrder, resolveBraceReaction, rollBraceSaves } from "./special-orders.js";
 
 const FIRED_WEAPONS_FLAG = "firedWeapons";
 
@@ -44,7 +44,7 @@ export function hasWeaponFired(token, weaponId, state = getTurnState()) {
   return firedWeaponIds(token, state).includes(String(weaponId));
 }
 
-async function markWeaponFired(token, weaponId, state = getTurnState()) {
+export async function markWeaponFired(token, weaponId, state = getTurnState()) {
   const activationKey = shootingActivationKey(state);
   if (!activationKey || state.phase !== "shooting") return false;
 
@@ -85,6 +85,7 @@ function weaponTypeLabel(weapon) {
   const type = String(weapon.type ?? "").toLowerCase();
   if (type === "lance") return "Lance";
   if (type === "battery") return "Weapons battery";
+  if (type === "nova-cannon") return "Nova Cannon";
   return "Direct-fire weapon";
 }
 
@@ -103,6 +104,34 @@ function armourTargetNumber(combatState, targetFacing) {
   const value = Number(match?.[0]);
   if (!(value >= 2 && value <= 6)) throw new Error("The target does not have a valid Armour value.");
   return value;
+}
+
+function directWeaponGeometry(attacker, target, weapon) {
+  const scale = pixelsPerCm();
+  const rangeCm = Math.hypot(Number(target.center.x) - Number(attacker.center.x), Number(target.center.y) - Number(attacker.center.y)) / scale;
+  const bearing = headingToPoint(attacker.center, target.center);
+  const weaponHeading = Number(attacker.document.rotation ?? 0) + Number(weapon.directionDegrees) + 90;
+  const inArc = Math.abs(signedAngleDifference(bearing, weaponHeading)) <= Number(weapon.arcDegrees) / 2 + 0.000001;
+  const minimumRangeCm = Math.max(0, Number(weapon.minimumRangeCm ?? 0));
+  const maximumRangeCm = Number(weapon.rangeCm);
+  return { rangeCm, inArc, inRange: rangeCm >= minimumRangeCm - 0.000001 && rangeCm <= maximumRangeCm + 0.000001 };
+}
+
+/** Closest enemy ship this weapon can legally engage. Ordnance is deliberately ignored. */
+export function getClosestPriorityTarget(attacker, weapon) {
+  const attackerFleetId = getTokenFleetId(attacker);
+  return (canvas.tokens?.placeables ?? [])
+    .filter(target => {
+      if (target.id === attacker.id || !getShipData(target)) return false;
+      const targetFleetId = getTokenFleetId(target);
+      if (!attackerFleetId || !targetFleetId || targetFleetId === attackerFleetId) return false;
+      const combat = getCombatState(target);
+      if (!combat || (combat.outOfAction && !combat.hulk) || isBoardingParticipant(target)) return false;
+      const geometry = directWeaponGeometry(attacker, target, weapon);
+      return geometry.inArc && geometry.inRange;
+    })
+    .map(target => ({ target, rangeCm: directWeaponGeometry(attacker, target, weapon).rangeCm }))
+    .sort((first, second) => first.rangeCm - second.rangeCm)[0]?.target ?? null;
 }
 
 export function getSelectedShootingTarget() {
@@ -188,13 +217,16 @@ export function analyseDirectFire(attacker, target, weapon) {
   const centerDistancePixels = Math.hypot(dx, dy);
   const rangeCm = centerDistancePixels / scale;
   const maximumRangeCm = Number(weapon.rangeCm);
+  const minimumRangeCm = Math.max(0, Number(weapon.minimumRangeCm ?? 0));
 
   const bearing = headingToPoint(attacker.center, target.center);
   const weaponDirectionFromProw = Number(weapon.directionDegrees) + 90;
   const weaponHeading = Number(attacker.document.rotation ?? 0) + weaponDirectionFromProw;
   const arcDifference = signedAngleDifference(bearing, weaponHeading);
   const inArc = Math.abs(arcDifference) <= Number(weapon.arcDegrees) / 2 + 0.000001;
-  const inRange = Number.isFinite(maximumRangeCm) && rangeCm <= maximumRangeCm + 0.000001;
+  const inRange = Number.isFinite(maximumRangeCm)
+    && rangeCm >= minimumRangeCm - 0.000001
+    && rangeCm <= maximumRangeCm + 0.000001;
 
   const targetBearingToAttacker = headingToPoint(target.center, attacker.center);
   const targetRelativeBearing = signedAngleDifference(
@@ -224,6 +256,11 @@ export function analyseDirectFire(attacker, target, weapon) {
   const warnings = [];
   const weaponFired = hasWeaponFired(attacker, weapon.id);
   const weaponDisabled = isWeaponDisabledByCritical(weapon, getCriticalState(attacker));
+  const novaCannon = String(weapon.type ?? "").toLowerCase() === "nova-cannon";
+  const novaDisabled = novaCannon && Boolean(attackerCombatState?.novaCannonDisabled);
+  const novaOrderBlocked = novaCannon && ["all-ahead-full", "burn-retros", "come-to-new-heading", "brace-for-impact"].includes(getSpecialOrder(attacker)?.id);
+  const priorityTarget = isOrdnance ? null : getClosestPriorityTarget(attacker, weapon);
+  const targetPriorityRequired = Boolean(priorityTarget && priorityTarget.id !== target.id);
   const profileStrength = Math.trunc(Number(weapon.strength));
   const effectiveStrength = effectiveWeaponStrength(attacker, profileStrength);
   if (!targetFleetId) warnings.push(`${target.name} is not assigned to a fleet.`);
@@ -233,6 +270,8 @@ export function analyseDirectFire(attacker, target, weapon) {
   else if (targetCombatState?.outOfAction) warnings.push(`${target.name} is already out of action and cannot be targeted.`);
   if (weaponFired) warnings.push(`${weapon.name} has already fired during this Shooting phase.`);
   if (weaponDisabled) warnings.push(`${weapon.name} cannot fire because its armament is critically damaged.`);
+  if (novaDisabled) warnings.push(`${weapon.name} cannot fire while the ship is crippled.`);
+  if (novaOrderBlocked) warnings.push(`${weapon.name} cannot fire under the ship's current Special Order.`);
 
   return {
     attackerId: attacker.id,
@@ -247,6 +286,7 @@ export function analyseDirectFire(attacker, target, weapon) {
     rangeCm,
     rangeLabel: rangeCm.toFixed(1),
     maximumRangeCm,
+    minimumRangeCm,
     inRange,
     inArc,
     targetFacing,
@@ -259,20 +299,29 @@ export function analyseDirectFire(attacker, target, weapon) {
     sameFleet,
     weaponFired,
     weaponDisabled,
+    novaDisabled,
+    novaOrderBlocked,
+    priorityTargetId: priorityTarget?.id ?? null,
+    priorityTargetName: priorityTarget?.name ?? null,
+    targetPriorityRequired,
     warnings,
     legalTarget: !sameFleet && Boolean(targetFleetId) && (isOrdnance || (!isBoardingParticipant(target) && (!targetCombatState.outOfAction || targetCombatState.hulk))),
-    legal: inRange && inArc && !sameFleet && Boolean(targetFleetId) && (isOrdnance || (!isBoardingParticipant(target) && (!targetCombatState.outOfAction || targetCombatState.hulk))) && !weaponFired && !weaponDisabled
+    legal: inRange && inArc && !sameFleet && Boolean(targetFleetId) && (isOrdnance || (!isBoardingParticipant(target) && (!targetCombatState.outOfAction || targetCombatState.hulk))) && !weaponFired && !weaponDisabled && !novaDisabled && !novaOrderBlocked
   };
 }
 
 export async function resolveDirectFire(analysis, {
   interveningBlastMarkers = false,
-  countsAsDefences = false
+  countsAsDefences = false,
+  targetBrace = false,
+  targetBraceBlastContact = false,
+  priorityTargetBrace = false,
+  priorityTargetBraceBlastContact = false
 } = {}) {
   if (!analysis?.weapon || !analysis?.targetId) throw new Error("Check a firing solution before rolling.");
 
   const attacker = canvas.tokens?.get(analysis.attackerId);
-  const target = canvas.tokens?.get(analysis.targetId);
+  let target = canvas.tokens?.get(analysis.targetId);
   if (!attacker) throw new Error("The firing ship is no longer on this Scene.");
   if (!target) throw new Error("The target is no longer on this Scene.");
 
@@ -290,6 +339,31 @@ export async function resolveDirectFire(analysis, {
   }
   if (!analysis.legal) {
     throw new Error("This firing solution is not legal. The attack cannot be resolved.");
+  }
+
+  let priorityCheck = null;
+  if (!analysis.isOrdnance && analysis.targetPriorityRequired) {
+    const priorityTarget = canvas.tokens?.get(analysis.priorityTargetId);
+    if (!priorityTarget) throw new Error("The priority target is no longer on this Scene.");
+    const leadership = Math.max(0, DEFAULT_LEADERSHIP - Number(currentContext.combatState?.leadershipPenalty ?? 0));
+    const roll = await new Roll("2d6").evaluate();
+    await publishBFGDice(roll, {
+      speaker: ChatMessage.getSpeaker({ token: attacker.document }),
+      flavor: `${currentWeapon.name}: target-priority Leadership test`
+    });
+    priorityCheck = { dice: diceFaces(roll), total: Number(roll.total), leadership, passed: Number(roll.total) <= leadership };
+    if (!priorityCheck.passed) {
+      target = priorityTarget;
+      analysis = analyseDirectFire(attacker, target, currentWeapon);
+    }
+  }
+
+  if (!analysis.isOrdnance) {
+    const redirected = Boolean(priorityCheck && !priorityCheck.passed);
+    await resolveBraceReaction(target, {
+      brace: redirected ? priorityTargetBrace : targetBrace,
+      blastContact: redirected ? priorityTargetBraceBlastContact : targetBraceBlastContact
+    });
   }
 
   const weapon = analysis.weapon;
@@ -397,12 +471,16 @@ export async function resolveDirectFire(analysis, {
   const catastrophicLabel = damage.catastrophic
     ? `2D6 ${damage.catastrophic.tableTotal ?? "-"}: ${damage.catastrophic.name}. ${damage.catastrophic.instruction}`
     : "None";
+  const priorityLabel = priorityCheck
+    ? `Target-priority test: ${priorityCheck.dice.join(", ")} = ${priorityCheck.total} against Leadership ${priorityCheck.leadership}: ${priorityCheck.passed ? "passed" : `failed; redirected to ${escape(analysis.targetName)}`}.<br>`
+    : "";
   await ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ token: attacker.document }),
     content: `
       <div class="bfg-shooting-chat-result">
         <strong>${escape(analysis.weapon.name)}</strong> (${escape(typeLabel)}) firing at
         <strong>${escape(analysis.targetName)}</strong>.<br>
+        ${priorityLabel}
         Dice (${attackDice}d6): <strong>${escape(diceLabel)}</strong><br>
         Required: <strong>${hitTarget}+</strong>; Hits: <strong>${hits}</strong>
         <br>Brace saves: <strong>${escape(brace.dice.join(", ") || "None")}</strong>; Damage saved: <strong>${brace.saved}</strong>
@@ -426,6 +504,7 @@ export async function resolveDirectFire(analysis, {
     batteryCalculation,
     interveningBlastMarkers: Boolean(interveningBlastMarkers),
     countsAsDefences: Boolean(countsAsDefences),
+    priorityCheck,
     damage
   };
 }

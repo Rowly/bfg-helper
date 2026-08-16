@@ -9,7 +9,7 @@ import {
 import { clearWeaponArc } from "./weapon-arcs.js";
 import { calculateBatteryDice } from "./gunnery-table.js";
 import { isWeaponDisabledByCritical } from "./critical-hits.js";
-import { effectiveWeaponStrength, getSpecialOrder, resolveBraceReaction } from "./special-orders.js";
+import { effectiveWeaponStrength, getSpecialOrder } from "./special-orders.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -108,6 +108,8 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
           targetClass: this.analysis.targetClass,
           weaponFired: this.analysis.weaponFired,
           weaponDisabled: this.analysis.weaponDisabled,
+          priorityTargetName: this.analysis.priorityTargetName,
+          targetPriorityRequired: this.analysis.targetPriorityRequired,
           attackDice: previewAttackDice,
           gunneryCalculation: gunneryCalculation
             ? { ...gunneryCalculation, shiftsLabel: shiftLabel(gunneryCalculation) }
@@ -135,9 +137,11 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
       weapons: shooting.weapons.map((weapon, index) => ({
         index,
         name: weapon.name,
-        type: String(weapon.type ?? "Direct fire")
-          .replace(/^./, character => character.toUpperCase()),
+        type: String(weapon.type ?? "").toLowerCase() === "nova-cannon"
+          ? "Nova Cannon"
+          : String(weapon.type ?? "Direct fire").replace(/^./, character => character.toUpperCase()),
         rangeCm: weapon.rangeCm,
+        rangeLabel: Number(weapon.minimumRangeCm) > 0 ? `${weapon.minimumRangeCm}-${weapon.rangeCm}` : String(weapon.rangeCm),
         arcDegrees: weapon.arcDegrees,
         strength: effectiveWeaponStrength(shooting.token, weapon.strength ?? 0),
         specialOrder: getSpecialOrder(shooting.token)?.name ?? null,
@@ -213,6 +217,14 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
         this.weaponIndex = Number(weaponSelect?.value ?? this.weaponIndex);
         const weapon = shooting.weapons[this.weaponIndex];
         if (!weapon) throw new Error("Select a valid direct-fire weapon.");
+        if (String(weapon.type ?? "").toLowerCase() === "nova-cannon") {
+          const { openNovaCannon } = await import("./nova-cannon.js");
+          await openNovaCannon(this.token, weapon, target);
+          this.analysis = null;
+          this.resolution = null;
+          await this.render({ force: true });
+          return;
+        }
         const analysis = previewDirectFire(this.token, target, weapon);
         this.analysis = analysis;
         this.resolution = null;
@@ -258,16 +270,18 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
         );
         const targetBrace = Boolean(this.element.querySelector('[name="targetBrace"]')?.checked);
         const targetBraceBlastContact = Boolean(this.element.querySelector('[name="targetBraceBlastContact"]')?.checked);
-        if (!this.analysis.isOrdnance) {
-          const target = canvas.tokens?.get(this.analysis.targetId);
-          if (target) await resolveBraceReaction(target, { brace: targetBrace, blastContact: targetBraceBlastContact });
-        }
+        const priorityTargetBrace = Boolean(this.element.querySelector('[name="priorityTargetBrace"]')?.checked);
+        const priorityTargetBraceBlastContact = Boolean(this.element.querySelector('[name="priorityTargetBraceBlastContact"]')?.checked);
         this.isRolling = true;
         await this.render({ force: true });
         [this.resolution] = await Promise.all([
           resolveDirectFire(this.analysis, {
             interveningBlastMarkers: this.interveningBlastMarkers,
-            countsAsDefences: this.countsAsDefences
+            countsAsDefences: this.countsAsDefences,
+            targetBrace,
+            targetBraceBlastContact,
+            priorityTargetBrace,
+            priorityTargetBraceBlastContact
           }),
           new Promise(resolve => setTimeout(resolve, 600))
         ]);

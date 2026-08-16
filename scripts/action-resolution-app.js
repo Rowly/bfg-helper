@@ -47,11 +47,12 @@ class BFGActionResolutionApplication extends HandlebarsApplicationMixin(Applicat
     bind("cancel", () => this.close());
     bind("roll", async () => {
       try {
+        const rollOptions = this.config.readOptions?.(this.element) ?? {};
         this.stage = "waiting";
         this.error = null;
         await this.render({ force: true });
         [this.outcome] = await Promise.all([
-          this.config.roll(),
+          this.config.roll(rollOptions),
           new Promise(resolve => setTimeout(resolve, 650))
         ]);
         this.stage = "result";

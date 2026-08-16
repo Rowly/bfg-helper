@@ -43,6 +43,7 @@ export function despoilerProfile() {
       shields: 4,
       armour: "5+",
       targetClass: "capital",
+      rammingSize: "battleship",
       turrets: 4,
       notes: ["Cannot use Come to New Heading special orders."]
     },

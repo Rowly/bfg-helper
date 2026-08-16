@@ -78,7 +78,8 @@ function enemyOnOrders(token) {
 async function commandCheck(token, { blastContact = false, brace = false } = {}) {
   const state = getTurnState();
   const modifier = (blastContact ? -1 : 0) + (enemyOnOrders(token) ? 1 : 0);
-  const leadership = Math.min(10, DEFAULT_LEADERSHIP + modifier);
+  const leadershipPenalty = Math.max(0, Number(getCombatState(token)?.leadershipPenalty ?? 0));
+  const leadership = Math.max(0, Math.min(10, DEFAULT_LEADERSHIP - leadershipPenalty + modifier));
   const roll = await new Roll("2d6").evaluate();
   await publishBFGDice(roll, { speaker: ChatMessage.getSpeaker({ token: token.document }), flavor: `${token.name}: ${brace ? "Brace for Impact" : "Special Order"} Command check` });
   const total = Number(roll.total);
@@ -114,7 +115,7 @@ export async function assignSelectedSpecialOrder() {
   const options = Object.entries(SPECIAL_ORDERS)
     .filter(([id]) => id !== "brace-for-impact" && !(id === "come-to-new-heading" && forbiddenNewHeading))
     .map(([id, order]) => `<option value="${id}">${order.name}</option>`).join("");
-  const choice = await foundry.applications.api.DialogV2.input({ window: { title: `Assign Special Order: ${token.name}` }, content: `<div class="bfg-dialog"><label>Special Order</label><select name="orderId">${options}</select><label><input type="checkbox" name="blastContact"> Blast Markers in base contact (-1 Leadership)</label><p>Leadership: ${DEFAULT_LEADERSHIP}. Enemy Contacts +1 is detected automatically.</p></div>`, ok: { label: "Roll Command Check", icon: "fa-solid fa-dice-d6" }, rejectClose: false, modal: true });
+  const choice = await foundry.applications.api.DialogV2.input({ window: { title: `Assign Special Order: ${token.name}` }, content: `<div class="bfg-dialog"><label>Special Order</label><select name="orderId">${options}</select><label><input type="checkbox" name="blastContact"> Blast Markers in base contact (-1 Leadership)</label><p>Leadership: ${DEFAULT_LEADERSHIP}. Enemy Contacts +1 is detected automatically.</p><p>A successful All Ahead Full Command check will offer the option to declare an enemy ship as a ram target before rolling the additional movement.</p></div>`, ok: { label: "Roll Command Check", icon: "fa-solid fa-dice-d6" }, rejectClose: false, modal: true });
   if (!choice) return false;
   const orderId = String(choice.orderId ?? "");
   if (!SPECIAL_ORDERS[orderId] || orderId === "brace-for-impact") return false;
@@ -127,6 +128,8 @@ export async function assignSelectedSpecialOrder() {
   }
   let extra = { commandCheck: check };
   if (orderId === "all-ahead-full") {
+    const { prepareRammingDeclaration } = await import("./ramming.js");
+    extra.ram = await prepareRammingDeclaration(token);
     const bonus = await new Roll("4d6").evaluate();
     await publishBFGDice(bonus, { speaker: ChatMessage.getSpeaker({ token: token.document }), flavor: `${token.name}: All Ahead Full movement` });
     extra.allAheadFullBonusCm = Number(bonus.total);
@@ -136,20 +139,21 @@ export async function assignSelectedSpecialOrder() {
     const { reloadSelectedShipOrdnance } = await import("./ordnance.js");
     await reloadSelectedShipOrdnance();
   }
-  await ChatMessage.create({ content: `<strong>${token.name}: ${SPECIAL_ORDERS[orderId].name}</strong><br>Command check ${check.total} against Leadership ${check.leadership}: passed.` });
+  const ramSummary = orderId === "all-ahead-full" && extra.ram?.declared
+    ? `<br>Ram against ${foundry.utils.escapeHTML(extra.ram.targetName)}: ${extra.ram.passed ? "Leadership test passed" : "Leadership test failed"}.`
+    : "";
+  await ChatMessage.create({ content: `<strong>${token.name}: ${SPECIAL_ORDERS[orderId].name}</strong><br>Command check ${check.total} against Leadership ${check.leadership}: passed.${ramSummary}` });
   return true;
 }
 
-export async function braceSelectedShip() {
-  const token = selectedShip();
-  if (!token) return false;
+export async function attemptBraceForImpact(token, { blastContact = false } = {}) {
+  if (!token || !getShipData(token)) throw new Error("A configured ship is required to Brace for Impact.");
   if (getCombatState(token)?.outOfAction) {
     ui.notifications.warn("An out-of-action ship cannot Brace for Impact.");
     return false;
   }
-  const choice = await foundry.applications.api.DialogV2.input({ window: { title: `Brace for Impact: ${token.name}` }, content: `<div class="bfg-dialog"><label><input type="checkbox" name="blastContact"> Blast Markers in base contact (-1 Leadership)</label><p>Declare this before the attacking dice are rolled.</p></div>`, ok: { label: "Roll Command Check", icon: "fa-solid fa-shield" }, rejectClose: false, modal: true });
-  if (!choice) return false;
-  const check = await commandCheck(token, { blastContact: Boolean(choice.blastContact), brace: true });
+  if (getSpecialOrder(token)?.id === "brace-for-impact") return true;
+  const check = await commandCheck(token, { blastContact: Boolean(blastContact), brace: true });
   if (!check.passed) { ui.notifications.warn(`${token.name} failed to Brace for Impact against this attack.`); return false; }
   const state = getTurnState();
   const shipFleetIndex = state.fleets.findIndex(fleet => fleet.id === getTokenFleetId(token));
@@ -161,6 +165,35 @@ export async function braceSelectedShip() {
     previousOrder: previousOrder?.id === "brace-for-impact" ? previousOrder.previousOrder ?? null : previousOrder
   });
   return true;
+}
+
+export function braceReactionControls(token, prefix = "targetBrace") {
+  if (!token || getCombatState(token)?.outOfAction) return "";
+  const alreadyBraced = getSpecialOrder(token)?.id === "brace-for-impact";
+  const name = foundry.utils.escapeHTML(token.name);
+  return `<div><label><input type="checkbox" name="${prefix}" ${alreadyBraced ? "checked disabled" : ""}> ${alreadyBraced ? `${name} is already Braced for Impact` : `Attempt to Brace ${name} for Impact before rolling`}</label></div><div><label><input type="checkbox" name="${prefix}BlastContact" ${alreadyBraced ? "disabled" : ""}> Target has Blast Markers in base contact (-1 Leadership)</label></div>`;
+}
+
+export function readBraceReactionOptions(element, prefix = "targetBrace") {
+  return {
+    brace: Boolean(element?.querySelector(`[name="${prefix}"]`)?.checked),
+    blastContact: Boolean(element?.querySelector(`[name="${prefix}BlastContact"]`)?.checked)
+  };
+}
+
+export async function resolveBraceReaction(token, options = {}) {
+  if (getSpecialOrder(token)?.id === "brace-for-impact") return "Already active";
+  if (!options.brace) return "Not attempted";
+  const passed = await attemptBraceForImpact(token, { blastContact: options.blastContact });
+  return passed ? "Command check passed" : "Command check failed";
+}
+
+export async function braceSelectedShip() {
+  const token = selectedShip();
+  if (!token) return false;
+  const choice = await foundry.applications.api.DialogV2.input({ window: { title: `Brace for Impact: ${token.name}` }, content: `<div class="bfg-dialog"><label><input type="checkbox" name="blastContact"> Blast Markers in base contact (-1 Leadership)</label><p>Declare this before the attacking dice are rolled.</p></div>`, ok: { label: "Roll Command Check", icon: "fa-solid fa-shield" }, rejectClose: false, modal: true });
+  if (!choice) return false;
+  return attemptBraceForImpact(token, { blastContact: Boolean(choice.blastContact) });
 }
 
 export async function clearFleetOrders(fleetId, state = getTurnState(), {

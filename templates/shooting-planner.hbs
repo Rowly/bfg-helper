@@ -99,6 +99,14 @@
             <input type="checkbox" name="countsAsDefences" {{#if countsAsDefences}}checked{{/if}}>
             Target counts as Defences
           </label>
+          <label>
+            <input type="checkbox" name="targetBrace">
+            Attempt to Brace the target for Impact before rolling
+          </label>
+          <label>
+            <input type="checkbox" name="targetBraceBlastContact">
+            Target has Blast Markers in base contact (-1 Leadership)
+          </label>
         {{/unless}}
         <p class="notes">Range shifts are applied automatically.{{#unless analysis.isOrdnance}} Use Defences for a stationary ship that has not moved at least 5 cm.{{/unless}}</p>
         <button type="button" data-bfg-action="resolve-direct-fire" class="bfg-primary-button" {{#unless canResolveAttack}}disabled{{/unless}}>

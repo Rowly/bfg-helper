@@ -9,7 +9,7 @@ import { diceFaces, publishBFGDice } from "./dice.js";
 import { commitTurretDefenseChoice, getTurretDefenseChoice } from "./ordnance-defense.js";
 import { getBoardingState, hasDeclaredBoarding } from "./boarding.js";
 import { openActionResolution } from "./action-resolution-app.js";
-import { effectiveOrdnanceStrength, rollBraceSaves } from "./special-orders.js";
+import { braceReactionControls, effectiveOrdnanceStrength, readBraceReactionOptions, resolveBraceReaction, rollBraceSaves } from "./special-orders.js";
 import {
   ORDNANCE_MARKER_FLAG,
   ORDNANCE_STATE_FLAG,
@@ -386,8 +386,11 @@ export async function resolveSelectedTorpedoAttack() {
       <div><span>Critical checks</span><strong>1d6 per hit, needing 6</strong></div>
       <p>Turrets fire first. Surviving torpedoes roll against Armour, ignore shields, and lose one Strength for every hit inflicted.</p>
       <p>Confirm that the recorded movement trail crossed this target's base.</p>
+      ${combat.hulk ? "" : braceReactionControls(target)}
     </div>`,
-    roll: async () => {
+    readOptions: element => readBraceReactionOptions(element),
+    roll: async options => {
+      if (!combat.hulk) await resolveBraceReaction(target, options);
       const defenseChoice = getTurretDefenseChoice(target);
       const turretDice = defenseChoice === "attackCraft" ? 0 : Math.max(0, Number(combat.effectiveTurrets) || 0);
       const turretRoll = await new Roll(turretDice ? `${turretDice}d6` : "0").evaluate();

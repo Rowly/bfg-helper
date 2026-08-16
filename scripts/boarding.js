@@ -7,7 +7,7 @@ import { rollCatastrophicDamage, setCatastrophicState } from "./catastrophic-dam
 import { diceFaces, publishBFGDice } from "./dice.js";
 import { getTurnState } from "./turn-manager.js";
 import { openActionResolution } from "./action-resolution-app.js";
-import { rollBraceSaves } from "./special-orders.js";
+import { braceReactionControls, readBraceReactionOptions, resolveBraceReaction, rollBraceSaves } from "./special-orders.js";
 
 export const BOARDING_FLAG = "boardingAction";
 export const HIT_AND_RUN_FLAG = "pendingHitAndRun";
@@ -341,8 +341,11 @@ export async function resolveSelectedPendingHitAndRun() {
       <div><span>Hit-and-Run / Critical Hits table dice</span><strong>${count}d6</strong></div>
       <div><span>Current hull</span><strong>${getCombatState(target).currentHits}/${getCombatState(target).maximumHits}</strong></div>
       <p>Each attack rolls 1D6. A 1 fails; other results apply the corresponding Critical Hits table effect. Escorts are destroyed on a roll of 4+.</p>
+      ${braceReactionControls(target)}
     </div>`,
-    roll: async () => {
+    readOptions: element => readBraceReactionOptions(element),
+    roll: async options => {
+      await resolveBraceReaction(target, options);
       const outcome = await rollHitAndRunOutcome(target, count, "Assault boat");
       return { ...outcome, resultHtml: `<h3>Hit-and-Run result</h3><div class="bfg-action-confirmation"><div><span>Hit-and-Run dice (${count}d6, needing 2+)</span><strong>${outcome.results.map(result => result.roll).join(", ")}</strong></div><div><span>Effects</span><strong>${outcome.results.map(result => result.saved ? "Saved by Brace for Impact" : result.escortDestroyed ? "Escort destroyed" : result.failed ? "Failed" : result.critical.name).join("; ")}</strong></div><div><span>Remaining hull</span><strong>${outcome.remainingHull}</strong></div></div><p>Review these critical effects before applying them.</p>` };
     },
@@ -394,8 +397,11 @@ export async function resolveSelectedTeleportHitAndRun() {
       <div><span>Hit-and-Run / Critical Hits table die</span><strong>1d6</strong></div>
       <p>This is a single roll. A 1 fails. A result from 2 to 6 succeeds and that same die result is used on the Critical Hits table. An escort is destroyed on a roll of 4+.</p>
       <p>Special-order eligibility is not yet automated and must be confirmed by the players.</p>
+      ${braceReactionControls(target)}
     </div>`,
-    roll: async () => {
+    readOptions: element => readBraceReactionOptions(element),
+    roll: async options => {
+      await resolveBraceReaction(target, options);
       const outcome = await rollHitAndRunOutcome(target, 1, `Teleport attack from ${attacker.name}`);
       const result = outcome.results[0];
       return { ...outcome, resultHtml: `<h3>Teleport attack result</h3><div class="bfg-action-confirmation"><div><span>Hit-and-Run / Critical Hits table die (1d6)</span><strong>${result.roll}</strong></div><div><span>Attack</span><strong>${result.failed ? "Failed" : "Successful"}</strong></div><div><span>Critical result</span><strong>${result.saved ? "Saved by Brace for Impact" : result.failed ? "None" : result.escortDestroyed ? "Escort destroyed" : result.critical.name}</strong></div><div><span>Remaining hull</span><strong>${outcome.remainingHull}</strong></div></div><p>The displayed D6 determined both whether the attack succeeded and its Critical Hits table result.</p>` };

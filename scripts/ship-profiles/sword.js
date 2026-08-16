@@ -19,6 +19,7 @@ export function swordProfile() {
       shields: 1,
       armour: "5+",
       targetClass: "escort",
+      rammingSize: "escort",
       turrets: 2,
       famousSquadrons: ["Blue Squadron", "Red Squadron", "Omega Squadron"]
     },

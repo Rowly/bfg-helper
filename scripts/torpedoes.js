@@ -2,6 +2,7 @@ import { MODULE_ID } from "./constants.js";
 import { getShipData } from "./ship-data.js";
 import { getCombatState, halveRoundedUp, setCombatState } from "./combat-state.js";
 import { getTokenFleetId } from "./fleet-assignment.js";
+import { canUserControlToken, requireUserCanControlToken } from "./fleet-control.js";
 import { getActingFleetIndex, getTurnState } from "./turn-manager.js";
 import { getCriticalState, isWeaponDisabledByCritical, rollCriticalHits, setCriticalState } from "./critical-hits.js";
 import { getCatastrophicState, rollCatastrophicDamage, setCatastrophicState } from "./catastrophic-damage.js";
@@ -162,6 +163,7 @@ function torpedoLauncher(shipData) {
 function launchErrors(ship, fleetId, launcher) {
   const state = getTurnState();
   const errors = [];
+  if (!canUserControlToken(ship, game.user, state)) errors.push(`You are not assigned to control ${ship.name}.`);
   if (!state.battleStarted) errors.push("No battle is in progress.");
   if (state.phase !== "shooting") errors.push("Torpedoes are launched at the end of the Shooting phase.");
   if (!fleetId) errors.push(`${ship.name} is not assigned to a fleet.`);
@@ -348,6 +350,7 @@ function fullRoundKey() {
 export async function resolveSelectedTorpedoAttack() {
   const salvo = selectedToken();
   if (!salvo) return false;
+  if (!requireUserCanControlToken(salvo, "resolve this torpedo attack")) return false;
   const marker = getOrdnanceMarker(salvo);
   if (marker?.category !== "torpedo") {
     ui.notifications.warn("Select exactly one BFG torpedo salvo.");

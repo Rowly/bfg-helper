@@ -1,6 +1,7 @@
 import { MODULE_ID } from "./constants.js";
 import { getShipData } from "./ship-data.js";
 import { getTokenFleetId } from "./fleet-assignment.js";
+import { requireUserCanControlToken } from "./fleet-control.js";
 import { getCombatState, halveRoundedUp } from "./combat-state.js";
 import { diceFaces, publishBFGDice } from "./dice.js";
 import { getTurnState, setTurnState } from "./turn-manager.js";
@@ -103,6 +104,7 @@ async function setOrder(token, id, extra = {}) {
 export async function assignSelectedSpecialOrder() {
   const token = selectedShip();
   if (!token) return false;
+  if (!requireUserCanControlToken(token, "assign Special Orders")) return false;
   const state = getTurnState();
   const errors = [];
   if (!state.battleStarted || state.phase !== "movement") errors.push("Special Orders are assigned during the Movement phase.");
@@ -193,6 +195,7 @@ export async function resolveBraceReaction(token, options = {}) {
 export async function braceSelectedShip() {
   const token = selectedShip();
   if (!token) return false;
+  if (!requireUserCanControlToken(token, "declare Brace for Impact")) return false;
   const choice = await foundry.applications.api.DialogV2.input({ window: { title: `Brace for Impact: ${token.name}` }, content: `<div class="bfg-dialog"><label><input type="checkbox" name="blastContact"> Blast Markers in base contact (-1 Leadership)</label><p>Declare this before the attacking dice are rolled.</p></div>`, ok: { label: "Roll Command Check", icon: "fa-solid fa-shield" }, rejectClose: false, modal: true });
   if (!choice) return false;
   return attemptBraceForImpact(token, { blastContact: Boolean(choice.blastContact) });

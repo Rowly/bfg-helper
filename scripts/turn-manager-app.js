@@ -38,6 +38,7 @@ import {
   rollAllUnassignedLeadership,
   rollSelectedShipLeadership
 } from "./leadership.js";
+import { canUserControlActingFleet, getFleetControllerName } from "./fleet-control.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -82,6 +83,7 @@ export class BFGTurnManagerApplication extends HandlebarsApplicationMixin(Applic
     const actingFleetIndex = getActingFleetIndex(state);
     const activeFleet = state.fleets[actingFleetIndex] ?? null;
     const currentPhase = PHASES.find(phase => phase.id === state.phase) ?? PHASES[0];
+    const canAct = canUserControlActingFleet(game.user, state);
 
     return foundry.utils.mergeObject(context, {
       state,
@@ -96,6 +98,8 @@ export class BFGTurnManagerApplication extends HandlebarsApplicationMixin(Applic
       shootingPhase: state.phase === "shooting",
       ordnancePhase: state.phase === "ordnance",
       endPhase: state.phase === "end",
+      canAct,
+      actingFleetControllerName: getFleetControllerName(activeFleet),
       phases: PHASES.map(phase => ({
         ...phase,
         active: phase.id === state.phase,
@@ -108,7 +112,8 @@ export class BFGTurnManagerApplication extends HandlebarsApplicationMixin(Applic
           active: index === actingFleetIndex,
           ships,
           hasShips: ships.length > 0,
-          shipCount: ships.length
+          shipCount: ships.length,
+          controllerName: getFleetControllerName(fleet)
         };
       }),
       canManage: Boolean(game.user?.isGM)

@@ -17,8 +17,8 @@ function defaultState() {
     battleId: null,
     round: 1,
     fleets: [
-      { id: "fleet-a", name: "Fleet A" },
-      { id: "fleet-b", name: "Fleet B" }
+      { id: "fleet-a", name: "Fleet A", ownerUserId: null },
+      { id: "fleet-b", name: "Fleet B", ownerUserId: null }
     ],
     activeFleetIndex: 0,
     ordnanceFleetIndex: null,
@@ -85,7 +85,7 @@ function normaliseFleetName(value, fallback) {
   return name || fallback;
 }
 
-export async function startBattle({ fleetA, fleetB, startingFleetIndex = 0 } = {}) {
+export async function startBattle({ fleetA, fleetB, fleetAUserId = null, fleetBUserId = null, startingFleetIndex = 0 } = {}) {
   if (!requireGM()) return false;
 
   const { getShipsMissingLeadership } = await import("./leadership.js");
@@ -100,13 +100,15 @@ export async function startBattle({ fleetA, fleetB, startingFleetIndex = 0 } = {
   state.battleId = foundry.utils.randomID();
   state.round = 1;
   state.fleets = [
-    { id: "fleet-a", name: normaliseFleetName(fleetA, "Fleet A") },
-    { id: "fleet-b", name: normaliseFleetName(fleetB, "Fleet B") }
+    { id: "fleet-a", name: normaliseFleetName(fleetA, "Fleet A"), ownerUserId: fleetAUserId || null },
+    { id: "fleet-b", name: normaliseFleetName(fleetB, "Fleet B"), ownerUserId: fleetBUserId || null }
   ];
   state.activeFleetIndex = Number(startingFleetIndex) === 1 ? 1 : 0;
   state.phase = "movement";
 
   await setTurnState(state);
+  const { syncAllFleetTokenOwnership } = await import("./fleet-control.js");
+  await syncAllFleetTokenOwnership(state);
   const lockedCount = await setBattleShipRotationLocks(true);
   await initialiseBattleCombatStates();
   ui.notifications.info(
@@ -117,6 +119,8 @@ export async function startBattle({ fleetA, fleetB, startingFleetIndex = 0 } = {
 
 export async function endBattle() {
   if (!requireGM()) return false;
+  const { restoreAllFleetTokenOwnership } = await import("./fleet-control.js");
+  await restoreAllFleetTokenOwnership();
   await setBattleShipRotationLocks(false);
   const state = getTurnState();
   state.battleStarted = false;
@@ -127,6 +131,8 @@ export async function endBattle() {
 
 export async function resetBattle() {
   if (!requireGM()) return false;
+  const { restoreAllFleetTokenOwnership } = await import("./fleet-control.js");
+  await restoreAllFleetTokenOwnership();
   await setBattleShipRotationLocks(false);
   await resetAllCombatStates();
   const { resetOrdnance } = await import("./ordnance.js");
@@ -272,6 +278,12 @@ export async function openBattleSetup() {
   if (!requireGM()) return false;
 
   const state = getTurnState();
+  const playerOptions = (selectedId) => {
+    const unassigned = `<option value="" ${selectedId ? "" : "selected"}>Unassigned</option>`;
+    return unassigned + (game.users ?? [])
+      .map(user => `<option value="${user.id}" ${user.id === selectedId ? "selected" : ""}>${foundry.utils.escapeHTML(user.name)}${user.isGM ? " (Gamemaster)" : ""}${user.active ? "" : " (offline)"}</option>`)
+      .join("");
+  };
   const result = await foundry.applications.api.DialogV2.input({
     window: { title: "Battlefleet Gothic: Battle Setup" },
     content: `
@@ -285,12 +297,19 @@ export async function openBattleSetup() {
           value="${foundry.utils.escapeHTML(state.fleets[0]?.name ?? "Fleet A")}"
         >
 
+        <label>Fleet A player</label>
+        <select name="fleetAUserId">${playerOptions(state.fleets[0]?.ownerUserId)}</select>
+
         <label>Fleet B</label>
         <input
           type="text"
           name="fleetB"
           value="${foundry.utils.escapeHTML(state.fleets[1]?.name ?? "Fleet B")}"
         >
+
+
+        <label>Fleet B player</label>
+        <select name="fleetBUserId">${playerOptions(state.fleets[1]?.ownerUserId)}</select>
 
         <label>Starting fleet</label>
         <select name="startingFleetIndex">
@@ -311,6 +330,8 @@ export async function openBattleSetup() {
   return startBattle({
     fleetA: result.fleetA,
     fleetB: result.fleetB,
+    fleetAUserId: result.fleetAUserId || null,
+    fleetBUserId: result.fleetBUserId || null,
     startingFleetIndex: Number(result.startingFleetIndex)
   });
 }

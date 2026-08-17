@@ -1,5 +1,6 @@
 import { getShipData, getBaseActor } from "./ship-data.js";
 import { getTokenFleetId } from "./fleet-assignment.js";
+import { canUserControlToken } from "./fleet-control.js";
 import { getTurnState, PHASES } from "./turn-manager.js";
 import {
   getCombatState,
@@ -177,6 +178,7 @@ export function getShootingContext(token = canvas.tokens.controlled[0]) {
   if (!state.battleStarted) {
     warnings.push("No battle is currently running. Shooting preview is available for testing.");
   } else {
+    if (!canUserControlToken(token, game.user, state)) restrict(`You are not assigned to control ${fleet?.name ?? "this fleet"}.`);
     if (state.phase !== "shooting") restrict(`The current phase is ${phase}, not Shooting.`);
     if (!fleetId) restrict(`${token.name} is not assigned to a fleet.`);
     else if (activeFleet && fleetId !== activeFleet.id) {

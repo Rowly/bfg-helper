@@ -2,6 +2,7 @@ import { MODULE_ID } from "./constants.js";
 import { getShipData } from "./ship-data.js";
 import { getCombatState, halveRoundedUp } from "./combat-state.js";
 import { getTokenFleetId } from "./fleet-assignment.js";
+import { canUserControlToken, requireUserCanControlToken } from "./fleet-control.js";
 import { getActingFleetIndex, getTurnState } from "./turn-manager.js";
 import { publishBFGDice } from "./dice.js";
 import { getBoardingState, hasDeclaredBoarding } from "./boarding.js";
@@ -167,6 +168,7 @@ function fleetLaunchBayLimit(fleetId) {
 
 function launchErrors(token, state, fleetId) {
   const errors = [];
+  if (!canUserControlToken(token, game.user, state)) errors.push(`You are not assigned to control ${token.name}.`);
   const combat = getCombatState(token);
   if (!state.battleStarted) errors.push("No battle is in progress.");
   if (state.phase !== "shooting") errors.push("Attack craft are launched at the end of the Shooting phase.");
@@ -591,6 +593,7 @@ function drawOrdnanceMovementPreview(token, distanceCm, rotation) {
 export async function moveSelectedOrdnance() {
   const token = selectedToken();
   if (!token) return false;
+  if (!requireUserCanControlToken(token, "move this ordnance")) return false;
   const marker = getOrdnanceMarker(token);
   if (!marker) {
     ui.notifications.warn(`${token.name} is not a BFG ordnance marker.`);

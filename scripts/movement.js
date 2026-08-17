@@ -7,6 +7,7 @@ import { getCombatState } from "./combat-state.js";
 import { isBoardingParticipant } from "./boarding.js";
 import { getMovementSpecialOrder } from "./special-orders.js";
 import { findRamContact, resolveRamAtContact } from "./ramming.js";
+import { canUserControlToken } from "./fleet-control.js";
 
 const PREVIEW_NAME = "bfg-movement-preview";
 const MOVEMENT_STATE_FLAG = "movementState";
@@ -184,6 +185,7 @@ export function getMovementContext(token = canvas.tokens.controlled[0]) {
   if (!turnState.battleStarted) {
     warnings.push("No battle is currently running. Movement preview is available for testing.");
   } else {
+    if (!canUserControlToken(token, game.user, turnState)) blocked = true;
     if (turnState.phase !== "movement") {
       const message = `The current phase is ${phase?.label ?? turnState.phase}, not Movement.`;
       if (game.user?.isGM) warnings.push(`${message} Gamemaster preview override is available.`);

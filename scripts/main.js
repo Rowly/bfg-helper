@@ -1,10 +1,19 @@
 import { configureSelectedShip, getShipData, setShipData } from "./ship-data.js";
 import {
+  acheronProfile,
+  carnageProfile,
   despoilerProfile,
   dominatorProfile,
+  gothicProfile,
+  hadesProfile,
   idolatorProfile,
+  lunarProfile,
+  murderProfile,
   retributionProfile,
-  swordProfile
+  slaughterProfile,
+  styxProfile,
+  swordProfile,
+  tyrantProfile
 } from "./ship-profiles/index.js";
 import {
   toggleWeaponDialog,
@@ -132,12 +141,30 @@ Hooks.once("ready", () => {
     configureSword: () => configureProfile(swordProfile),
     configureIdolator: () => configureProfile(idolatorProfile),
     configureDominator: () => configureProfile(dominatorProfile),
+    configureCarnage: () => configureProfile(carnageProfile),
+    configureMurder: () => configureProfile(murderProfile),
+    configureSlaughter: () => configureProfile(slaughterProfile),
+    configureAcheron: () => configureProfile(acheronProfile),
+    configureHades: () => configureProfile(hadesProfile),
+    configureStyx: () => configureProfile(styxProfile),
+    configureLunar: () => configureProfile(lunarProfile),
+    configureGothic: () => configureProfile(gothicProfile),
+    configureTyrant: () => configureProfile(tyrantProfile),
     profiles: {
       retribution: retributionProfile,
       despoiler: despoilerProfile,
       sword: swordProfile,
       idolator: idolatorProfile,
-      dominator: dominatorProfile
+      dominator: dominatorProfile,
+      carnage: carnageProfile,
+      murder: murderProfile,
+      slaughter: slaughterProfile,
+      acheron: acheronProfile,
+      hades: hadesProfile,
+      styx: styxProfile,
+      lunar: lunarProfile,
+      gothic: gothicProfile,
+      tyrant: tyrantProfile
     },
     getShipData,
     setShipData,

@@ -10,6 +10,7 @@ import { commitTurretDefenseChoice, getTurretDefenseChoice } from "./ordnance-de
 import { isBoardingParticipant } from "./boarding.js";
 import { openActionResolution } from "./action-resolution-app.js";
 import { braceReactionControls, readBraceReactionOptions, resolveBraceReaction, rollBraceSaves } from "./special-orders.js";
+import { playOrdnanceAttackAnimation } from "./shooting-effects.js";
 
 const HIT_AND_RUN_FLAG = "pendingHitAndRun";
 
@@ -129,7 +130,11 @@ async function resolveAgainstOrdnance(attacker, defender, attackerMarker, defend
     rollLabel: "Resolve interaction",
     applyLabel: "Apply ordnance result",
     detailsHtml: attackCraftDetails([attacker], defender, [attackerMarker], defenderMarker),
-    roll: async () => ({ removed, resultHtml: `<h3>Interaction result</h3><p>${removed ? `${foundry.utils.escapeHTML(attacker.name)} and ${foundry.utils.escapeHTML(defender.name)} will both be removed.` : "These non-fighter markers manoeuvre around one another and remain in play."}</p>` }),
+    roll: async () => {
+      const outcome = { removed, resultHtml: `<h3>Interaction result</h3><p>${removed ? `${foundry.utils.escapeHTML(attacker.name)} and ${foundry.utils.escapeHTML(defender.name)} will both be removed.` : "These non-fighter markers manoeuvre around one another and remain in play."}</p>` };
+      await playOrdnanceAttackAnimation({ attackers: [attacker], target: defender, outcome, kind: "interception" });
+      return outcome;
+    },
     apply: async outcome => {
       if (outcome.removed) await deleteTokens([attacker, defender]);
       await ChatMessage.create({ content: outcome.removed ? `<strong>Ordnance interception:</strong> ${attacker.name} and ${defender.name} are removed.` : "<strong>Ordnance interaction:</strong> Both non-fighter markers remain in play." });
@@ -224,9 +229,11 @@ async function resolveSelectedAgainstShip(selected, target, selectedMarker) {
       const criticalChecks = critical.checkResults?.join(", ") || "None";
       const criticalEffects = critical.escortDestroyed ? "Escort destroyed" : critical.results?.map(result => `${result.name}${result.shifted ? ` (table result ${result.appliedTotal})` : ""}${result.extraDamage ? ` (+${result.extraDamage} damage)` : ""}`).join("; ") || "None";
       const catastrophicResult = catastrophic ? `${catastrophic.name}${catastrophic.tableTotal ? ` (${catastrophic.tableTotal})` : ""}` : "None";
-      return { intercepted, turretResults, turretVictims, afterTurrets, survivingBombers, survivingAssault, suppressionFighters, bomberRunRolls, bomberAttackCounts, bomberAttacks, attackResults, hits, brace, critical, catastrophic, remainingHull, pendingHitAndRun, defenseChoice, defensiveTurretDice,
+      const outcome = { intercepted, turretResults, turretVictims, afterTurrets, survivingBombers, survivingAssault, suppressionFighters, bomberRunRolls, bomberAttackCounts, bomberAttacks, attackResults, hits, brace, critical, catastrophic, remainingHull, pendingHitAndRun, defenseChoice, defensiveTurretDice,
         criticalChecks, criticalEffects, catastrophicResult,
         resultHtml: `<h3>${waveName} result</h3><div class="bfg-action-confirmation"><div><span>CAP interceptions</span><strong>${intercepted.length}</strong></div><div><span>Turret dice (${defensiveTurretDice}d6, needing 4+)</span><strong>${turretResults.join(", ") || "None"}</strong></div><div><span>Turret kills</span><strong>${turretVictims.length}</strong></div><div><span>Surviving bombers</span><strong>${survivingBombers.length}</strong></div><div><span>Surviving boarding craft</span><strong>${survivingAssault.length}</strong></div><div><span>Bomber attack-run dice (${survivingBombers.length}d6)</span><strong>${bomberRunRolls.join(", ") || "None"}</strong></div><div><span>Bomber attacks generated</span><strong>${bomberAttackCounts.join(", ") || "None"}; total ${bomberAttacks}</strong></div><div><span>Bomber attack dice (${bomberAttacks}d6, needing ${targetNumber}+)</span><strong>${attackResults.join(", ") || "None"}</strong></div><div><span>Hits</span><strong>${hits}</strong></div><div><span>Brace saves</span><strong>${brace.dice.join(", ") || "None"}; saved ${brace.saved}</strong></div><div><span>Critical checks (${brace.unsaved}d6, needing 6)</span><strong>${criticalChecks}</strong></div><div><span>Critical effects</span><strong>${foundry.utils.escapeHTML(criticalEffects)}</strong></div><div><span>Critical damage</span><strong>${critical.extraDamage ?? 0}</strong></div><div><span>Catastrophic result</span><strong>${foundry.utils.escapeHTML(catastrophicResult)}</strong></div><div><span>Remaining hull</span><strong>${remainingHull}</strong></div><div><span>Pending boarding-craft Hit-and-Run attacks</span><strong>${pendingHitAndRun}</strong></div></div><p>Shields are ignored. Review all damage and marker losses before applying.</p>` };
+      await playOrdnanceAttackAnimation({ attackers: selected, target, outcome, kind: "attack-craft" });
+      return outcome;
     },
     apply: async outcome => {
       const current = getCombatState(target);

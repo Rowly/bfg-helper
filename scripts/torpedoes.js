@@ -10,6 +10,7 @@ import { commitTurretDefenseChoice, getTurretDefenseChoice } from "./ordnance-de
 import { getBoardingState, hasDeclaredBoarding } from "./boarding.js";
 import { openActionResolution } from "./action-resolution-app.js";
 import { braceReactionControls, effectiveOrdnanceStrength, readBraceReactionOptions, resolveBraceReaction, rollBraceSaves } from "./special-orders.js";
+import { playTorpedoReplayAnimation } from "./shooting-effects.js";
 import {
   ORDNANCE_MARKER_FLAG,
   ORDNANCE_STATE_FLAG,
@@ -410,10 +411,12 @@ export async function resolveSelectedTorpedoAttack() {
       const criticalChecks = critical.checkResults?.join(", ") || "None";
       const criticalEffects = critical.escortDestroyed ? "Escort destroyed" : critical.results?.map(result => `${result.name}${result.shifted ? ` (table result ${result.appliedTotal})` : ""}${result.extraDamage ? ` (+${result.extraDamage} damage)` : ""}`).join("; ") || "None";
       const catastrophicResult = catastrophic ? `${catastrophic.name}${catastrophic.tableTotal ? ` (${catastrophic.tableTotal})` : ""}` : "None";
-      return {
+      const outcome = {
         defenseChoice, turretDice, turretResults, shotDown, attackingStrength, attackResults, hits, brace, critical, catastrophic, remainingHull, remainingStrength, criticalChecks, criticalEffects, catastrophicResult,
         resultHtml: `<h3>Attack result</h3><div class="bfg-action-confirmation"><div><span>Turret dice (${turretDice}d6, needing 4+)</span><strong>${turretResults.join(", ") || "None"}</strong></div><div><span>Torpedoes shot down</span><strong>${shotDown}</strong></div><div><span>Attack dice (${attackingStrength}d6, needing ${armourPreview.targetNumber}+)</span><strong>${attackResults.join(", ") || "None"}</strong></div><div><span>Hits</span><strong>${hits}</strong></div><div><span>Brace saves (${hits}d6, needing 4+)</span><strong>${brace.dice.join(", ") || "None"}; saved ${brace.saved}</strong></div><div><span>Critical checks (${brace.unsaved}d6, needing 6)</span><strong>${criticalChecks}</strong></div><div><span>Critical effects</span><strong>${foundry.utils.escapeHTML(criticalEffects)}</strong></div><div><span>Critical damage</span><strong>${critical.extraDamage ?? 0}</strong></div><div><span>Catastrophic result</span><strong>${foundry.utils.escapeHTML(catastrophicResult)}</strong></div><div><span>Remaining hull</span><strong>${remainingHull}</strong></div><div><span>Remaining salvo Strength</span><strong>${remainingStrength}</strong></div></div><p>Shields are ignored. Review this result before applying it.</p>`
       };
+      await playTorpedoReplayAnimation({ salvo, target, outcome, speedCm: marker.speedCm });
+      return outcome;
     },
     apply: async outcome => {
       const currentCombat = getCombatState(target);

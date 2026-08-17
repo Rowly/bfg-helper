@@ -18,6 +18,7 @@
   "styles": [
     "styles/bfg-helper.css"
   ],
+  "socket": true,
   "manifest": "",
   "download": ""
 }

@@ -10,6 +10,7 @@ import { clearWeaponArc } from "./weapon-arcs.js";
 import { calculateBatteryDice } from "./gunnery-table.js";
 import { isWeaponDisabledByCritical } from "./critical-hits.js";
 import { effectiveWeaponStrength, getSpecialOrder } from "./special-orders.js";
+import { playDirectFireAnimation } from "./shooting-effects.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -274,16 +275,17 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
         const priorityTargetBraceBlastContact = Boolean(this.element.querySelector('[name="priorityTargetBraceBlastContact"]')?.checked);
         this.isRolling = true;
         await this.render({ force: true });
-        [this.resolution] = await Promise.all([
-          resolveDirectFire(this.analysis, {
-            interveningBlastMarkers: this.interveningBlastMarkers,
-            countsAsDefences: this.countsAsDefences,
-            targetBrace,
-            targetBraceBlastContact,
-            priorityTargetBrace,
-            priorityTargetBraceBlastContact
-          }),
-          new Promise(resolve => setTimeout(resolve, 600))
+        this.resolution = await resolveDirectFire(this.analysis, {
+          interveningBlastMarkers: this.interveningBlastMarkers,
+          countsAsDefences: this.countsAsDefences,
+          targetBrace,
+          targetBraceBlastContact,
+          priorityTargetBrace,
+          priorityTargetBraceBlastContact
+        });
+        await Promise.all([
+          playDirectFireAnimation(this.resolution),
+          new Promise(resolve => setTimeout(resolve, 250))
         ]);
         this.isRolling = false;
         this.damageCommitted = false;

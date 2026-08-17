@@ -10,6 +10,7 @@ import {
   toggleWeaponDialog,
   clearAllWeaponArcs,
   clearWeaponArc,
+  initialiseWeaponArcSocket,
   initialiseWeaponArcTicker
 } from "./weapon-arcs.js";
 import { createEngine, refreshEngines, initialiseEngineTicker, clearAllEngines, removeEngine } from "./engine-effects.js";
@@ -93,10 +94,12 @@ import {
   rollSelectedShipLeadership,
   setLeadership
 } from "./leadership.js";
+import { clearAllShootingEffects, initialiseShootingEffectSocket, registerShootingEffectSettings } from "./shooting-effects.js";
 
 Hooks.once("init", () => {
   console.log("BFG Helper | Initialising");
   registerTurnManagerSettings();
+  registerShootingEffectSettings();
 });
 
 async function configureProfile(profileFactory) {
@@ -112,6 +115,8 @@ async function configureProfile(profileFactory) {
 }
 
 Hooks.once("ready", () => {
+  initialiseShootingEffectSocket();
+  initialiseWeaponArcSocket();
   initialiseOrdnanceControls();
   initialiseQuantitySteppers();
   game.bfgHelper = {
@@ -207,6 +212,9 @@ Hooks.once("ready", () => {
       commitDamage: commitDirectFireDamage,
       fireNovaCannon: openNovaCannon
     },
+    shootingEffects: {
+      clear: clearAllShootingEffects
+    },
     ordnance: {
       getMarker: getOrdnanceMarker,
       getState: getOrdnanceState,
@@ -298,9 +306,10 @@ Hooks.on("deleteToken", (tokenDocument) => {
 });
 
 Hooks.on("canvasTearDown", () => {
-  clearAllWeaponArcs();
+  clearAllWeaponArcs({ broadcast: false, notify: false });
   clearAllEngines();
   clearMovementPreview();
   clearOrdnanceMovementPreview();
   clearAllOrdnanceTrails({ notify: false });
+  clearAllShootingEffects();
 });

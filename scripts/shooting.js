@@ -136,12 +136,18 @@ export function getClosestPriorityTarget(attacker, weapon) {
 }
 
 export function getSelectedShootingTarget() {
-  const targets = [...(game.user?.targets ?? [])];
+  const targets = getSelectedShootingTargets();
   if (targets.length === 0) {
     const visiblyTargeted = (canvas.tokens?.placeables ?? []).filter(token => token.targeted?.has?.(game.user));
     return visiblyTargeted.length === 1 ? visiblyTargeted[0] : null;
   }
   return targets.length === 1 ? targets[0] : null;
+}
+
+export function getSelectedShootingTargets() {
+  const targets = [...(game.user?.targets ?? [])];
+  if (targets.length > 0) return targets;
+  return (canvas.tokens?.placeables ?? []).filter(token => token.targeted?.has?.(game.user));
 }
 
 export function getShootingContext(token = canvas.tokens.controlled[0]) {

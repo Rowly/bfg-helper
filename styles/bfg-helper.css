@@ -763,6 +763,55 @@
   width: 100%;
 }
 
+.bfg-shooting-split-toggle,
+.bfg-split-fire-target label {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.bfg-split-fire-summary,
+.bfg-split-fire-target,
+.bfg-split-fire-result {
+  border: 1px solid #9b762d;
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.bfg-split-fire-summary.illegal,
+.bfg-split-fire-target.illegal {
+  border-color: #b84b55;
+}
+
+.bfg-split-fire-target h3,
+.bfg-split-fire-result h4 {
+  margin: 0 0 0.55rem;
+}
+
+.bfg-split-fire-results-grid {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.bfg-split-fire-target > div,
+.bfg-split-fire-summary > div,
+.bfg-split-fire-result > div,
+.bfg-split-allocation {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0.25rem 0;
+}
+
+.bfg-split-allocation button {
+  flex: 0 0 2rem;
+  min-height: 2rem;
+  padding: 0;
+}
+
 .bfg-shooting-actions {
   display: grid;
   grid-template-columns: 1fr 1.25fr;

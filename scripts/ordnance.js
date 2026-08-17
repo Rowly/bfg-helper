@@ -24,7 +24,10 @@ const ATTACK_CRAFT_IMAGES = Object.freeze({
 });
 
 function attackCraftImage(craft) {
-  return ATTACK_CRAFT_IMAGES[craft?.id] ?? ATTACK_CRAFT_IMAGES[craft?.role] ?? ATTACK_CRAFT_IMAGES.fighter;
+  return ATTACK_CRAFT_IMAGES[craft?.craftId]
+    ?? ATTACK_CRAFT_IMAGES[craft?.id]
+    ?? ATTACK_CRAFT_IMAGES[craft?.role]
+    ?? ATTACK_CRAFT_IMAGES.fighter;
 }
 
 export async function refreshAttackCraftArtwork() {

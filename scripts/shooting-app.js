@@ -1,12 +1,14 @@
 import {
   getSelectedShootingTarget,
+  getSelectedShootingTargets,
   getShootingContext,
   previewDirectFire,
   resolveDirectFire,
   commitDirectFireDamage,
   hasWeaponFired
 } from "./shooting.js";
-import { clearWeaponArc } from "./weapon-arcs.js";
+import { analyseSplitFire, commitSplitFire, resolveSplitFire } from "./split-fire.js";
+import { clearWeaponArc, drawWeaponArc } from "./weapon-arcs.js";
 import { calculateBatteryDice } from "./gunnery-table.js";
 import { isWeaponDisabledByCritical } from "./critical-hits.js";
 import { effectiveWeaponStrength, getSpecialOrder } from "./special-orders.js";
@@ -43,6 +45,10 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
     this.interveningBlastMarkers = false;
     this.countsAsDefences = false;
     this.isRolling = false;
+    this.splitFire = false;
+    this.splitAnalysis = null;
+    this.splitAllocations = {};
+    this.splitOptions = {};
   }
 
   setToken(token) {
@@ -56,6 +62,10 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
     this.interveningBlastMarkers = false;
     this.countsAsDefences = false;
     this.isRolling = false;
+    this.splitFire = false;
+    this.splitAnalysis = null;
+    this.splitAllocations = {};
+    this.splitOptions = {};
   }
 
   get token() {
@@ -73,7 +83,8 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
       }, { inplace: false });
     }
 
-    const target = getSelectedShootingTarget();
+    const selectedTargets = getSelectedShootingTargets();
+    const target = selectedTargets.length === 1 ? selectedTargets[0] : null;
     const gunneryCalculation = this.analysis?.weapon?.type === "battery"
       ? calculateBatteryDice({
           firepower: this.analysis.effectiveStrength,
@@ -129,6 +140,37 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
           shiftsLabel: shiftLabel(this.resolution.batteryCalculation)
         }
       : null;
+    const splitTargets = this.splitAnalysis?.analyses?.map(item => {
+      const allocation = Number(this.splitAllocations[item.targetId] ?? 0);
+      const options = this.splitOptions[item.targetId] ?? {};
+      const calculation = String(item.weapon?.type ?? "").toLowerCase() === "battery" && allocation > 0
+        ? calculateBatteryDice({
+            firepower: allocation,
+            targetClass: item.targetClass,
+            orientation: item.orientation,
+            rangeCm: item.rangeCm,
+            interveningBlastMarkers: Boolean(options.interveningBlastMarkers),
+            countsAsDefences: item.isOrdnance ? false : Boolean(options.countsAsDefences),
+            ignoreLongRangeShift: Boolean(item.weapon.ignoreLongRangeShift)
+          })
+        : null;
+      return {
+        ...item,
+        allocation,
+        attackDice: calculation?.attackDice ?? (String(item.weapon?.type ?? "").toLowerCase() === "lance" ? allocation : 0),
+        shiftsLabel: shiftLabel(calculation),
+        batteryCalculation: calculation,
+        options
+      };
+    }) ?? [];
+    const splitResolution = this.resolution?.splitFire ? {
+      ...this.resolution,
+      results: this.resolution.results.map(result => ({
+        ...result,
+        resultsLabel: result.results.join(", ") || "No dice",
+        criticalChecksLabel: result.damage?.critical?.checkResults?.join(", ") || "None"
+      }))
+    } : null;
     return foundry.utils.mergeObject(context, {
       invalid: false,
       tokenName: shooting.token.name,
@@ -150,20 +192,28 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
         criticallyDisabled: isWeaponDisabledByCritical(weapon, shooting.criticalState),
         selected: index === this.weaponIndex
       })),
-      targetName: target?.name ?? "No target selected",
-      hasTarget: Boolean(target),
+      targetName: selectedTargets.length > 1 ? `${selectedTargets.length} targets selected` : target?.name ?? "No target selected",
+      hasTarget: selectedTargets.length > 0,
       hasWarnings: shooting.warnings.length > 0,
       warnings: shooting.warnings,
       analysis,
       hasAnalysis: Boolean(analysis),
       canResolveAttack: Boolean(analysis?.legal && !resolution),
-      resolution,
+      resolution: splitResolution ?? resolution,
       hasResolution: Boolean(resolution),
       isRolling: this.isRolling,
       canCommitDamage: Boolean(resolution && game.user?.isGM && !this.damageCommitted),
       damageCommitted: this.damageCommitted,
       interveningBlastMarkers: this.interveningBlastMarkers,
-      countsAsDefences: this.countsAsDefences
+      countsAsDefences: this.countsAsDefences,
+      splitFire: this.splitFire,
+      splitAnalysis: this.splitAnalysis,
+      splitTargets,
+      hasSplitAnalysis: Boolean(this.splitAnalysis),
+      splitLegal: Boolean(this.splitAnalysis?.legal),
+      splitWarnings: this.splitAnalysis?.warnings ?? [],
+      splitEffectiveStrength: this.splitAnalysis?.effectiveStrength ?? 0,
+      splitAllocated: this.splitAnalysis?.allocated ?? 0
     }, { inplace: false });
   }
 
@@ -178,6 +228,7 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
     this.analysis = null;
     this.resolution = null;
     this.damageCommitted = false;
+    this.splitAnalysis = null;
     if (this.token) clearWeaponArc(this.token);
     await this.render({ force: true });
   }
@@ -186,12 +237,19 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
     await super._onRender(context, options);
     if (context.invalid) return;
 
+    requestAnimationFrame(() => {
+      if (this.rendered) this.setPosition({ height: "auto" });
+    });
+
     const weaponSelect = this.element.querySelector('[name="weaponIndex"]');
     weaponSelect?.addEventListener("change", () => {
       this.weaponIndex = Number(weaponSelect.value ?? 0);
       this.analysis = null;
       this.resolution = null;
       this.damageCommitted = false;
+      this.splitAnalysis = null;
+      this.splitAllocations = {};
+      this.splitOptions = {};
       clearWeaponArc(this.token);
       this.updateStatus("Weapon changed. Check the firing solution again.");
     });
@@ -208,16 +266,45 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
 
     bind('[data-bfg-action="refresh-target"]', () => this.refreshTarget());
 
+    const splitToggle = this.element.querySelector('[name="splitFire"]');
+    splitToggle?.addEventListener("change", async () => {
+      this.splitFire = Boolean(splitToggle.checked);
+      this.analysis = null;
+      this.splitAnalysis = null;
+      this.resolution = null;
+      this.damageCommitted = false;
+      await this.render({ force: true });
+    });
+
     bind('[data-bfg-action="check-firing-solution"]', async () => {
       try {
         const shooting = getShootingContext(this.token);
         if (!shooting.ok) throw new Error(shooting.error);
-        const target = getSelectedShootingTarget();
-        if (!target) throw new Error("Target exactly one ship or ordnance marker, then refresh or check the firing solution.");
+        const targets = getSelectedShootingTargets();
+        const target = targets.length === 1 ? targets[0] : null;
 
         this.weaponIndex = Number(weaponSelect?.value ?? this.weaponIndex);
         const weapon = shooting.weapons[this.weaponIndex];
         if (!weapon) throw new Error("Select a valid direct-fire weapon.");
+        if (this.splitFire) {
+          if (targets.length < 2) throw new Error("Target at least two distinct enemy tokens before checking split fire.");
+          if (!["battery", "lance"].includes(String(weapon.type ?? "").toLowerCase())) throw new Error("Only weapons batteries and lances can split fire.");
+          const effective = effectiveWeaponStrength(this.token, weapon.strength ?? 0);
+          const currentIds = new Set(targets.map(item => item.id));
+          this.splitAllocations = Object.fromEntries(targets.map((item, index) => [item.id,
+            Number(this.splitAllocations[item.id] ?? (index === 0 ? Math.max(1, effective - targets.length + 1) : 1))
+          ]));
+          this.splitOptions = Object.fromEntries(targets.map(item => [item.id, this.splitOptions[item.id] ?? {}]));
+          this.splitAnalysis = analyseSplitFire(this.token, weapon, [...currentIds], this.splitAllocations);
+          this.analysis = null;
+          this.resolution = null;
+          this.damageCommitted = false;
+          drawWeaponArc(this.token, weapon);
+          await this.render({ force: true });
+          this.updateStatus(this.splitAnalysis.legal ? "Split-fire solution ready." : this.splitAnalysis.warnings.join(" "), this.splitAnalysis.legal ? "success" : "error");
+          return;
+        }
+        if (!target) throw new Error("Target exactly one ship or ordnance marker, then refresh or check the firing solution.");
         if (String(weapon.type ?? "").toLowerCase() === "nova-cannon") {
           const { openNovaCannon } = await import("./nova-cannon.js");
           await openNovaCannon(this.token, weapon, target);
@@ -260,8 +347,59 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
       });
     }
 
+    for (const button of this.element.querySelectorAll("[data-bfg-split-step]")) {
+      button.addEventListener("click", async event => {
+        event.preventDefault();
+        const targetId = button.dataset.targetId;
+        const change = Number(button.dataset.bfgSplitStep);
+        this.splitAllocations[targetId] = Math.max(0, Number(this.splitAllocations[targetId] ?? 0) + change);
+        const shooting = getShootingContext(this.token);
+        const weapon = shooting.weapons[this.weaponIndex];
+        this.splitAnalysis = analyseSplitFire(this.token, weapon, this.splitAnalysis.analyses.map(item => item.targetId), this.splitAllocations);
+        this.resolution = null;
+        this.damageCommitted = false;
+        await this.render({ force: true });
+      });
+    }
+
+    for (const input of this.element.querySelectorAll("[data-bfg-split-option]")) {
+      input.addEventListener("change", async () => {
+        const targetId = input.dataset.targetId;
+        this.splitOptions[targetId] ??= {};
+        this.splitOptions[targetId][input.dataset.bfgSplitOption] = Boolean(input.checked);
+        this.resolution = null;
+        this.damageCommitted = false;
+        await this.render({ force: true });
+      });
+    }
+
     bind('[data-bfg-action="resolve-direct-fire"]', async () => {
       try {
+        if (this.splitFire) {
+          if (!this.splitAnalysis?.legal) throw new Error(this.splitAnalysis?.warnings?.join(" ") || "Check a legal split-fire solution before rolling.");
+          const shooting = getShootingContext(this.token);
+          const weapon = shooting.weapons[this.weaponIndex];
+          this.isRolling = true;
+          await this.render({ force: true });
+          this.resolution = await resolveSplitFire({
+            attackerId: this.token.id,
+            weaponId: weapon.id,
+            entries: this.splitAnalysis.analyses.map(item => ({
+              targetId: item.targetId,
+              allocation: Number(this.splitAllocations[item.targetId] ?? 0),
+              options: this.splitOptions[item.targetId] ?? {}
+            }))
+          });
+          await Promise.all([
+            ...this.resolution.results.map(result => playDirectFireAnimation(result)),
+            new Promise(resolve => setTimeout(resolve, 250))
+          ]);
+          this.isRolling = false;
+          this.damageCommitted = false;
+          await this.render({ force: true });
+          this.updateStatus(`Split fire rolled: ${this.resolution.totalHits} total hit${this.resolution.totalHits === 1 ? "" : "s"}. Review every target before confirming.`, "success");
+          return;
+        }
         if (!this.analysis) throw new Error("Check a firing solution before rolling.");
         this.interveningBlastMarkers = Boolean(
           this.element.querySelector('[name="interveningBlastMarkers"]')?.checked
@@ -306,7 +444,8 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
     bind('[data-bfg-action="commit-direct-fire-damage"]', async () => {
       try {
         if (!this.resolution) throw new Error("Roll an attack before committing damage.");
-        await commitDirectFireDamage(this.resolution);
+        if (this.resolution.splitFire) await commitSplitFire(this.resolution);
+        else await commitDirectFireDamage(this.resolution);
         this.damageCommitted = true;
         await this.render({ force: true });
         this.updateStatus(this.resolution.isOrdnance ? "Ordnance result confirmed." : "Damage committed to the target ship.", "success");
@@ -320,6 +459,7 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
     bind('[data-bfg-action="clear-firing-solution"]', async () => {
       clearWeaponArc(this.token);
       this.analysis = null;
+      this.splitAnalysis = null;
       this.resolution = null;
       this.damageCommitted = false;
       await this.render({ force: true });
@@ -329,6 +469,7 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
   async close(options = {}) {
     if (this.token) clearWeaponArc(this.token);
     this.analysis = null;
+    this.splitAnalysis = null;
     this.resolution = null;
     this.damageCommitted = false;
     this.isRolling = false;

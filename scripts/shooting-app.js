@@ -248,6 +248,8 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
       this.resolution = null;
       this.damageCommitted = false;
       this.splitAnalysis = null;
+      this.splitAllocations = {};
+      this.splitOptions = {};
       clearWeaponArc(this.token);
       this.updateStatus("Weapon changed. Check the firing solution again.");
     });

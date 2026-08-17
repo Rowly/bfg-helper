@@ -38,8 +38,13 @@
       </select>
     </label>
 
+    <label class="bfg-shooting-split-toggle">
+      <input type="checkbox" name="splitFire" {{#if splitFire}}checked{{/if}} {{#if isRolling}}disabled{{/if}}>
+      Split this weapon's fire between multiple targets
+    </label>
+
     <p class="notes">
-      Use Foundry's target control to target exactly one enemy ship or ordnance marker, then refresh the target and check the firing solution.
+      Use Foundry's target control to select {{#if splitFire}}two or more enemy targets{{else}}exactly one enemy ship or ordnance marker{{/if}}, then check the firing solution.
     </p>
 
     <div class="bfg-shooting-actions">
@@ -61,6 +66,46 @@
       </section>
     {{else}}
     {{#unless hasResolution}}
+    {{#if hasSplitAnalysis}}
+      <section class="bfg-split-fire-summary{{#unless splitLegal}} illegal{{/unless}}">
+        <h3>Split-fire allocation</h3>
+        <div><span>Effective Strength or Firepower</span><strong>{{splitEffectiveStrength}}</strong></div>
+        <div><span>Allocated</span><strong>{{splitAllocated}} / {{splitEffectiveStrength}}</strong></div>
+        {{#each splitWarnings}}<p><i class="fa-solid fa-triangle-exclamation"></i> {{this}}</p>{{/each}}
+      </section>
+      {{#each splitTargets}}
+        <section class="bfg-split-fire-target{{#unless legal}} illegal{{/unless}}">
+          <h3>{{targetName}}</h3>
+          <div class="bfg-split-allocation">
+            <span>Allocated strength</span>
+            <button type="button" data-bfg-split-step="-1" data-target-id="{{targetId}}" aria-label="Reduce allocation">-</button>
+            <strong>{{allocation}}</strong>
+            <button type="button" data-bfg-split-step="1" data-target-id="{{targetId}}" aria-label="Increase allocation">+</button>
+          </div>
+          <div><span>Range</span><strong>{{rangeLabel}} / {{maximumRangeCm}} cm, {{#if inRange}}in range{{else}}out of range{{/if}}</strong></div>
+          <div><span>Arc</span><strong>{{#if inArc}}In arc{{else}}Outside arc{{/if}}</strong></div>
+          <div><span>Target</span><strong>{{targetClass}}, {{targetArmour}}</strong></div>
+          {{#if targetPriorityRequired}}
+            <div><span>Target priority</span><strong>Leadership test required; failure redirects to {{priorityTargetName}}</strong></div>
+            <p class="notes">If redirected, use the Brace declaration entered here for {{priorityTargetName}} unless that target has its own allocation controls.</p>
+          {{/if}}
+          {{#if batteryCalculation}}
+            <div><span>Gunnery column</span><strong>{{batteryCalculation.startingColumnLabel}}; {{shiftsLabel}}; final {{batteryCalculation.columnLabel}}</strong></div>
+          {{/if}}
+          <div><span>Attack dice</span><strong>{{attackDice}}d6</strong></div>
+          <label><input type="checkbox" data-bfg-split-option="interveningBlastMarkers" data-target-id="{{targetId}}" {{#if options.interveningBlastMarkers}}checked{{/if}}> Intervening Blast Markers</label>
+          {{#unless isOrdnance}}
+            <label><input type="checkbox" data-bfg-split-option="countsAsDefences" data-target-id="{{targetId}}" {{#if options.countsAsDefences}}checked{{/if}}> Target counts as Defences</label>
+            <label><input type="checkbox" data-bfg-split-option="brace" data-target-id="{{targetId}}" {{#if options.brace}}checked{{/if}}> Attempt to Brace target for Impact</label>
+            <label><input type="checkbox" data-bfg-split-option="braceBlastContact" data-target-id="{{targetId}}" {{#if options.braceBlastContact}}checked{{/if}}> Target has Blast Markers in base contact</label>
+          {{/unless}}
+          {{#each warnings}}<p><i class="fa-solid fa-triangle-exclamation"></i> {{this}}</p>{{/each}}
+        </section>
+      {{/each}}
+      <button type="button" data-bfg-action="resolve-direct-fire" class="bfg-primary-button bfg-full-width" {{#unless splitLegal}}disabled{{/unless}}>
+        <i class="fa-solid fa-dice"></i> Resolve split fire
+      </button>
+    {{/if}}
     {{#if hasAnalysis}}
       <section class="bfg-firing-analysis{{#unless analysis.legal}} illegal{{/unless}}">
         <div><span>Weapon type</span><strong>{{analysis.weaponType}}</strong></div>
@@ -145,6 +190,36 @@
 
     {{#if hasResolution}}
       <section class="bfg-firing-resolution">
+        {{#if resolution.splitFire}}
+        <h3>Split-fire result</h3>
+        <div><span>Weapon</span><strong>{{resolution.weaponName}}</strong></div>
+        <div><span>Effective strength</span><strong>{{resolution.effectiveStrength}}</strong></div>
+        <div><span>Total hits</span><strong>{{resolution.totalHits}}</strong></div>
+        <div class="bfg-split-fire-results-grid">
+        {{#each resolution.results}}
+          <article class="bfg-split-fire-result">
+            <h4>{{targetName}}</h4>
+            {{#each priorityChecks}}<div><span>Target priority</span><strong>{{dice}} = {{total}} against {{leadership}}: {{#if passed}}passed{{else}}failed; redirected from {{selectedTargetName}}{{/if}}</strong></div>{{/each}}
+            <div><span>Allocation</span><strong>{{allocatedStrength}}</strong></div>
+            <div><span>Dice ({{attackDice}}d6, needing {{hitTarget}}+)</span><strong>{{resultsLabel}}</strong></div>
+            <div><span>Hits</span><strong>{{hits}}</strong></div>
+            {{#if isOrdnance}}
+              <div><span>Ordnance result</span><strong>{{#if ordnanceHit}}Marker or wave destroyed{{else}}No effect{{/if}}</strong></div>
+            {{else}}
+              <div><span>Shield hits</span><strong>{{damage.shieldHits}}</strong></div>
+              {{#if damage.shieldHits}}<p>Place {{damage.shieldHits}} Blast Marker token(s) manually for this attack's {{damage.shieldHits}} shield hit(s).</p>{{/if}}
+              <div><span>Hull damage</span><strong>{{damage.hullHits}}</strong></div>
+              <div><span>Critical checks ({{damage.critical.checks}}d6, needing 6)</span><strong>{{criticalChecksLabel}}</strong></div>
+              <div><span>Critical damage</span><strong>{{damage.extraCriticalDamage}}</strong></div>
+              {{#each damage.critical.results}}<p><i class="fa-solid fa-burst"></i> 2D6 roll {{rolledTotal}}: {{name}}{{#if extraDamage}} - {{extraDamage}} extra damage{{/if}}</p>{{/each}}
+              {{#if damage.catastrophic}}<p class="bfg-catastrophic-result"><i class="fa-solid fa-explosion"></i> {{damage.catastrophic.name}}: {{damage.catastrophic.instruction}}</p>{{/if}}
+              <div><span>Remaining shields</span><strong>{{damage.after.currentShields}}</strong></div>
+              <div><span>Remaining hull</span><strong>{{damage.after.currentHits}}</strong></div>
+            {{/if}}
+          </article>
+        {{/each}}
+        </div>
+        {{else}}
         <h3>Attack result</h3>
         <div><span>Target</span><strong>{{resolution.targetName}}</strong></div>
         {{#if resolution.priorityCheck}}
@@ -183,10 +258,11 @@
         {{#if resolution.damage.after.crippled}}<p><i class="fa-solid fa-triangle-exclamation"></i> Target will be crippled.</p>{{/if}}
         {{#if resolution.damage.after.outOfAction}}<p><i class="fa-solid fa-skull"></i> Target will be out of action.</p>{{/if}}
         {{/if}}
+        {{/if}}
         {{#if canCommitDamage}}
           <button type="button" data-bfg-action="commit-direct-fire-damage" class="bfg-primary-button">
             <i class="fa-solid fa-check"></i>
-            {{#if resolution.isOrdnance}}Confirm ordnance result{{else}}Apply damage to target{{/if}}
+            {{#if resolution.splitFire}}Apply all split-fire results{{else}}{{#if resolution.isOrdnance}}Confirm ordnance result{{else}}Apply damage to target{{/if}}{{/if}}
           </button>
         {{else if damageCommitted}}
           <p class="bfg-resolution-committed"><i class="fa-solid fa-check"></i> {{#if resolution.isOrdnance}}Ordnance result confirmed.{{else}}Damage applied.{{/if}}</p>

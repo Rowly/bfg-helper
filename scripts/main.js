@@ -93,10 +93,12 @@ import {
   rollSelectedShipLeadership,
   setLeadership
 } from "./leadership.js";
+import { clearAllShootingEffects, registerShootingEffectSettings } from "./shooting-effects.js";
 
 Hooks.once("init", () => {
   console.log("BFG Helper | Initialising");
   registerTurnManagerSettings();
+  registerShootingEffectSettings();
 });
 
 async function configureProfile(profileFactory) {
@@ -207,6 +209,9 @@ Hooks.once("ready", () => {
       commitDamage: commitDirectFireDamage,
       fireNovaCannon: openNovaCannon
     },
+    shootingEffects: {
+      clear: clearAllShootingEffects
+    },
     ordnance: {
       getMarker: getOrdnanceMarker,
       getState: getOrdnanceState,
@@ -303,4 +308,5 @@ Hooks.on("canvasTearDown", () => {
   clearMovementPreview();
   clearOrdnanceMovementPreview();
   clearAllOrdnanceTrails({ notify: false });
+  clearAllShootingEffects();
 });

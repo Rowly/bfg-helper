@@ -10,6 +10,7 @@ import {
   toggleWeaponDialog,
   clearAllWeaponArcs,
   clearWeaponArc,
+  initialiseWeaponArcSocket,
   initialiseWeaponArcTicker
 } from "./weapon-arcs.js";
 import { createEngine, refreshEngines, initialiseEngineTicker, clearAllEngines, removeEngine } from "./engine-effects.js";
@@ -115,6 +116,7 @@ async function configureProfile(profileFactory) {
 
 Hooks.once("ready", () => {
   initialiseShootingEffectSocket();
+  initialiseWeaponArcSocket();
   initialiseOrdnanceControls();
   initialiseQuantitySteppers();
   game.bfgHelper = {
@@ -304,7 +306,7 @@ Hooks.on("deleteToken", (tokenDocument) => {
 });
 
 Hooks.on("canvasTearDown", () => {
-  clearAllWeaponArcs();
+  clearAllWeaponArcs({ broadcast: false, notify: false });
   clearAllEngines();
   clearMovementPreview();
   clearOrdnanceMovementPreview();

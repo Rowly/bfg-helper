@@ -1,11 +1,41 @@
-import { ARC_PREFIX } from "./constants.js";
+import { ARC_PREFIX, MODULE_ID } from "./constants.js";
 import { getShipData } from "./ship-data.js";
 import { applyTokenOverlayTransform } from "./token-rendering.js";
 
 const overlays = new Map();
 let ticker = null;
+let socketInitialised = false;
 const ARC_FILL_COLOUR = 0xffaa00;
 const ARC_LINE_COLOUR = 0xffcc66;
+const ARC_SOCKET = `module.${MODULE_ID}`;
+
+function emitArcEvent(action, data = {}) {
+  game.socket?.emit(ARC_SOCKET, {
+    event: "weapon-arc",
+    action,
+    data,
+    sceneId: canvas?.scene?.id ?? null,
+    senderId: game.user?.id ?? null
+  });
+}
+
+export function initialiseWeaponArcSocket() {
+  if (socketInitialised) return;
+  socketInitialised = true;
+  game.socket.on(ARC_SOCKET, message => {
+    if (message?.event !== "weapon-arc" || message.senderId === game.user?.id) return;
+    if (!canvas?.ready || message.sceneId !== canvas.scene?.id) return;
+    if (message.action === "draw") {
+      const token = canvas.tokens?.get(message.data?.tokenId);
+      if (token && message.data?.weapon) drawWeaponArc(token, message.data.weapon, { broadcast: false });
+    } else if (message.action === "clear") {
+      const token = canvas.tokens?.get(message.data?.tokenId);
+      if (token) clearWeaponArc(token, { broadcast: false });
+    } else if (message.action === "clear-all") {
+      clearAllWeaponArcs({ broadcast: false, notify: false });
+    }
+  });
+}
 
 function pixelsPerCm() {
   const size = Number(canvas.scene?.grid?.size);
@@ -27,7 +57,7 @@ function keyFor(tokenOrDocument) {
   return `${sceneId}.${tokenId}`;
 }
 
-export function clearWeaponArc(tokenOrDocument) {
+export function clearWeaponArc(tokenOrDocument, { broadcast = true } = {}) {
   const { tokenId } = identityFor(tokenOrDocument);
   const token = tokenOrDocument?.document
     ? tokenOrDocument
@@ -38,9 +68,10 @@ export function clearWeaponArc(tokenOrDocument) {
   if (graphics && !graphics.destroyed) graphics.destroy({ children: true });
   overlays.delete(key);
   if (token) token._battlefleetWeaponArc = null;
+  if (broadcast && tokenId) emitArcEvent("clear", { tokenId });
 }
 
-export function clearAllWeaponArcs() {
+export function clearAllWeaponArcs({ broadcast = true, notify = true } = {}) {
   let count = 0;
   for (const child of [...canvas.tokens.children]) {
     if (typeof child.name === "string" && child.name.startsWith(ARC_PREFIX)) {
@@ -50,12 +81,13 @@ export function clearAllWeaponArcs() {
   }
   overlays.clear();
   for (const token of canvas.tokens.placeables) token._battlefleetWeaponArc = null;
-  ui.notifications.info(`Removed ${count} weapon arc${count === 1 ? "" : "s"}.`);
+  if (broadcast) emitArcEvent("clear-all");
+  if (notify) ui.notifications.info(`Removed ${count} weapon arc${count === 1 ? "" : "s"}.`);
   return count;
 }
 
-export function drawWeaponArc(token, weapon) {
-  clearWeaponArc(token);
+export function drawWeaponArc(token, weapon, { broadcast = true } = {}) {
+  clearWeaponArc(token, { broadcast: false });
 
   const scale = pixelsPerCm();
   const rangePixels = Number(weapon.rangeCm) * scale;
@@ -81,6 +113,15 @@ export function drawWeaponArc(token, weapon) {
     sceneId: canvas.scene.id
   });
   token._battlefleetWeaponArc = graphics;
+  if (broadcast) emitArcEvent("draw", {
+    tokenId: token.id,
+    weapon: {
+      id: weapon.id,
+      rangeCm: Number(weapon.rangeCm),
+      directionDegrees: Number(weapon.directionDegrees),
+      arcDegrees: Number(weapon.arcDegrees)
+    }
+  });
   return graphics;
 }
 

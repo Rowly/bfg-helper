@@ -7,9 +7,9 @@ export function diceFaces(roll) {
 }
 
 /** Display through Dice So Nice and record faces without Foundry's summed card. */
-export async function publishBFGDice(roll, { speaker, flavor, details } = {}) {
+export async function publishBFGDice(roll, { speaker, flavor, details, rollerUser = game.user } = {}) {
   if (game.dice3d?.showForRoll) {
-    await game.dice3d.showForRoll(roll, game.user, true);
+    await game.dice3d.showForRoll(roll, rollerUser ?? game.user, true);
   }
   const escape = value => foundry.utils.escapeHTML(String(value));
   const faces = diceFaces(roll);

@@ -202,7 +202,7 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
       resolution: splitResolution ?? resolution,
       hasResolution: Boolean(resolution),
       isRolling: this.isRolling,
-      canCommitDamage: Boolean(resolution && game.user?.isGM && !this.damageCommitted),
+      canCommitDamage: Boolean(resolution && !this.damageCommitted),
       damageCommitted: this.damageCommitted,
       interveningBlastMarkers: this.interveningBlastMarkers,
       countsAsDefences: this.countsAsDefences,

@@ -119,9 +119,11 @@ export function getCombatState(tokenOrDocument) {
 }
 
 export async function setCombatState(tokenOrDocument, values = {}) {
-  if (!requireGM()) return false;
-
   const document = asTokenDocument(tokenOrDocument);
+  if (!game.user?.isGM && !document?.canUserModify?.(game.user, "update")) {
+    ui.notifications.warn("You do not have permission to update this ship's combat state.");
+    return false;
+  }
   const current = getCombatState(document);
   if (!document || !current) {
     ui.notifications.warn("This ship profile does not have valid hits and shields statistics.");

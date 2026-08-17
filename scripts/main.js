@@ -1,4 +1,5 @@
 import { configureSelectedShip, getShipData, setShipData } from "./ship-data.js";
+import { MODULE_ID } from "./constants.js";
 import {
   acheronProfile,
   carnageProfile,
@@ -313,12 +314,25 @@ Hooks.on("targetToken", async (user) => {
   await refreshShootingPlannerTarget();
 });
 
+function hasBFGHelperFlagChanges(changes) {
+  const flattened = foundry.utils.flattenObject(changes ?? {});
+  const prefix = `flags.${MODULE_ID}`;
+  return Object.keys(flattened).some(key => key === prefix || key.startsWith(`${prefix}.`));
+}
+
+async function refreshTurnManagerForTokenStateChange(_tokenDocument, changes) {
+  if (!hasBFGHelperFlagChanges(changes)) return;
+  const { refreshTurnManagerApplication } = await import("./turn-manager-app.js");
+  refreshTurnManagerApplication();
+}
+
 Hooks.on("preUpdateToken", preventLockedTokenRotation);
 Hooks.on("preUpdateToken", preventUnauthorizedFleetTokenUpdate);
 Hooks.on("preUpdateToken", validateAttackCraftDrag);
 Hooks.on("preUpdateToken", captureCAPShipMovement);
 Hooks.on("updateToken", completeAttackCraftDrag);
 Hooks.on("updateToken", completeCAPShipMovement);
+Hooks.on("updateToken", refreshTurnManagerForTokenStateChange);
 Hooks.on("controlToken", enforceFleetTokenControl);
 
 Hooks.on("canvasReady", async () => {
@@ -339,11 +353,15 @@ Hooks.on("canvasReady", async () => {
 Hooks.on("deleteToken", (tokenDocument) => {
   clearWeaponArc(tokenDocument);
   removeEngine(tokenDocument);
+  import("./turn-manager-app.js").then(({ refreshTurnManagerApplication }) => refreshTurnManagerApplication());
 });
 
 Hooks.on("createToken", async tokenDocument => {
-  if (!game.user?.isGM || !getTurnState().battleStarted) return;
-  await syncFleetTokenOwnership(tokenDocument, getTurnState());
+  if (game.user?.isGM && getTurnState().battleStarted) {
+    await syncFleetTokenOwnership(tokenDocument, getTurnState());
+  }
+  const { refreshTurnManagerApplication } = await import("./turn-manager-app.js");
+  refreshTurnManagerApplication();
 });
 
 Hooks.on("canvasTearDown", () => {
@@ -351,6 +369,6 @@ Hooks.on("canvasTearDown", () => {
   clearAllEngines();
   clearMovementPreview();
   clearOrdnanceMovementPreview();
-  clearAllOrdnanceTrails({ notify: false });
+  clearAllOrdnanceTrails({ notify: false, broadcast: false });
   clearAllShootingEffects();
 });

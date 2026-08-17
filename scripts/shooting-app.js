@@ -237,6 +237,10 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
     await super._onRender(context, options);
     if (context.invalid) return;
 
+    requestAnimationFrame(() => {
+      if (this.rendered) this.setPosition({ height: "auto" });
+    });
+
     const weaponSelect = this.element.querySelector('[name="weaponIndex"]');
     weaponSelect?.addEventListener("change", () => {
       this.weaponIndex = Number(weaponSelect.value ?? 0);

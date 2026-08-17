@@ -8,16 +8,16 @@ const PROJECTILE_CAP = 8;
 
 export function registerShootingEffectSettings() {
   game.settings.register(MODULE_ID, SHOOTING_EFFECTS_ENABLED, {
-    name: "Enable shooting animations",
-    hint: "Show temporary lance, weapons battery, Nova Cannon, shield and hull-impact effects on the canvas.",
+    name: "Enable combat animations",
+    hint: "Show temporary direct-fire, Nova Cannon, ordnance, shield and hull-impact effects on the canvas.",
     scope: "client",
     config: true,
     type: Boolean,
     default: true
   });
   game.settings.register(MODULE_ID, SHOOTING_EFFECTS_SPEED, {
-    name: "Shooting animation duration",
-    hint: "Use shorter shooting effects while retaining the same resolved dice and damage.",
+    name: "Combat animation duration",
+    hint: "Use shorter combat effects while retaining the same resolved dice and damage.",
     scope: "client",
     config: true,
     type: String,
@@ -315,9 +315,222 @@ export async function playNovaCannonAnimation(outcome) {
   });
 }
 
+function ordnanceImpactCounts(outcome) {
+  return {
+    shield: 0,
+    hull: Math.max(0, Number(outcome?.brace?.unsaved ?? outcome?.hits ?? 0)),
+    critical: Math.max(0, Number(outcome?.critical?.results?.length ?? 0))
+  };
+}
+
+export async function playOrdnanceAttackAnimation({ attackers = [], target, outcome, kind = "attack-craft" } = {}) {
+  if (!game.settings.get(MODULE_ID, SHOOTING_EFFECTS_ENABLED) || !canvas?.ready || !target || !attackers.length) return false;
+  const graphics = new PIXI.Graphics();
+  graphics.name = `bfg-ordnance-effect-${foundry.utils.randomID()}`;
+  graphics.eventMode = "none";
+  canvas.tokens.addChild(graphics);
+  const reduced = game.settings.get(MODULE_ID, SHOOTING_EFFECTS_SPEED) === "reduced";
+  const duration = reduced ? 720 : 1300;
+  const turretKills = Math.max(0, Number(outcome?.shotDown ?? outcome?.turretVictims?.length ?? 0));
+  const capKills = Math.max(0, Number(outcome?.intercepted?.length ?? 0));
+  const attackingCount = kind === "torpedo"
+    ? Math.max(0, Number(outcome?.attackingStrength ?? 0))
+    : Math.max(0, Number(outcome?.afterTurrets?.length ?? attackers.length));
+  const counts = ordnanceImpactCounts(outcome);
+
+  return new Promise(resolve => {
+    const effect = { graphics, frame: null, resolve };
+    activeEffects.add(effect);
+    const started = performance.now();
+    const finish = result => {
+      if (effect.frame !== null) cancelAnimationFrame(effect.frame);
+      if (!graphics.destroyed) graphics.destroy({ children: true });
+      activeEffects.delete(effect);
+      resolve(result);
+    };
+    const frame = now => {
+      try {
+        if (graphics.destroyed || !canvas?.ready) return finish(false);
+        const progress = Math.min(1, (now - started) / duration);
+        graphics.clear();
+
+        if (kind === "interception") {
+          const midpoint = pointAlong(attackers[0].center, target.center, 0.5);
+          const approach = Math.min(1, progress / 0.5);
+          const first = pointAlong(attackers[0].center, midpoint, approach);
+          const second = pointAlong(target.center, midpoint, approach);
+          graphics.lineStyle(3, 0xffcc66, 0.8);
+          graphics.moveTo(attackers[0].center.x, attackers[0].center.y);
+          graphics.lineTo(first.x, first.y);
+          graphics.lineStyle(3, 0x66ccff, 0.8);
+          graphics.moveTo(target.center.x, target.center.y);
+          graphics.lineTo(second.x, second.y);
+          if (outcome?.removed) drawImpact(graphics, midpoint, 8 + Math.max(0, progress - 0.4) * 45, 0xff8844, Math.sin(Math.max(0, progress - 0.35) / 0.65 * Math.PI), 4);
+        } else {
+          const defenseProgress = Math.min(1, progress / 0.34);
+          const defenseCount = Math.min(PROJECTILE_CAP, Math.max(turretKills + capKills, Number(outcome?.turretDice ?? outcome?.defensiveTurretDice ?? 0)));
+          for (let index = 0; index < defenseCount; index += 1) {
+            const craft = attackers[index % attackers.length];
+            const end = pointAlong(target.center, craft.center, defenseProgress);
+            graphics.lineStyle(2, index < capKills ? 0x55bbff : 0xff5555, 0.8);
+            graphics.moveTo(target.center.x, target.center.y);
+            graphics.lineTo(end.x, end.y);
+            if (index < turretKills + capKills && progress > 0.22) drawImpact(graphics, craft.center, 5 + (progress - 0.22) * 18, 0xff8844, Math.max(0, 1 - progress), 2);
+          }
+
+          if (progress >= 0.28) {
+            const attackProgress = Math.min(1, (progress - 0.28) / 0.48);
+            const visualAttacks = Math.min(PROJECTILE_CAP, Math.max(0, attackingCount));
+            for (let index = 0; index < visualAttacks; index += 1) {
+              const source = attackers[index % attackers.length];
+              const destination = projectileDestination(source.center, target.center, index, index < Number(outcome?.hits ?? 0));
+              const point = pointAlong(source.center, destination, Math.max(0, Math.min(1, attackProgress * 1.2 - index * 0.035)));
+              const angle = Math.atan2(destination.y - source.center.y, destination.x - source.center.x);
+              if (kind === "torpedo") drawTeardrop(graphics, point, angle + Math.PI, 0xffaa55, 0.95);
+              else {
+                graphics.lineStyle(3, 0xffdd88, 0.85);
+                graphics.moveTo(source.center.x, source.center.y);
+                graphics.lineTo(point.x, point.y);
+              }
+            }
+          }
+          drawImpacts(graphics, target, Math.max(0, (progress - 0.65) / 0.35), counts);
+          if (Number(outcome?.pendingHitAndRun ?? 0) > 0 && progress > 0.72) {
+            const pulse = Math.sin((progress - 0.72) / 0.28 * Math.PI);
+            drawImpact(graphics, target.center, Math.max(12, Math.min(target.w, target.h) * 0.32), 0xaaff66, pulse, 3);
+          }
+        }
+
+        if (progress < 1) {
+          effect.frame = requestAnimationFrame(frame);
+          return;
+        }
+        finish(true);
+      } catch (error) {
+        console.error("BFG Helper | Ordnance animation failed", error);
+        finish(false);
+      }
+    };
+    effect.frame = requestAnimationFrame(frame);
+  });
+}
+
+function firstContactProgress(start, end, target, salvo) {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const fx = start.x - target.center.x;
+  const fy = start.y - target.center.y;
+  const radius = Math.min(salvo.w, salvo.h) / 2 + Math.min(target.w, target.h) / 2;
+  const a = dx * dx + dy * dy;
+  if (!(a > 0)) return 0.5;
+  const b = 2 * (fx * dx + fy * dy);
+  const c = fx * fx + fy * fy - radius * radius;
+  const discriminant = b * b - 4 * a * c;
+  if (discriminant >= 0) {
+    const roots = [(-b - Math.sqrt(discriminant)) / (2 * a), (-b + Math.sqrt(discriminant)) / (2 * a)]
+      .filter(value => value >= 0 && value <= 1);
+    if (roots.length) return Math.min(...roots);
+  }
+  return Math.max(0, Math.min(1, -((start.x - target.center.x) * dx + (start.y - target.center.y) * dy) / a));
+}
+
+export async function playTorpedoReplayAnimation({ salvo, target, outcome, speedCm = 0 } = {}) {
+  if (!game.settings.get(MODULE_ID, SHOOTING_EFFECTS_ENABLED) || !canvas?.ready || !salvo || !target) return false;
+  speedCm = Math.max(0, Number(speedCm));
+  const scale = novaScale();
+  const radians = Number(salvo.document.rotation ?? 0) * Math.PI / 180;
+  const end = { x: Number(salvo.center.x), y: Number(salvo.center.y) };
+  const distance = speedCm * scale;
+  const start = {
+    x: end.x - Math.sin(radians) * distance,
+    y: end.y + Math.cos(radians) * distance
+  };
+  const contact = pointAlong(start, end, firstContactProgress(start, end, target, salvo));
+
+  const container = new PIXI.Container();
+  container.name = `bfg-torpedo-replay-${foundry.utils.randomID()}`;
+  container.eventMode = "none";
+  const sprite = PIXI.Sprite.from(String(salvo.document.texture?.src ?? ""));
+  sprite.anchor.set(0.5);
+  sprite.width = salvo.w;
+  sprite.height = salvo.h;
+  sprite.rotation = radians;
+  const graphics = new PIXI.Graphics();
+  container.addChild(sprite, graphics);
+  canvas.tokens.addChild(container);
+  const originalVisibility = salvo.visible;
+  salvo.visible = false;
+  const reduced = game.settings.get(MODULE_ID, SHOOTING_EFFECTS_SPEED) === "reduced";
+  const duration = reduced ? 900 : 1650;
+
+  return new Promise(resolve => {
+    const restore = () => { if (!salvo.destroyed) salvo.visible = originalVisibility; };
+    const effect = { graphics: container, frame: null, resolve, cleanup: restore };
+    activeEffects.add(effect);
+    const started = performance.now();
+    const finish = result => {
+      if (effect.frame !== null) cancelAnimationFrame(effect.frame);
+      restore();
+      if (!container.destroyed) container.destroy({ children: true });
+      activeEffects.delete(effect);
+      resolve(result);
+    };
+    const frame = now => {
+      try {
+        if (container.destroyed || !canvas?.ready) return finish(false);
+        const progress = Math.min(1, (now - started) / duration);
+        graphics.clear();
+        let position;
+        if (progress < 0.38) position = pointAlong(start, contact, progress / 0.38);
+        else if (progress < 0.72) position = contact;
+        else position = pointAlong(contact, end, (progress - 0.72) / 0.28);
+        container.position.set(position.x, position.y);
+
+        if (progress >= 0.38 && progress < 0.56) {
+          const defense = (progress - 0.38) / 0.18;
+          const turretCount = Math.min(PROJECTILE_CAP, Math.max(0, Number(outcome?.turretDice ?? 0)));
+          for (let index = 0; index < turretCount; index += 1) {
+            const spread = (index - (turretCount - 1) / 2) * 7;
+            graphics.lineStyle(2, 0xff5555, Math.sin(defense * Math.PI));
+            graphics.moveTo(target.center.x - position.x, target.center.y - position.y);
+            graphics.lineTo(spread, 0);
+          }
+          for (let index = 0; index < Math.min(PROJECTILE_CAP, Number(outcome?.shotDown ?? 0)); index += 1) {
+            drawImpact(graphics, { x: (index - 2) * 8, y: (index % 2 ? 7 : -7) }, 5 + defense * 13, 0xff8844, Math.sin(defense * Math.PI), 2);
+          }
+        }
+
+        if (progress >= 0.54 && progress < 0.75) {
+          const attack = (progress - 0.54) / 0.21;
+          const hitCount = Math.min(PROJECTILE_CAP, Math.max(0, Number(outcome?.hits ?? 0)));
+          for (let index = 0; index < hitCount; index += 1) {
+            const angle = index * 2.3;
+            const centre = {
+              x: target.center.x - position.x + Math.cos(angle) * (5 + index * 2),
+              y: target.center.y - position.y + Math.sin(angle) * (5 + index * 2)
+            };
+            drawImpact(graphics, centre, 7 + attack * 18, 0xffaa55, Math.sin(Math.min(1, attack) * Math.PI), 3);
+          }
+        }
+
+        if (progress < 1) {
+          effect.frame = requestAnimationFrame(frame);
+          return;
+        }
+        finish(true);
+      } catch (error) {
+        console.error("BFG Helper | Torpedo replay animation failed", error);
+        finish(false);
+      }
+    };
+    effect.frame = requestAnimationFrame(frame);
+  });
+}
+
 export function clearAllShootingEffects() {
   for (const effect of activeEffects) {
     if (effect.frame !== null) cancelAnimationFrame(effect.frame);
+    effect.cleanup?.();
     if (!effect.graphics.destroyed) effect.graphics.destroy({ children: true });
     effect.resolve?.(false);
   }

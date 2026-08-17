@@ -8,6 +8,7 @@ import { getOrdnanceMarker } from "./ordnance.js";
 import { openActionResolution } from "./action-resolution-app.js";
 import { getShootingContext, getSelectedShootingTarget, markWeaponFired } from "./shooting.js";
 import { braceReactionControls, readBraceReactionOptions, resolveBraceReaction, rollBraceSaves } from "./special-orders.js";
+import { getEffectiveLeadership } from "./leadership.js";
 
 const TEMPLATE_DIAMETER_CM = 5;
 const TEMPLATE_RADIUS_CM = TEMPLATE_DIAMETER_CM / 2;
@@ -247,9 +248,16 @@ async function resolveNova(attacker, weapon, placement, braceTargets, options) {
   let leadershipCheck = null;
   const closest = closestEnemyShip(attacker, weapon);
   if (closest?.distanceCm > 30 && !overlaps(closest.token, aimPoint, TEMPLATE_RADIUS_CM * pixelsPerCm())) {
-    const leadership = Math.max(0, 8 - Number(getCombatState(attacker)?.leadershipPenalty ?? 0));
-    const roll = await rollPublished("2d6", `${weapon.name}: target-priority Leadership test`, attacker);
-    leadershipCheck = { dice: diceFaces(roll), total: Number(roll.total), leadership, passed: Number(roll.total) <= leadership };
+    const leadership = getEffectiveLeadership(attacker);
+    const roll = await new Roll("2d6").evaluate();
+    const total = Number(roll.total);
+    const passed = total <= leadership;
+    await publishBFGDice(roll, {
+      speaker: ChatMessage.getSpeaker({ token: attacker.document }),
+      flavor: `${weapon.name}: target-priority Leadership test`,
+      details: `Total ${total} against Leadership ${leadership}: ${passed ? "PASS" : "FAIL; shot redirected to the closest eligible enemy"}.`
+    });
+    leadershipCheck = { dice: diceFaces(roll), total, leadership, passed };
     if (!leadershipCheck.passed) {
       const requiredCentreRange = Math.max(closest.distanceCm, Number(weapon.minimumRangeCm ?? 30) + TEMPLATE_RADIUS_CM);
       const bearingRadians = heading(attacker.center, closest.token.center) * Math.PI / 180;

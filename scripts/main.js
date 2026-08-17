@@ -83,6 +83,16 @@ import {
 import { resolveBlastMarkerRemoval, resolveSelectedDamageControl } from "./end-phase.js";
 import { initialiseQuantitySteppers } from "./quantity-stepper.js";
 import { assignSelectedSpecialOrder, braceSelectedShip, getSpecialOrder } from "./special-orders.js";
+import {
+  clearSelectedShipLeadership,
+  editSelectedShipLeadership,
+  getBaseLeadership,
+  getEffectiveLeadership,
+  getLeadership,
+  rollAllUnassignedLeadership,
+  rollSelectedShipLeadership,
+  setLeadership
+} from "./leadership.js";
 
 Hooks.once("init", () => {
   console.log("BFG Helper | Initialising");
@@ -178,6 +188,16 @@ Hooks.once("ready", () => {
       brace: braceSelectedShip,
       get: getSpecialOrder
     },
+    leadership: {
+      get: getLeadership,
+      getBase: getBaseLeadership,
+      getEffective: getEffectiveLeadership,
+      set: setLeadership,
+      rollSelected: rollSelectedShipLeadership,
+      rollAllUnassigned: rollAllUnassignedLeadership,
+      editSelected: editSelectedShipLeadership,
+      clearSelected: clearSelectedShipLeadership
+    },
     shooting: {
       open: openShootingPlanner,
       getContext: getShootingContext,
@@ -237,6 +257,11 @@ Hooks.on("bfgHelperPendingActionsChanged", async () => {
 });
 
 Hooks.on("bfgHelperSpecialOrdersChanged", async () => {
+  const { refreshTurnManagerApplication } = await import("./turn-manager-app.js");
+  refreshTurnManagerApplication();
+});
+
+Hooks.on("bfgHelperLeadershipChanged", async () => {
   const { refreshTurnManagerApplication } = await import("./turn-manager-app.js");
   refreshTurnManagerApplication();
 });

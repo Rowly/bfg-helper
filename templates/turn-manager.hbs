@@ -75,6 +75,11 @@
           {{#if hasShips}}
             <ul>{{#each ships}}<li>
               <span>{{actorName}}</span><small>{{shipClass}}</small>
+              {{#if hasLeadership}}
+                <div class="bfg-leadership-summary"><i class="fa-solid fa-user-shield"></i> {{leadership.rating}} (Leadership {{leadership.value}}){{#if leadershipAdjusted}}; effective {{effectiveLeadership}}{{/if}}</div>
+              {{else}}
+                <div class="bfg-leadership-summary bfg-leadership-missing"><i class="fa-solid fa-triangle-exclamation"></i> Leadership not assigned</div>
+              {{/if}}
               {{#if hasCombatState}}
                 <div class="bfg-combat-summary{{#if combatState.crippled}} crippled{{/if}}{{#if combatState.outOfAction}} out-of-action{{/if}}">
                   <span title="Current and maximum hits"><i class="fa-solid fa-heart"></i> {{combatState.currentHits}}/{{combatState.maximumHits}}</span>
@@ -93,6 +98,14 @@
       <div class="bfg-turn-secondary-actions">
         <button type="button" data-bfg-action="assign-fleet"><i class="fa-solid fa-people-group"></i> Assign selected ship</button>
         <button type="button" data-bfg-action="clear-fleet"><i class="fa-solid fa-link-slash"></i> Clear assignment</button>
+      </div>
+      <div class="bfg-turn-secondary-actions">
+        <button type="button" data-bfg-action="roll-leadership"><i class="fa-solid fa-dice-d6"></i> Roll selected Leadership</button>
+        <button type="button" data-bfg-action="roll-all-leadership"><i class="fa-solid fa-dice"></i> Roll all unassigned</button>
+      </div>
+      <div class="bfg-turn-secondary-actions">
+        <button type="button" data-bfg-action="edit-leadership"><i class="fa-solid fa-pen"></i> Edit selected Leadership</button>
+        <button type="button" data-bfg-action="clear-leadership"><i class="fa-solid fa-eraser"></i> Clear selected Leadership</button>
       </div>
     {{else}}<p class="notes bfg-turn-viewer-note">Only a Gamemaster can change fleet assignments.</p>{{/if}}
   {{/if}}

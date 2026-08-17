@@ -24,7 +24,8 @@ import {
 import { diceFaces, publishBFGDice } from "./dice.js";
 import { getOrdnanceMarker } from "./ordnance.js";
 import { getBoardingState, hasDeclaredBoarding, isBoardingParticipant } from "./boarding.js";
-import { DEFAULT_LEADERSHIP, effectiveWeaponStrength, getSpecialOrder, resolveBraceReaction, rollBraceSaves } from "./special-orders.js";
+import { effectiveWeaponStrength, getSpecialOrder, resolveBraceReaction, rollBraceSaves } from "./special-orders.js";
+import { getEffectiveLeadership } from "./leadership.js";
 
 const FIRED_WEAPONS_FLAG = "firedWeapons";
 
@@ -345,13 +346,16 @@ export async function resolveDirectFire(analysis, {
   if (!analysis.isOrdnance && analysis.targetPriorityRequired) {
     const priorityTarget = canvas.tokens?.get(analysis.priorityTargetId);
     if (!priorityTarget) throw new Error("The priority target is no longer on this Scene.");
-    const leadership = Math.max(0, DEFAULT_LEADERSHIP - Number(currentContext.combatState?.leadershipPenalty ?? 0));
+    const leadership = getEffectiveLeadership(attacker);
     const roll = await new Roll("2d6").evaluate();
+    const total = Number(roll.total);
+    const passed = total <= leadership;
     await publishBFGDice(roll, {
       speaker: ChatMessage.getSpeaker({ token: attacker.document }),
-      flavor: `${currentWeapon.name}: target-priority Leadership test`
+      flavor: `${currentWeapon.name}: target-priority Leadership test`,
+      details: `Total ${total} against Leadership ${leadership}: ${passed ? "PASS" : "FAIL; redirected to the closest eligible enemy"}.`
     });
-    priorityCheck = { dice: diceFaces(roll), total: Number(roll.total), leadership, passed: Number(roll.total) <= leadership };
+    priorityCheck = { dice: diceFaces(roll), total, leadership, passed };
     if (!priorityCheck.passed) {
       target = priorityTarget;
       analysis = analyseDirectFire(attacker, target, currentWeapon);

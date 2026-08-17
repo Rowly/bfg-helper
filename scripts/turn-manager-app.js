@@ -32,6 +32,12 @@ import {
 } from "./boarding.js";
 import { resolveBlastMarkerRemoval, resolveSelectedDamageControl } from "./end-phase.js";
 import { assignSelectedSpecialOrder, braceSelectedShip } from "./special-orders.js";
+import {
+  clearSelectedShipLeadership,
+  editSelectedShipLeadership,
+  rollAllUnassignedLeadership,
+  rollSelectedShipLeadership
+} from "./leadership.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -199,6 +205,20 @@ export class BFGTurnManagerApplication extends HandlebarsApplicationMixin(Applic
 
     bind('[data-bfg-action="clear-fleet"]', async () => {
       if (await clearSelectedShipFleet()) await this.render({ force: true });
+    });
+
+    bind('[data-bfg-action="roll-leadership"]', async () => {
+      if (await rollSelectedShipLeadership()) await this.render({ force: true });
+    });
+    bind('[data-bfg-action="roll-all-leadership"]', async () => {
+      await rollAllUnassignedLeadership();
+      await this.render({ force: true });
+    });
+    bind('[data-bfg-action="edit-leadership"]', async () => {
+      if (await editSelectedShipLeadership()) await this.render({ force: true });
+    });
+    bind('[data-bfg-action="clear-leadership"]', async () => {
+      if (await clearSelectedShipLeadership()) await this.render({ force: true });
     });
 
     bind('[data-bfg-action="lock-selected-rotation"]', async () => {

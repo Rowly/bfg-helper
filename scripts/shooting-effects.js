@@ -9,7 +9,7 @@ const PROJECTILE_CAP = 8;
 export function registerShootingEffectSettings() {
   game.settings.register(MODULE_ID, SHOOTING_EFFECTS_ENABLED, {
     name: "Enable shooting animations",
-    hint: "Show temporary lance, weapons battery, shield and hull-impact effects on the canvas.",
+    hint: "Show temporary lance, weapons battery, Nova Cannon, shield and hull-impact effects on the canvas.",
     scope: "client",
     config: true,
     type: Boolean,
@@ -28,7 +28,7 @@ export function registerShootingEffectSettings() {
 
 function animationDuration(type) {
   const reduced = game.settings.get(MODULE_ID, SHOOTING_EFFECTS_SPEED) === "reduced";
-  const normal = type === "lance" ? 900 : 1150;
+  const normal = type === "lance" ? 900 : type === "nova-cannon" ? 1450 : 1150;
   return reduced ? Math.round(normal * 0.55) : normal;
 }
 
@@ -193,6 +193,121 @@ export async function playDirectFireAnimation(resolution) {
         finish(true);
       } catch (error) {
         console.error("BFG Helper | Shooting animation failed", error);
+        finish(false);
+      }
+    };
+    effect.frame = requestAnimationFrame(frame);
+  });
+}
+
+function novaScale() {
+  const size = Number(canvas.scene?.grid?.size);
+  const distance = Number(canvas.scene?.grid?.distance);
+  return size > 0 && distance > 0 ? size / distance : 20;
+}
+
+function drawNovaShell(graphics, point, angle, alpha) {
+  const length = 28;
+  const width = 7;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const transform = (forward, side) => [
+    point.x + cos * forward - sin * side,
+    point.y + sin * forward + cos * side
+  ];
+  const nose = transform(length * 0.6, 0);
+  const left = transform(-length * 0.25, width);
+  const tail = transform(-length * 0.6, 0);
+  const right = transform(-length * 0.25, -width);
+  graphics.beginFill(0xeafcff, alpha);
+  graphics.drawPolygon([...nose, ...left, ...tail, ...right]);
+  graphics.endFill();
+  graphics.lineStyle(4, 0x55ccff, alpha * 0.7);
+  graphics.moveTo(...tail);
+  const trail = transform(-length * 1.3, 0);
+  graphics.lineTo(...trail);
+}
+
+function drawNovaDetonation(graphics, point, progress, contacted) {
+  if (progress <= 0) return;
+  const scale = novaScale();
+  const templateRadius = 2.5 * scale;
+  const firstHalf = Math.min(1, progress * 2);
+  const secondHalf = Math.max(0, progress * 2 - 1);
+  const flashAlpha = Math.sin(Math.min(1, progress) * Math.PI);
+  const contraction = templateRadius * (1.3 - firstHalf * 1.12);
+  graphics.lineStyle(Math.max(4, scale * 0.12), 0x99eeff, 0.9 * (1 - secondHalf));
+  graphics.drawCircle(point.x, point.y, Math.max(scale * 0.18, contraction));
+  graphics.beginFill(0xffffff, 0.72 * flashAlpha);
+  graphics.drawCircle(point.x, point.y, Math.max(scale * 0.15, templateRadius * 0.22 * (1 - firstHalf * 0.7)));
+  graphics.endFill();
+  if (secondHalf > 0) {
+    graphics.lineStyle(Math.max(3, scale * 0.09), 0x6699ff, 0.8 * (1 - secondHalf));
+    graphics.drawCircle(point.x, point.y, templateRadius * (0.2 + secondHalf * 0.95));
+    graphics.beginFill(0x5533aa, 0.28 * (1 - secondHalf));
+    graphics.drawCircle(point.x, point.y, templateRadius * (0.15 + secondHalf * 0.85));
+    graphics.endFill();
+  }
+  for (let index = 0; index < Math.min(4, contacted); index += 1) {
+    const angle = index * 2.2 + progress * 0.8;
+    const radius = templateRadius * (0.25 + secondHalf * 0.7);
+    const centre = { x: point.x + Math.cos(angle) * radius, y: point.y + Math.sin(angle) * radius };
+    drawImpact(graphics, centre, 5 + secondHalf * 16, 0xffaa55, flashAlpha, 2);
+  }
+}
+
+export async function playNovaCannonAnimation(outcome) {
+  if (!game.settings.get(MODULE_ID, SHOOTING_EFFECTS_ENABLED) || !canvas?.ready) return false;
+  const attacker = canvas.tokens?.get(outcome?.attackerId);
+  const aim = outcome?.aimPoint;
+  const final = outcome?.finalPoint;
+  if (!attacker || !aim || !final) return false;
+
+  const graphics = new PIXI.Graphics();
+  graphics.name = `bfg-nova-effect-${foundry.utils.randomID()}`;
+  graphics.eventMode = "none";
+  canvas.tokens.addChild(graphics);
+  const duration = animationDuration("nova-cannon");
+  const contacted = Number(outcome.shipResults?.length ?? 0) + Number(outcome.ordnanceIds?.length ?? 0);
+
+  return new Promise(resolve => {
+    const effect = { graphics, frame: null, resolve };
+    activeEffects.add(effect);
+    const started = performance.now();
+    const finish = result => {
+      if (effect.frame !== null) cancelAnimationFrame(effect.frame);
+      if (!graphics.destroyed) graphics.destroy({ children: true });
+      activeEffects.delete(effect);
+      resolve(result);
+    };
+    const frame = now => {
+      try {
+        if (graphics.destroyed || !canvas?.ready) return finish(false);
+        const progress = Math.min(1, (now - started) / duration);
+        graphics.clear();
+        if (progress < 0.52) {
+          const travel = progress / 0.52;
+          const point = pointAlong(attacker.center, aim, travel);
+          const angle = Math.atan2(aim.y - attacker.center.y, aim.x - attacker.center.x);
+          drawNovaShell(graphics, point, angle, 0.75 + travel * 0.25);
+        } else if (progress < 0.68 && !outcome.directHit) {
+          const travel = (progress - 0.52) / 0.16;
+          const point = pointAlong(aim, final, travel);
+          const angle = Math.atan2(final.y - aim.y, final.x - aim.x);
+          drawNovaShell(graphics, point, angle, 1);
+          graphics.lineStyle(2, 0x99ddff, 0.55);
+          graphics.moveTo(aim.x, aim.y);
+          graphics.lineTo(point.x, point.y);
+        }
+        const detonationStart = outcome.directHit ? 0.52 : 0.64;
+        drawNovaDetonation(graphics, final, Math.max(0, (progress - detonationStart) / (1 - detonationStart)), contacted);
+        if (progress < 1) {
+          effect.frame = requestAnimationFrame(frame);
+          return;
+        }
+        finish(true);
+      } catch (error) {
+        console.error("BFG Helper | Nova Cannon animation failed", error);
         finish(false);
       }
     };

@@ -9,6 +9,7 @@ import { openActionResolution } from "./action-resolution-app.js";
 import { getShootingContext, getSelectedShootingTarget, markWeaponFired } from "./shooting.js";
 import { braceReactionControls, readBraceReactionOptions, resolveBraceReaction, rollBraceSaves } from "./special-orders.js";
 import { getEffectiveLeadership } from "./leadership.js";
+import { playNovaCannonAnimation } from "./shooting-effects.js";
 
 const TEMPLATE_DIAMETER_CM = 5;
 const TEMPLATE_RADIUS_CM = TEMPLATE_DIAMETER_CM / 2;
@@ -296,8 +297,6 @@ async function resolveNova(attacker, weapon, placement, braceTargets, options) {
     x: aimPoint.x + Math.sin(radians) * scatterCm * scale,
     y: aimPoint.y - Math.cos(radians) * scatterCm * scale
   };
-  showResolvedTemplate(aimPoint, finalPoint);
-
   const contactedShips = (canvas.tokens?.placeables ?? []).filter(token => getShipData(token) && overlaps(token, finalPoint, TEMPLATE_RADIUS_CM * scale));
   const contactedOrdnance = (canvas.tokens?.placeables ?? []).filter(token => getOrdnanceMarker(token) && overlaps(token, finalPoint, TEMPLATE_RADIUS_CM * scale));
   const shipResults = [];
@@ -315,7 +314,7 @@ async function resolveNova(attacker, weapon, placement, braceTargets, options) {
 
   const resultRows = shipResults.map(result => `<h4>${foundry.utils.escapeHTML(result.targetName)}</h4><div><span>Template contact</span><strong>${result.central ? "Centre hole, D6 hits" : "Outer template, 1 hit"}</strong></div><div><span>Hits</span><strong>${result.hits}</strong></div><div><span>Shield hits</span><strong>${result.damage.shieldHits}</strong></div><div><span>Brace saves</span><strong>${result.damage.brace.dice.join(", ") || "None"}; saved ${result.damage.brace.saved}</strong></div><div><span>Hull damage</span><strong>${result.damage.hullHits}</strong></div><div><span>Critical checks (${result.damage.critical.checks}d6, needing 6)</span><strong>${result.damage.critical.checkResults.join(", ") || "None"}</strong></div><div><span>Critical effects</span><strong>${foundry.utils.escapeHTML(criticalSummary(result.damage.critical))}</strong></div><div><span>Critical damage</span><strong>${result.damage.extraCriticalDamage}</strong></div><div><span>Catastrophic result</span><strong>${foundry.utils.escapeHTML(catastrophicSummary(result.damage.catastrophic))}</strong></div><div><span>Remaining shields</span><strong>${result.damage.after.currentShields}</strong></div><div><span>Remaining hull</span><strong>${result.damage.after.currentHits}</strong></div>${result.damage.shieldHits ? `<p>Place ${result.damage.shieldHits} Blast Marker token(s) manually for this attack's ${result.damage.shieldHits} shield hit(s).</p>` : ""}`).join("");
   return {
-    finalPoint, directHit, scatterFace, scatterDice, distanceDice, scatterCm, direction, leadershipCheck,
+    attackerId: attacker.id, aimPoint, finalPoint, directHit, scatterFace, scatterDice, distanceDice, scatterCm, direction, leadershipCheck,
     shipResults, ordnanceIds: contactedOrdnance.map(token => token.id),
     resultHtml: `<h3>Nova Cannon result</h3><div class="bfg-action-confirmation">${leadershipCheck ? `<div><span>Target-priority Leadership test (2d6)</span><strong>${leadershipCheck.dice.join(", ")} = ${leadershipCheck.total} against ${leadershipCheck.leadership}: ${leadershipCheck.passed ? "passed" : "failed; shot redirected to closest enemy"}</strong></div>` : ""}<div><span>Scatter die</span><strong>${scatterLabel}</strong></div><div><span>Scatter distance (${scatterDice}d6)</span><strong>${directHit ? "None" : `${distanceDice.join(", ")} = ${scatterCm} cm`}</strong></div><div><span>Ordnance markers contacted</span><strong>${contactedOrdnance.length}</strong></div>${resultRows}</div>${shipResults.length || contactedOrdnance.length ? "" : "<p>No target was contacted. Place 1 Blast Marker token manually at the final template position.</p>"}<p>Review all results before applying damage and removing contacted ordnance.</p>`
   };
@@ -370,7 +369,12 @@ export async function openNovaCannon(attacker, weapon, designatedTarget = getSel
     rollLabel: "Fire Nova Cannon",
     applyLabel: "Apply Nova Cannon result",
     readOptions: element => ({ brace: Object.fromEntries(braceTargets.map(target => [target.id, readBraceReactionOptions(element, `brace-${target.id}`)])) }),
-    roll: options => resolveNova(attacker, configured, placement, braceTargets, options),
+    roll: async options => {
+      const outcome = await resolveNova(attacker, configured, placement, braceTargets, options);
+      await playNovaCannonAnimation(outcome);
+      showResolvedTemplate(outcome.aimPoint, outcome.finalPoint);
+      return outcome;
+    },
     apply: applyNova
   });
 }

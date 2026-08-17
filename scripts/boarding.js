@@ -1,6 +1,7 @@
 import { MODULE_ID } from "./constants.js";
 import { getShipData } from "./ship-data.js";
 import { getTokenFleetId } from "./fleet-assignment.js";
+import { canUserControlActingFleet, requireUserCanControlToken } from "./fleet-control.js";
 import { getCombatState, setCombatState } from "./combat-state.js";
 import { getCriticalState, previewCriticalTableResult, setCriticalState } from "./critical-hits.js";
 import { rollCatastrophicDamage, setCatastrophicState } from "./catastrophic-damage.js";
@@ -32,8 +33,8 @@ function selectedTarget() {
 }
 
 function requireGM() {
-  if (game.user?.isGM) return true;
-  ui.notifications.warn("A Gamemaster must resolve boarding and Hit-and-Run attacks.");
+  if (canUserControlActingFleet()) return true;
+  ui.notifications.warn("Only the active fleet's assigned player or a Gamemaster can resolve boarding and Hit-and-Run attacks.");
   return false;
 }
 
@@ -109,6 +110,7 @@ export async function declareSelectedShipBoarding() {
   const attacker = selectedShip();
   const defender = selectedTarget();
   if (!attacker || !defender) return false;
+  if (!requireUserCanControlToken(attacker, "declare a boarding action")) return false;
   const errors = boardingErrors(attacker, defender);
   if (errors.length) {
     ui.notifications.warn(errors.join(" "));

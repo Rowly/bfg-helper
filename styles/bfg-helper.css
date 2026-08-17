@@ -293,6 +293,10 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.5rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
 
 .bfg-phase-action-grid button {

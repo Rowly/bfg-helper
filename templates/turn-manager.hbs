@@ -14,6 +14,7 @@
     <section class="bfg-turn-active-state" aria-label="Current turn state">
       <div><span>{{activeFleetLabel}}</span><strong>{{activeFleetName}}</strong></div>
       <div><span>Current phase</span><strong>{{currentPhaseLabel}}</strong></div>
+      <div><span>Controlling player</span><strong>{{actingFleetControllerName}}</strong></div>
     </section>
     <ol class="bfg-turn-phases" aria-label="Battlefleet Gothic phase order">
       {{#each phases}}<li class="bfg-turn-phase{{#if active}} active{{/if}}"><i class="fa-solid {{icon}}" aria-hidden="true"></i><span>{{label}}</span></li>{{/each}}
@@ -33,7 +34,8 @@
     {{#if state.battleStarted}}
       <section class="bfg-phase-actions" aria-label="Current phase actions">
         <header><span>{{currentPhaseLabel}}</span><strong>Available actions</strong></header>
-        <div class="bfg-phase-action-grid">
+        {{#unless canAct}}<p class="notes bfg-turn-viewer-note">These actions are restricted to the assigned player and Gamemasters.</p>{{/unless}}
+        <fieldset class="bfg-phase-action-grid" {{#unless canAct}}disabled{{/unless}}>
           {{#if movementPhase}}
             <button type="button" data-bfg-action="assign-orders"><i class="fa-solid fa-scroll"></i> Assign Orders</button>
             <button type="button" data-bfg-action="move-ship"><i class="fa-solid fa-route"></i> Move Ship</button>
@@ -60,7 +62,7 @@
             <button type="button" data-bfg-action="clear-blast-markers"><i class="fa-solid fa-broom"></i> Clear Blast Markers</button>
           {{/if}}
           <button type="button" data-bfg-action="brace-for-impact"><i class="fa-solid fa-shield"></i> Brace for Impact</button>
-        </div>
+        </fieldset>
       </section>
     {{else}}
       {{#unless canManage}}<p class="notes bfg-turn-viewer-note">A Gamemaster must start the battle before phase actions become available.</p>{{/unless}}
@@ -72,6 +74,7 @@
       {{#each fleetCards}}
         <article class="bfg-fleet-card{{#if active}} active{{/if}}">
           <header><strong>{{name}}</strong><span>{{shipCount}} assigned</span></header>
+          <p class="notes"><i class="fa-solid fa-user"></i> {{controllerName}}</p>
           {{#if hasShips}}
             <ul>{{#each ships}}<li>
               <span>{{actorName}}</span><small>{{shipClass}}</small>

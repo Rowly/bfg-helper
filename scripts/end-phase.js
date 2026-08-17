@@ -1,6 +1,7 @@
 import { MODULE_ID } from "./constants.js";
 import { getShipData } from "./ship-data.js";
 import { getTokenFleetId } from "./fleet-assignment.js";
+import { canUserControlActingFleet, requireUserCanControlToken } from "./fleet-control.js";
 import { getCombatState, setCombatState } from "./combat-state.js";
 import { CRITICAL_RESULTS, criticalCount, getCriticalState, setCriticalState } from "./critical-hits.js";
 import { rollCatastrophicDamage, setCatastrophicState } from "./catastrophic-damage.js";
@@ -12,8 +13,8 @@ export const DAMAGE_CONTROL_FLAG = "damageControl";
 export const BLAST_REMOVAL_FLAG = "blastMarkerRemoval";
 
 function requireGM() {
-  if (game.user?.isGM) return true;
-  ui.notifications.warn("A Gamemaster must resolve End Phase actions.");
+  if (canUserControlActingFleet()) return true;
+  ui.notifications.warn("Only the active fleet's assigned player or a Gamemaster can resolve End Phase actions.");
   return false;
 }
 
@@ -89,6 +90,7 @@ export async function resolveSelectedDamageControl() {
   if (!requireGM()) return false;
   const token = selectedShip();
   if (!token) return false;
+  if (!requireUserCanControlToken(token, "resolve Damage Control")) return false;
   const state = getTurnState();
   const errors = activeEndPhaseErrors(token, state);
   const combat = getCombatState(token);

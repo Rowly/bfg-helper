@@ -98,6 +98,8 @@ export async function assignSelectedShipToFleet() {
   await token.document.setFlag(MODULE_ID, "fleetName", fleet.name);
   await initialiseCombatState(token);
   await syncTokenRotationLock(token, state.battleStarted);
+  const { syncFleetTokenOwnership } = await import("./fleet-control.js");
+  await syncFleetTokenOwnership(token, state);
 
   ui.notifications.info(`${shipName} assigned to ${fleet.name}.`);
   Hooks.callAll("bfgHelperFleetAssignmentsChanged", token.document);
@@ -124,6 +126,8 @@ export async function clearSelectedShipFleet() {
 
   await token.document.unsetFlag(MODULE_ID, "fleetId");
   await token.document.unsetFlag(MODULE_ID, "fleetName");
+  const { restoreFleetTokenOwnership } = await import("./fleet-control.js");
+  await restoreFleetTokenOwnership(token);
   await syncTokenRotationLock(token, false);
 
   ui.notifications.info(`${token.name} is no longer assigned to a fleet.`);

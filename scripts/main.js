@@ -95,6 +95,12 @@ import {
   setLeadership
 } from "./leadership.js";
 import { clearAllShootingEffects, initialiseShootingEffectSocket, registerShootingEffectSettings } from "./shooting-effects.js";
+import {
+  enforceFleetTokenControl,
+  preventUnauthorizedFleetTokenUpdate,
+  syncAllFleetTokenOwnership,
+  syncFleetTokenOwnership
+} from "./fleet-control.js";
 
 Hooks.once("init", () => {
   console.log("BFG Helper | Initialising");
@@ -281,10 +287,12 @@ Hooks.on("targetToken", async (user) => {
 });
 
 Hooks.on("preUpdateToken", preventLockedTokenRotation);
+Hooks.on("preUpdateToken", preventUnauthorizedFleetTokenUpdate);
 Hooks.on("preUpdateToken", validateAttackCraftDrag);
 Hooks.on("preUpdateToken", captureCAPShipMovement);
 Hooks.on("updateToken", completeAttackCraftDrag);
 Hooks.on("updateToken", completeCAPShipMovement);
+Hooks.on("controlToken", enforceFleetTokenControl);
 
 Hooks.on("canvasReady", async () => {
   initialiseWeaponArcTicker();
@@ -296,6 +304,7 @@ Hooks.on("canvasReady", async () => {
     await refreshTorpedoMarkerArtwork();
     await setBattleShipRotationLocks(getTurnState().battleStarted);
     await initialiseBattleCombatStates();
+    await syncAllFleetTokenOwnership(getTurnState());
   }
   Hooks.callAll("bfgHelperFleetAssignmentsChanged");
 });
@@ -303,6 +312,11 @@ Hooks.on("canvasReady", async () => {
 Hooks.on("deleteToken", (tokenDocument) => {
   clearWeaponArc(tokenDocument);
   removeEngine(tokenDocument);
+});
+
+Hooks.on("createToken", async tokenDocument => {
+  if (!game.user?.isGM || !getTurnState().battleStarted) return;
+  await syncFleetTokenOwnership(tokenDocument, getTurnState());
 });
 
 Hooks.on("canvasTearDown", () => {

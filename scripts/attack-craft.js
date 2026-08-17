@@ -1,6 +1,7 @@
 import { MODULE_ID } from "./constants.js";
 import { getCombatState, setCombatState } from "./combat-state.js";
 import { getTokenFleetId } from "./fleet-assignment.js";
+import { canUserControlToken } from "./fleet-control.js";
 import { getActingFleetIndex, getTurnState } from "./turn-manager.js";
 import { getCriticalState, rollCriticalHits, setCriticalState } from "./critical-hits.js";
 import { rollCatastrophicDamage, setCatastrophicState } from "./catastrophic-damage.js";
@@ -50,6 +51,10 @@ async function deleteTokens(tokens) {
 }
 
 function validActingCraft(craft, marker) {
+  if (!canUserControlToken(craft)) {
+    ui.notifications.warn(`You are not assigned to control ${craft.name}.`);
+    return false;
+  }
   const state = getTurnState();
   if (marker.capShipId) {
     ui.notifications.warn(`${craft.name} is on Combat Air Patrol and cannot resolve independently.`);

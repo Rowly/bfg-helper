@@ -138,7 +138,8 @@ export async function assignSelectedSpecialOrder() {
   if (orderId === "all-ahead-full") {
     const { prepareRammingDeclaration } = await import("./ramming.js");
     extra.ram = await prepareRammingDeclaration(token);
-    const bonus = await new Roll("4d6").evaluate();
+    const bonusFormula = String(shipData?.movement?.allAheadFullFormula ?? "4d6");
+    const bonus = await new Roll(bonusFormula).evaluate();
     await publishBFGDice(bonus, { speaker: ChatMessage.getSpeaker({ token: token.document }), flavor: `${token.name}: All Ahead Full movement` });
     extra.allAheadFullBonusCm = Number(bonus.total);
   }

@@ -7,10 +7,10 @@ import { diceFaces, publishBFGDice } from "./dice.js";
 import { openActionResolution } from "./action-resolution-app.js";
 import {
   attemptBraceForImpact,
-  DEFAULT_LEADERSHIP,
   getSpecialOrder,
   rollBraceSaves
 } from "./special-orders.js";
+import { getEffectiveLeadership } from "./leadership.js";
 
 const RAMMING_SIZE_RANK = Object.freeze({ escort: 1, cruiser: 2, battleship: 3, defence: 4 });
 
@@ -87,11 +87,14 @@ export async function prepareRammingDeclaration(rammer) {
   const target = targets.find(candidate => candidate.document.id === String(choice.targetId ?? ""));
   if (!target) throw new Error("The selected ram target is no longer available.");
   const dice = ramLeadershipDice(rammer, target);
-  const leadership = Math.max(0, DEFAULT_LEADERSHIP - Number(getCombatState(rammer)?.leadershipPenalty ?? 0));
+  const leadership = getEffectiveLeadership(rammer);
   const roll = await new Roll(`${dice}d6`).evaluate();
-  await publishBFGDice(roll, { speaker: ChatMessage.getSpeaker({ token: rammer.document }), flavor: `${rammer.name}: Leadership test to ram ${target.name}` });
   const passed = Number(roll.total) <= leadership;
-  await ChatMessage.create({ content: `<strong>${rammer.name} ${passed ? "will attempt" : "failed its attempt"} to ram ${foundry.utils.escapeHTML(target.name)}</strong><br>${dice}d6 Leadership test: ${diceFaces(roll).join(", ")} = ${roll.total}, Leadership ${leadership}.` });
+  await publishBFGDice(roll, {
+    speaker: ChatMessage.getSpeaker({ token: rammer.document }),
+    flavor: `${rammer.name}: Leadership test to ram ${target.name}`,
+    details: `Total ${roll.total} against Leadership ${leadership}: ${passed ? "PASS; ram attempt declared" : "FAIL; ram attempt failed"}.`
+  });
   return { declared: true, targetId: target.document.id, targetName: target.name, dice, results: diceFaces(roll), total: Number(roll.total), leadership, passed };
 }
 

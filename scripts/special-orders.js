@@ -4,9 +4,9 @@ import { getTokenFleetId } from "./fleet-assignment.js";
 import { getCombatState, halveRoundedUp } from "./combat-state.js";
 import { diceFaces, publishBFGDice } from "./dice.js";
 import { getTurnState, setTurnState } from "./turn-manager.js";
+import { getBaseLeadership, getEffectiveLeadership, getLeadership } from "./leadership.js";
 
 export const SPECIAL_ORDER_FLAG = "specialOrder";
-export const DEFAULT_LEADERSHIP = 8;
 
 export const SPECIAL_ORDERS = Object.freeze({
   "all-ahead-full": { name: "All Ahead Full", weaponFactor: 0.5 },
@@ -75,15 +75,21 @@ function enemyOnOrders(token) {
   return (canvas.tokens?.placeables ?? []).some(other => getTokenFleetId(other) && getTokenFleetId(other) !== fleetId && getSpecialOrder(other));
 }
 
-async function commandCheck(token, { blastContact = false, brace = false } = {}) {
+async function commandCheck(token, { blastContact = false, brace = false, orderName = null } = {}) {
   const state = getTurnState();
   const modifier = (blastContact ? -1 : 0) + (enemyOnOrders(token) ? 1 : 0);
-  const leadershipPenalty = Math.max(0, Number(getCombatState(token)?.leadershipPenalty ?? 0));
-  const leadership = Math.max(0, Math.min(10, DEFAULT_LEADERSHIP - leadershipPenalty + modifier));
+  const leadership = getEffectiveLeadership(token, modifier);
   const roll = await new Roll("2d6").evaluate();
-  await publishBFGDice(roll, { speaker: ChatMessage.getSpeaker({ token: token.document }), flavor: `${token.name}: ${brace ? "Brace for Impact" : "Special Order"} Command check` });
   const total = Number(roll.total);
-  return { dice: diceFaces(roll), total, leadership, modifier, passed: total <= leadership && total < 11, activation: activationKey(state) };
+  const passed = total <= leadership && total < 11;
+  const label = brace ? "Brace for Impact" : orderName || "Special Order";
+  const consequence = !passed && !brace ? " No further normal Special Orders may be attempted by this fleet this turn." : "";
+  await publishBFGDice(roll, {
+    speaker: ChatMessage.getSpeaker({ token: token.document }),
+    flavor: `${token.name}: ${label} Command check`,
+    details: `Total ${total} against Leadership ${leadership}: ${passed ? "PASS" : "FAIL"}.${consequence}`
+  });
+  return { dice: diceFaces(roll), total, leadership, modifier, passed, activation: activationKey(state) };
 }
 
 async function setOrder(token, id, extra = {}) {
@@ -115,15 +121,15 @@ export async function assignSelectedSpecialOrder() {
   const options = Object.entries(SPECIAL_ORDERS)
     .filter(([id]) => id !== "brace-for-impact" && !(id === "come-to-new-heading" && forbiddenNewHeading))
     .map(([id, order]) => `<option value="${id}">${order.name}</option>`).join("");
-  const choice = await foundry.applications.api.DialogV2.input({ window: { title: `Assign Special Order: ${token.name}` }, content: `<div class="bfg-dialog"><label>Special Order</label><select name="orderId">${options}</select><label><input type="checkbox" name="blastContact"> Blast Markers in base contact (-1 Leadership)</label><p>Leadership: ${DEFAULT_LEADERSHIP}. Enemy Contacts +1 is detected automatically.</p><p>A successful All Ahead Full Command check will offer the option to declare an enemy ship as a ram target before rolling the additional movement.</p></div>`, ok: { label: "Roll Command Check", icon: "fa-solid fa-dice-d6" }, rejectClose: false, modal: true });
+  const leadershipState = getLeadership(token);
+  const choice = await foundry.applications.api.DialogV2.input({ window: { title: `Assign Special Order: ${token.name}` }, content: `<div class="bfg-dialog"><label>Special Order</label><select name="orderId">${options}</select><label><input type="checkbox" name="blastContact"> Blast Markers in base contact (-1 Leadership)</label><p>Leadership: ${getBaseLeadership(token)}${leadershipState ? ` (${leadershipState.rating})` : ""}. Enemy Contacts +1 is detected automatically.</p><p>A successful All Ahead Full Command check will offer the option to declare an enemy ship as a ram target before rolling the additional movement.</p></div>`, ok: { label: "Roll Command Check", icon: "fa-solid fa-dice-d6" }, rejectClose: false, modal: true });
   if (!choice) return false;
   const orderId = String(choice.orderId ?? "");
   if (!SPECIAL_ORDERS[orderId] || orderId === "brace-for-impact") return false;
-  const check = await commandCheck(token, { blastContact: Boolean(choice.blastContact) });
+  const check = await commandCheck(token, { blastContact: Boolean(choice.blastContact), orderName: SPECIAL_ORDERS[orderId].name });
   if (!check.passed) {
     state.commandFailureActivation = activationKey(state);
     await setTurnState(state);
-    await ChatMessage.create({ content: `<strong>${token.name} failed its Command check</strong><br>Rolled ${check.total} against Leadership ${check.leadership}. No further normal Special Orders may be attempted by this fleet this turn.` });
     return false;
   }
   let extra = { commandCheck: check };
@@ -139,10 +145,6 @@ export async function assignSelectedSpecialOrder() {
     const { reloadSelectedShipOrdnance } = await import("./ordnance.js");
     await reloadSelectedShipOrdnance();
   }
-  const ramSummary = orderId === "all-ahead-full" && extra.ram?.declared
-    ? `<br>Ram against ${foundry.utils.escapeHTML(extra.ram.targetName)}: ${extra.ram.passed ? "Leadership test passed" : "Leadership test failed"}.`
-    : "";
-  await ChatMessage.create({ content: `<strong>${token.name}: ${SPECIAL_ORDERS[orderId].name}</strong><br>Command check ${check.total} against Leadership ${check.leadership}: passed.${ramSummary}` });
   return true;
 }
 

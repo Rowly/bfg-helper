@@ -995,6 +995,16 @@
   font-size: 0.75rem;
 }
 
+.bfg-leadership-summary {
+  margin-top: 0.25rem;
+  color: var(--color-text-secondary, #c8c3ba);
+  font-size: 0.82rem;
+}
+
+.bfg-leadership-missing {
+  color: #f0ad4e;
+}
+
 @media (max-width: 420px) {
   .bfg-shooting-actions,
   .bfg-firing-analysis,

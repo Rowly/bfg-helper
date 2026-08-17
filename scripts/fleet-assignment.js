@@ -3,6 +3,7 @@ import { MODULE_ID, FLAG_KEY } from "./constants.js";
 import { getTurnState } from "./turn-manager.js";
 import { syncTokenRotationLock } from "./rotation-locking.js";
 import { getCombatState, initialiseCombatState } from "./combat-state.js";
+import { getLeadership, getEffectiveLeadership } from "./leadership.js";
 
 function selectedShip() {
   const controlled = canvas.tokens.controlled;
@@ -146,6 +147,7 @@ export function getFleetShips(fleetId) {
       const actor = getBaseActor(token);
       const data = getShipData(actor);
       const combatState = getCombatState(token);
+      const leadership = getLeadership(token);
       const boarding = token.document.getFlag(MODULE_ID, "boardingAction");
       const pendingHitAndRun = Math.max(0, Math.trunc(Number(token.document.getFlag(MODULE_ID, "pendingHitAndRun")?.count) || 0));
       const pendingActions = [];
@@ -159,6 +161,7 @@ export function getFleetShips(fleetId) {
       }
       if (pendingHitAndRun > 0) pendingActions.push(`Pending Hit-and-Run x${pendingHitAndRun}`);
       if (specialOrder?.name) pendingActions.push(`Special Order: ${specialOrder.name}`);
+      const effectiveLeadership = leadership ? getEffectiveLeadership(token) : null;
       return {
         tokenId: token.document.id,
         actorId: actor?.id ?? null,
@@ -166,6 +169,10 @@ export function getFleetShips(fleetId) {
         shipClass: data?.shipClass ?? actor?.name ?? "Unconfigured ship",
         faction: data?.faction ?? "",
         combatState,
+        leadership,
+        effectiveLeadership,
+        leadershipAdjusted: Boolean(leadership && effectiveLeadership !== leadership.value),
+        hasLeadership: Boolean(leadership),
         pendingActions,
         hasCombatState: Boolean(combatState),
         combatStatus: combatState?.catastrophicState?.name

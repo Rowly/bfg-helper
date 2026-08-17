@@ -88,6 +88,13 @@ function normaliseFleetName(value, fallback) {
 export async function startBattle({ fleetA, fleetB, startingFleetIndex = 0 } = {}) {
   if (!requireGM()) return false;
 
+  const { getShipsMissingLeadership } = await import("./leadership.js");
+  const missingLeadership = getShipsMissingLeadership();
+  if (missingLeadership.length) {
+    ui.notifications.warn(`Assign starting Leadership before beginning the battle: ${missingLeadership.map(token => token.name).join(", ")}.`);
+    return false;
+  }
+
   const state = defaultState();
   state.battleStarted = true;
   state.battleId = foundry.utils.randomID();

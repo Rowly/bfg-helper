@@ -5,6 +5,78 @@ export const SHOOTING_EFFECTS_SPEED = "shootingEffectsSpeed";
 
 const activeEffects = new Set();
 const PROJECTILE_CAP = 8;
+const EFFECT_SOCKET = `module.${MODULE_ID}`;
+let socketInitialised = false;
+
+function emitEffect(type, data) {
+  game.socket?.emit(EFFECT_SOCKET, {
+    event: "combat-animation",
+    type,
+    data,
+    sceneId: canvas?.scene?.id ?? null,
+    senderId: game.user?.id ?? null
+  });
+}
+
+function directFirePayload(resolution) {
+  return {
+    attackerId: resolution?.attackerId,
+    targetId: resolution?.targetId,
+    weaponType: resolution?.weaponType,
+    results: [...(resolution?.results ?? [])],
+    hitTarget: resolution?.hitTarget,
+    isOrdnance: Boolean(resolution?.isOrdnance),
+    ordnanceHit: Boolean(resolution?.ordnanceHit),
+    damage: {
+      shieldHits: Number(resolution?.damage?.shieldHits ?? 0),
+      hullHits: Number(resolution?.damage?.hullHits ?? 0),
+      critical: { results: Array(Number(resolution?.damage?.critical?.results?.length ?? 0)).fill(true) }
+    }
+  };
+}
+
+function ordnancePayload(outcome) {
+  return {
+    shotDown: Number(outcome?.shotDown ?? 0),
+    turretVictims: Array(Number(outcome?.turretVictims?.length ?? 0)).fill(true),
+    intercepted: Array(Number(outcome?.intercepted?.length ?? 0)).fill(true),
+    afterTurrets: Array(Number(outcome?.afterTurrets?.length ?? 0)).fill(true),
+    attackingStrength: Number(outcome?.attackingStrength ?? 0),
+    turretDice: Number(outcome?.turretDice ?? 0),
+    defensiveTurretDice: Number(outcome?.defensiveTurretDice ?? 0),
+    hits: Number(outcome?.hits ?? 0),
+    brace: { unsaved: Number(outcome?.brace?.unsaved ?? 0) },
+    critical: { results: Array(Number(outcome?.critical?.results?.length ?? 0)).fill(true) },
+    pendingHitAndRun: Number(outcome?.pendingHitAndRun ?? 0),
+    removed: Boolean(outcome?.removed),
+    catastrophic: Boolean(outcome?.catastrophic)
+  };
+}
+
+export function initialiseShootingEffectSocket() {
+  if (socketInitialised) return;
+  socketInitialised = true;
+  game.socket.on(EFFECT_SOCKET, message => {
+    if (message?.event !== "combat-animation" || message.senderId === game.user?.id) return;
+    if (!canvas?.ready || message.sceneId !== canvas.scene?.id) return;
+    const data = message.data ?? {};
+    if (message.type === "direct-fire") void playDirectFireAnimation({ ...data, remote: true });
+    else if (message.type === "nova-cannon") void playNovaCannonAnimation({ ...data, remote: true });
+    else if (message.type === "ordnance") {
+      const attackers = (data.attackerIds ?? []).map(id => canvas.tokens?.get(id)).filter(Boolean);
+      const target = canvas.tokens?.get(data.targetId);
+      void playOrdnanceAttackAnimation({ attackers, target, outcome: data.outcome, kind: data.kind, remote: true });
+    } else if (message.type === "torpedo") {
+      const salvo = canvas.tokens?.get(data.salvoId);
+      const target = canvas.tokens?.get(data.targetId);
+      void playTorpedoReplayAnimation({ salvo, target, outcome: data.outcome, speedCm: data.speedCm, remote: true });
+    } else if (message.type === "ramming") {
+      const rammer = canvas.tokens?.get(data.rammerId);
+      const target = canvas.tokens?.get(data.targetId);
+      void playRammingAnimation({ rammer, target, outcome: data.outcome, remote: true });
+    }
+  });
+}
 
 export function registerShootingEffectSettings() {
   game.settings.register(MODULE_ID, SHOOTING_EFFECTS_ENABLED, {
@@ -158,6 +230,7 @@ export async function playDirectFireAnimation(resolution) {
   const type = String(resolution.weaponType ?? "").toLowerCase();
   if (!['lance', 'battery'].includes(type)) return false;
   if (!(resolution.results?.length > 0)) return false;
+  if (!resolution.remote) emitEffect("direct-fire", directFirePayload(resolution));
 
   const graphics = new PIXI.Graphics();
   graphics.name = `bfg-shooting-effect-${foundry.utils.randomID()}`;
@@ -262,6 +335,14 @@ export async function playNovaCannonAnimation(outcome) {
   const aim = outcome?.aimPoint;
   const final = outcome?.finalPoint;
   if (!attacker || !aim || !final) return false;
+  if (!outcome.remote) emitEffect("nova-cannon", {
+    attackerId: outcome.attackerId,
+    aimPoint: outcome.aimPoint,
+    finalPoint: outcome.finalPoint,
+    directHit: Boolean(outcome.directHit),
+    shipResults: Array(Number(outcome.shipResults?.length ?? 0)).fill(true),
+    ordnanceIds: [...(outcome.ordnanceIds ?? [])]
+  });
 
   const graphics = new PIXI.Graphics();
   graphics.name = `bfg-nova-effect-${foundry.utils.randomID()}`;
@@ -323,8 +404,14 @@ function ordnanceImpactCounts(outcome) {
   };
 }
 
-export async function playOrdnanceAttackAnimation({ attackers = [], target, outcome, kind = "attack-craft" } = {}) {
+export async function playOrdnanceAttackAnimation({ attackers = [], target, outcome, kind = "attack-craft", remote = false } = {}) {
   if (!game.settings.get(MODULE_ID, SHOOTING_EFFECTS_ENABLED) || !canvas?.ready || !target || !attackers.length) return false;
+  if (!remote) emitEffect("ordnance", {
+    attackerIds: attackers.map(attacker => attacker.id),
+    targetId: target.id,
+    outcome: ordnancePayload(outcome),
+    kind
+  });
   const graphics = new PIXI.Graphics();
   graphics.name = `bfg-ordnance-effect-${foundry.utils.randomID()}`;
   graphics.eventMode = "none";
@@ -434,8 +521,14 @@ function firstContactProgress(start, end, target, salvo) {
   return Math.max(0, Math.min(1, -((start.x - target.center.x) * dx + (start.y - target.center.y) * dy) / a));
 }
 
-export async function playTorpedoReplayAnimation({ salvo, target, outcome, speedCm = 0 } = {}) {
+export async function playTorpedoReplayAnimation({ salvo, target, outcome, speedCm = 0, remote = false } = {}) {
   if (!game.settings.get(MODULE_ID, SHOOTING_EFFECTS_ENABLED) || !canvas?.ready || !salvo || !target) return false;
+  if (!remote) emitEffect("torpedo", {
+    salvoId: salvo.id,
+    targetId: target.id,
+    outcome: ordnancePayload(outcome),
+    speedCm: Number(speedCm)
+  });
   speedCm = Math.max(0, Number(speedCm));
   const scale = novaScale();
   const radians = Number(salvo.document.rotation ?? 0) * Math.PI / 180;
@@ -527,8 +620,16 @@ export async function playTorpedoReplayAnimation({ salvo, target, outcome, speed
   });
 }
 
-export async function playRammingAnimation({ rammer, target, outcome } = {}) {
+export async function playRammingAnimation({ rammer, target, outcome, remote = false } = {}) {
   if (!game.settings.get(MODULE_ID, SHOOTING_EFFECTS_ENABLED) || !canvas?.ready || !rammer || !target) return false;
+  if (!remote) emitEffect("ramming", {
+    rammerId: rammer.id,
+    targetId: target.id,
+    outcome: {
+      againstTarget: ordnancePayload(outcome?.againstTarget),
+      againstRammer: ordnancePayload(outcome?.againstRammer)
+    }
+  });
   const graphics = new PIXI.Graphics();
   graphics.name = `bfg-ramming-effect-${foundry.utils.randomID()}`;
   graphics.eventMode = "none";

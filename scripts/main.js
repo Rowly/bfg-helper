@@ -93,7 +93,7 @@ import {
   rollSelectedShipLeadership,
   setLeadership
 } from "./leadership.js";
-import { clearAllShootingEffects, registerShootingEffectSettings } from "./shooting-effects.js";
+import { clearAllShootingEffects, initialiseShootingEffectSocket, registerShootingEffectSettings } from "./shooting-effects.js";
 
 Hooks.once("init", () => {
   console.log("BFG Helper | Initialising");
@@ -114,6 +114,7 @@ async function configureProfile(profileFactory) {
 }
 
 Hooks.once("ready", () => {
+  initialiseShootingEffectSocket();
   initialiseOrdnanceControls();
   initialiseQuantitySteppers();
   game.bfgHelper = {

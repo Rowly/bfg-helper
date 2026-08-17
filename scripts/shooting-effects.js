@@ -527,6 +527,96 @@ export async function playTorpedoReplayAnimation({ salvo, target, outcome, speed
   });
 }
 
+export async function playRammingAnimation({ rammer, target, outcome } = {}) {
+  if (!game.settings.get(MODULE_ID, SHOOTING_EFFECTS_ENABLED) || !canvas?.ready || !rammer || !target) return false;
+  const graphics = new PIXI.Graphics();
+  graphics.name = `bfg-ramming-effect-${foundry.utils.randomID()}`;
+  graphics.eventMode = "none";
+  canvas.tokens.addChild(graphics);
+  const reduced = game.settings.get(MODULE_ID, SHOOTING_EFFECTS_SPEED) === "reduced";
+  const duration = reduced ? 760 : 1400;
+  const impact = pointAlong(rammer.center, target.center, 0.5);
+  const dx = target.center.x - rammer.center.x;
+  const dy = target.center.y - rammer.center.y;
+  const length = Math.hypot(dx, dy) || 1;
+  const direction = { x: dx / length, y: dy / length };
+  const perpendicular = { x: -direction.y, y: direction.x };
+  const targetDamage = Math.max(0, Number(outcome?.againstTarget?.brace?.unsaved ?? 0));
+  const rammerDamage = Math.max(0, Number(outcome?.againstRammer?.brace?.unsaved ?? 0));
+  const targetCritical = Math.max(0, Number(outcome?.againstTarget?.critical?.results?.length ?? 0));
+  const rammerCritical = Math.max(0, Number(outcome?.againstRammer?.critical?.results?.length ?? 0));
+  const catastrophic = Boolean(outcome?.againstTarget?.catastrophic || outcome?.againstRammer?.catastrophic);
+
+  return new Promise(resolve => {
+    const effect = { graphics, frame: null, resolve };
+    activeEffects.add(effect);
+    const started = performance.now();
+    const finish = result => {
+      if (effect.frame !== null) cancelAnimationFrame(effect.frame);
+      if (!graphics.destroyed) graphics.destroy({ children: true });
+      activeEffects.delete(effect);
+      resolve(result);
+    };
+    const frame = now => {
+      try {
+        if (graphics.destroyed || !canvas?.ready) return finish(false);
+        const progress = Math.min(1, (now - started) / duration);
+        graphics.clear();
+
+        if (progress < 0.38) {
+          const strike = Math.min(1, progress / 0.24);
+          const trailStart = {
+            x: rammer.center.x - direction.x * Math.max(rammer.w, rammer.h) * 0.55,
+            y: rammer.center.y - direction.y * Math.max(rammer.w, rammer.h) * 0.55
+          };
+          const trailEnd = pointAlong(trailStart, impact, strike);
+          graphics.lineStyle(8, 0xffcc66, 0.25 + strike * 0.6);
+          graphics.moveTo(trailStart.x, trailStart.y);
+          graphics.lineTo(trailEnd.x, trailEnd.y);
+          graphics.lineStyle(3, 0xffffff, 0.85);
+          graphics.moveTo(trailStart.x, trailStart.y);
+          graphics.lineTo(trailEnd.x, trailEnd.y);
+        }
+
+        if (progress >= 0.16) {
+          const shock = Math.min(1, (progress - 0.16) / 0.55);
+          const alpha = Math.sin(shock * Math.PI);
+          graphics.lineStyle(6, catastrophic ? 0xff4433 : 0xffdd88, alpha);
+          graphics.drawCircle(impact.x, impact.y, 10 + shock * Math.max(target.w, target.h) * 0.85);
+          graphics.beginFill(0xffffff, alpha * 0.55);
+          graphics.drawCircle(impact.x, impact.y, Math.max(3, 20 * (1 - shock)));
+          graphics.endFill();
+          for (let index = 0; index < 8; index += 1) {
+            const side = (index - 3.5) * 8;
+            const travel = 12 + shock * (35 + index * 4);
+            const start = offsetPoint(impact, perpendicular, side);
+            graphics.lineStyle(index % 2 ? 2 : 3, index % 2 ? 0xff8833 : 0xffe0a3, alpha);
+            graphics.moveTo(start.x, start.y);
+            graphics.lineTo(start.x + direction.x * travel, start.y + direction.y * travel);
+          }
+        }
+
+        if (progress >= 0.48) {
+          const damageProgress = Math.min(1, (progress - 0.48) / 0.52);
+          drawImpacts(graphics, target, damageProgress, { shield: 0, hull: targetDamage, critical: targetCritical });
+          drawImpacts(graphics, rammer, damageProgress, { shield: 0, hull: rammerDamage, critical: rammerCritical });
+          if (catastrophic) drawImpact(graphics, impact, 28 + damageProgress * 75, 0xff3322, Math.sin(damageProgress * Math.PI), 6);
+        }
+
+        if (progress < 1) {
+          effect.frame = requestAnimationFrame(frame);
+          return;
+        }
+        finish(true);
+      } catch (error) {
+        console.error("BFG Helper | Ramming animation failed", error);
+        finish(false);
+      }
+    };
+    effect.frame = requestAnimationFrame(frame);
+  });
+}
+
 export function clearAllShootingEffects() {
   for (const effect of activeEffects) {
     if (effect.frame !== null) cancelAnimationFrame(effect.frame);

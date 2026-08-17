@@ -11,6 +11,7 @@ import {
   rollBraceSaves
 } from "./special-orders.js";
 import { getEffectiveLeadership } from "./leadership.js";
+import { playRammingAnimation } from "./shooting-effects.js";
 
 const RAMMING_SIZE_RANK = Object.freeze({ escort: 1, cruiser: 2, battleship: 3, defence: 4 });
 
@@ -177,10 +178,12 @@ export async function resolveRamAtContact(rammer, target, contactPoint) {
       }
       const againstTarget = await rollRamDamage(rammer, target, rammerDice, targetArmour, `${rammer.name}: Ramming damage against ${target.name}`);
       const againstRammer = await rollRamDamage(target, rammer, returnDice, rammerArmour, `${target.name}: Return ramming damage against ${rammer.name}`);
-      return {
+      const outcome = {
         facing, againstTarget, againstRammer,
         resultHtml: `<h3>Ramming result</h3><div class="bfg-action-confirmation"><div><span>${target.name} Brace for Impact</span><strong>${targetBraceStatus}</strong></div><div><span>${rammer.name} dice (${rammerDice}d6, needing ${targetArmour}+)</span><strong>${againstTarget.results.join(", ") || "None"}</strong></div><div><span>Hits on ${target.name}</span><strong>${againstTarget.hits}</strong></div><div><span>${target.name} Brace saves</span><strong>${againstTarget.brace.dice.join(", ") || "None"}; saved ${againstTarget.brace.saved}</strong></div><div><span>${target.name} critical checks (${againstTarget.brace.unsaved}d6, needing 6)</span><strong>${againstTarget.critical.checkResults.join(", ") || "None"}</strong></div><div><span>${target.name} critical effects</span><strong>${foundry.utils.escapeHTML(criticalSummary(againstTarget.critical))}</strong></div><div><span>${target.name} catastrophic result</span><strong>${foundry.utils.escapeHTML(catastrophicSummary(againstTarget.catastrophic))}</strong></div><div><span>${target.name} remaining hull</span><strong>${againstTarget.remainingHull}</strong></div><div><span>${target.name} dice (${returnDice}d6, needing ${rammerArmour}+)</span><strong>${againstRammer.results.join(", ") || "None"}</strong></div><div><span>Hits on ${rammer.name}</span><strong>${againstRammer.hits}</strong></div><div><span>${rammer.name} Brace saves</span><strong>${againstRammer.brace.dice.join(", ") || "None"}; saved ${againstRammer.brace.saved}</strong></div><div><span>${rammer.name} critical checks (${againstRammer.brace.unsaved}d6, needing 6)</span><strong>${againstRammer.critical.checkResults.join(", ") || "None"}</strong></div><div><span>${rammer.name} critical effects</span><strong>${foundry.utils.escapeHTML(criticalSummary(againstRammer.critical))}</strong></div><div><span>${rammer.name} catastrophic result</span><strong>${foundry.utils.escapeHTML(catastrophicSummary(againstRammer.catastrophic))}</strong></div><div><span>${rammer.name} remaining hull</span><strong>${againstRammer.remainingHull}</strong></div></div><p>Review both ships' damage before applying it. Resolve any listed catastrophic explosion immediately.</p>`
       };
+      await playRammingAnimation({ rammer, target, outcome });
+      return outcome;
     },
     apply: async outcome => {
       if (getCombatState(rammer).currentHits !== rammerBefore.currentHits || getCombatState(target).currentHits !== targetBefore.currentHits) throw new Error("A ramming participant changed after the roll. Resolve the ram again.");

@@ -17,6 +17,7 @@ import {
   ORDNANCE_STATE_FLAG,
   clearOrdnanceMovementPreview,
   drawOrdnanceTrail,
+  refreshSharedOrdnanceTokens,
   getOrdnanceMarker,
   getOrdnanceState
 } from "./ordnance.js";
@@ -304,7 +305,8 @@ export async function launchSelectedShipTorpedoes() {
       }
     }
   });
-  await canvas.scene.createEmbeddedDocuments("Token", [tokenDocument.toObject()]);
+  const created = await canvas.scene.createEmbeddedDocuments("Token", [tokenDocument.toObject()]);
+  refreshSharedOrdnanceTokens(created.map(document => document.id));
   clearOrdnanceMovementPreview();
   drawOrdnanceTrail(torpedoStart(ship, rotation), center, grid * 2);
   await ship.document.setFlag(MODULE_ID, ORDNANCE_STATE_FLAG, { ...state, torpedoesLoaded: false });

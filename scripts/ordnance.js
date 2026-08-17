@@ -12,6 +12,7 @@ export const ORDNANCE_MARKER_FLAG = "ordnanceMarker";
 export const ORDNANCE_STATE_FLAG = "ordnanceState";
 const ORDNANCE_PREVIEW_NAME = "bfg-ordnance-movement-preview";
 const ORDNANCE_TRAIL_PREFIX = "bfg-ordnance-trail-";
+const ORDNANCE_SOCKET = `module.${MODULE_ID}`;
 let ordnanceControlsInitialised = false;
 const blastMarkerChoices = new Map();
 const pendingAttackCraftDrags = new Map();
@@ -72,6 +73,33 @@ export function initialiseOrdnanceControls() {
   if (ordnanceControlsInitialised) return;
   ordnanceControlsInitialised = true;
 
+  game.socket?.on(ORDNANCE_SOCKET, message => {
+    if (message?.event !== "ordnance-canvas" || message.senderId === game.user?.id) return;
+    if (!canvas?.ready || message.sceneId !== canvas.scene?.id) return;
+    if (message.action === "trail") {
+      drawOrdnanceTrail(message.data.start, message.data.destination, message.data.widthPixels, {
+        colour: message.data.colour,
+        broadcast: false
+      });
+    } else if (message.action === "clear-trails") {
+      clearAllOrdnanceTrails({ notify: false, broadcast: false });
+    } else if (message.action === "refresh-tokens") {
+      const pending = new Set(message.data.tokenIds ?? []);
+      let attempts = 0;
+      const refresh = () => {
+        attempts += 1;
+        for (const id of [...pending]) {
+          const token = canvas.tokens?.get(id);
+          if (!token) continue;
+          token.renderFlags?.set?.({ refresh: true, refreshMesh: true });
+          pending.delete(id);
+        }
+        if (pending.size && attempts < 10) window.setTimeout(refresh, 200);
+      };
+      window.setTimeout(refresh, 100);
+    }
+  });
+
   document.addEventListener("pointerdown", event => {
     const dial = event.target?.closest?.(".bfg-bearing-dial");
     if (!dial) return;
@@ -113,6 +141,20 @@ export function initialiseOrdnanceControls() {
     const output = slider.nextElementSibling;
     if (output?.tagName === "OUTPUT") output.value = `${slider.value} cm`;
   });
+}
+
+function emitOrdnanceCanvas(action, data = {}) {
+  game.socket?.emit(ORDNANCE_SOCKET, {
+    event: "ordnance-canvas",
+    action,
+    data,
+    sceneId: canvas?.scene?.id ?? null,
+    senderId: game.user?.id ?? null
+  });
+}
+
+export function refreshSharedOrdnanceTokens(tokenIds) {
+  emitOrdnanceCanvas("refresh-tokens", { tokenIds: [...tokenIds] });
 }
 
 function selectedToken() {
@@ -342,7 +384,8 @@ export async function launchSelectedShipAttackCraft() {
     tokenData.push(tokenDataFromDocument(data));
   }
 
-  await canvas.scene.createEmbeddedDocuments("Token", tokenData);
+  const created = await canvas.scene.createEmbeddedDocuments("Token", tokenData);
+  refreshSharedOrdnanceTokens(created.map(document => document.id));
   await ship.document.setFlag(MODULE_ID, ORDNANCE_STATE_FLAG, {
     ...ordnanceState,
     attackCraftLoaded: false
@@ -495,7 +538,7 @@ export async function completeCAPShipMovement(tokenDocument, changes) {
   }
 }
 
-export function drawOrdnanceTrail(start, destination, widthPixels, { colour = 0xffcc66 } = {}) {
+export function drawOrdnanceTrail(start, destination, widthPixels, { colour = 0xffcc66, broadcast = true } = {}) {
   if (!canvas?.ready || !canvas.tokens) return null;
   const dx = Number(destination.x) - Number(start.x);
   const dy = Number(destination.y) - Number(start.y);
@@ -519,10 +562,11 @@ export function drawOrdnanceTrail(start, destination, widthPixels, { colour = 0x
   graphics.moveTo(start.x, start.y);
   graphics.lineTo(destination.x, destination.y);
   canvas.tokens.addChildAt(graphics, 0);
+  if (broadcast) emitOrdnanceCanvas("trail", { start, destination, widthPixels, colour });
   return graphics;
 }
 
-export function clearAllOrdnanceTrails({ notify = true } = {}) {
+export function clearAllOrdnanceTrails({ notify = true, broadcast = true } = {}) {
   let count = 0;
   for (const child of [...(canvas.tokens?.children ?? [])]) {
     if (!String(child?.name ?? "").startsWith(ORDNANCE_TRAIL_PREFIX)) continue;
@@ -530,6 +574,7 @@ export function clearAllOrdnanceTrails({ notify = true } = {}) {
     count += 1;
   }
   if (notify) ui.notifications.info(`Cleared ${count} ordnance path${count === 1 ? "" : "s"}.`);
+  if (broadcast) emitOrdnanceCanvas("clear-trails");
   return count;
 }
 

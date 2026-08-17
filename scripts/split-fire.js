@@ -223,7 +223,11 @@ export async function resolveSplitFire({ attackerId, weaponId, entries }) {
   }
   await markWeaponFired(attacker, weapon.id, context.state);
   const totalHits = results.reduce((sum, result) => sum + result.hits, 0);
-  const summary = results.map(result => `${foundry.utils.escapeHTML(result.targetName)}: allocation ${result.allocatedStrength}, ${result.attackDice}d6, ${result.hits} hit(s)`).join("<br>");
+  const summary = results.map(result => {
+    const base = `${foundry.utils.escapeHTML(result.targetName)}: allocation ${result.allocatedStrength}, ${result.attackDice}d6, ${result.hits} hit(s)`;
+    if (result.isOrdnance) return base;
+    return `${base}, shield damage ${result.damage.shieldHits}, hull damage ${result.damage.hullHits}, remaining shields ${result.damage.after.currentShields}, remaining hull ${result.damage.after.currentHits}`;
+  }).join("<br>");
   await ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ token: attacker.document }),
     content: `<div class="bfg-shooting-chat-result"><strong>${foundry.utils.escapeHTML(weapon.name)} split fire</strong><br>${summary}<br>Total hits: ${totalHits}.</div>`

@@ -1,7 +1,7 @@
 import { MODULE_ID } from "./constants.js";
 import { getShipData } from "./ship-data.js";
 import { getTokenFleetId } from "./fleet-assignment.js";
-import { requireUserCanControlToken } from "./fleet-control.js";
+import { getFleetController, requireUserCanControlToken } from "./fleet-control.js";
 import { getCombatState, halveRoundedUp } from "./combat-state.js";
 import { diceFaces, publishBFGDice } from "./dice.js";
 import { getTurnState, setTurnState } from "./turn-manager.js";
@@ -56,7 +56,11 @@ export async function rollBraceSaves(tokenOrDocument, damage, flavor = "Brace fo
   if (getSpecialOrder(tokenOrDocument)?.id !== "brace-for-impact" || count === 0) return { dice: [], saved: 0, unsaved: count };
   const document = tokenOrDocument?.document ?? tokenOrDocument;
   const roll = await new Roll(`${count}d6`).evaluate();
-  await publishBFGDice(roll, { speaker: ChatMessage.getSpeaker({ token: document }), flavor: `${document.name}: ${flavor}` });
+  await publishBFGDice(roll, {
+    speaker: ChatMessage.getSpeaker({ token: document }),
+    rollerUser: getFleetController(getTokenFleetId(document)) ?? game.user,
+    flavor: `${document.name}: ${flavor}`
+  });
   const dice = diceFaces(roll);
   const saved = dice.filter(value => value >= 4).length;
   return { dice, saved, unsaved: count - saved };
@@ -87,6 +91,7 @@ async function commandCheck(token, { blastContact = false, brace = false, orderN
   const consequence = !passed && !brace ? " No further normal Special Orders may be attempted by this fleet this turn." : "";
   await publishBFGDice(roll, {
     speaker: ChatMessage.getSpeaker({ token: token.document }),
+    rollerUser: brace ? getFleetController(getTokenFleetId(token)) ?? game.user : game.user,
     flavor: `${token.name}: ${label} Command check`,
     details: `Total ${total} against Leadership ${leadership}: ${passed ? "PASS" : "FAIL"}.${consequence}`
   });

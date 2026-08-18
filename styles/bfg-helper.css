@@ -622,6 +622,87 @@
   text-align: center;
 }
 
+.bfg-interactive-movement-panel {
+  min-width: 0;
+  gap: 0.65rem;
+}
+
+.bfg-interactive-movement-instruction {
+  margin: 0;
+  padding: 0.65rem;
+  border: 1px solid rgba(102, 255, 153, 0.65);
+  border-left: 3px solid #66ff99;
+  border-radius: 5px;
+  background: rgba(102, 255, 153, 0.07);
+  line-height: 1.35;
+}
+
+.bfg-interactive-movement-instruction-gold {
+  border-color: rgba(255, 204, 102, 0.7);
+  border-left-color: #ffcc66;
+  background: rgba(255, 204, 102, 0.08);
+}
+
+.bfg-interactive-movement-rules {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+}
+
+.bfg-interactive-movement-rules > span {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid rgba(127, 127, 127, 0.3);
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.bfg-interactive-movement-summary {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.55rem;
+  border: 1px solid rgba(102, 204, 255, 0.5);
+  border-radius: 5px;
+  background: rgba(102, 204, 255, 0.06);
+}
+
+.bfg-interactive-movement-summary > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.bfg-interactive-movement-summary span {
+  flex: 0 0 auto;
+  font-size: 0.75rem;
+  opacity: 0.72;
+}
+
+.bfg-interactive-movement-summary strong {
+  text-align: right;
+}
+
+.bfg-interactive-movement-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+}
+
+.bfg-interactive-movement-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 34px;
+}
+
+.bfg-interactive-movement-actions [data-bfg-action="execute-movement"] {
+  grid-column: 1 / -1;
+}
+
 @media (max-width: 420px) {
   .bfg-movement-fields,
   .bfg-movement-context,

@@ -1,29 +1,18 @@
-<div class="bfg-movement-planner-panel">
+<div class="bfg-movement-planner-panel bfg-interactive-movement-panel">
   {{#if invalid}}
     <p class="notification error">{{error}}</p>
   {{else}}
     <header class="bfg-movement-heading">
       <div>
-        <p class="bfg-turn-manager-kicker">Movement planner</p>
+        <p class="bfg-turn-manager-kicker">Interactive movement</p>
         <h2>{{tokenName}}</h2>
         <p class="notes">{{shipClass}}</p>
       </div>
       <div class="bfg-movement-speed-badge">
-        <span>Speed</span>
-        <strong>{{speedCm}} cm</strong>
+        <span>Maximum</span>
+        <strong>{{maximumMovementCm}} cm</strong>
       </div>
     </header>
-
-    <section class="bfg-movement-context">
-      <div>
-        <span>Ship fleet</span>
-        <strong>{{fleetName}}</strong>
-      </div>
-      <div>
-        <span>Active fleet</span>
-        <strong>{{activeFleetName}}</strong>
-      </div>
-    </section>
 
     {{#if hasWarnings}}
       <section class="bfg-movement-warnings">
@@ -33,12 +22,24 @@
       </section>
     {{/if}}
 
-    <section class="bfg-movement-rules">
-      <span>Profile speed <strong>{{profileSpeedCm}} cm</strong></span>
-      <span>Minimum movement <strong>{{minimumMovementCm}} cm</strong></span>
-      <span>Maximum movement <strong>{{speedCm}} cm</strong></span>
+    <p class="bfg-interactive-movement-instruction bfg-interactive-movement-instruction-green">
+      <strong>Movement:</strong> Click the green disk to pick it up. Left-click to place it or right-click to drop it without turning.
+    </p>
+    <p class="bfg-interactive-movement-instruction bfg-interactive-movement-instruction-gold">
+      <strong>Turning:</strong> After placing the disk, move the pointer within the gold arc and click to set the heading. Escorts may click the gold disk at the ship to turn immediately.
+    </p>
+
+    <section class="bfg-interactive-movement-rules">
+      <span>Minimum <strong>{{minimumMovementCm}} cm</strong></span>
       <span>Turn after <strong>{{minimumBeforeTurnCm}} cm</strong></span>
-      <span>Maximum turn <strong>{{maximumTurnDegrees}} degrees</strong></span>
+      <span>Turn limit <strong>{{maximumTurnDegrees}} degrees</strong></span>
+      <span>Turns <strong>{{maximumTurns}}</strong></span>
+    </section>
+
+    <section class="bfg-interactive-movement-summary">
+      <div><span>Planned route</span><strong data-bfg-movement-summary>Preparing path</strong></div>
+      <div><span>Total movement</span><strong data-bfg-movement-distance>0 cm</strong></div>
+      <div><span>Final facing</span><strong data-bfg-movement-facing>0 degrees</strong></div>
     </section>
 
     <label class="bfg-movement-blast-marker">
@@ -46,121 +47,18 @@
       <span>Move through Blast Marker (-5 cm maximum movement)</span>
     </label>
 
-    <div class="bfg-movement-fields">
-      <label>
-        <span>Total movement (cm)</span>
-        <input
-          type="number"
-          name="distanceCm"
-          min="{{minimumMovementCm}}"
-          max="{{speedCm}}"
-          value="{{defaultDistanceCm}}"
-          step="0.5"
-        >
-      </label>
+    <p class="bfg-movement-status" data-bfg-movement-status data-status="normal">Preparing movement handles</p>
 
-      <label>
-        <span>Distance before turn (cm)</span>
-        <input
-          type="number"
-          name="beforeTurnCm"
-          min="0"
-          max="{{speedCm}}"
-          value="{{defaultBeforeTurnCm}}"
-          step="0.5"
-        >
-      </label>
-    </div>
-
-    <section class="bfg-turn-slider-section{{#if turningUnavailable}} bfg-turn-slider-locked{{/if}}">
-      <div class="bfg-turn-slider-heading">
-        <span>Turn</span>
-        <strong data-bfg-turn-slider-value data-direction="straight">Straight ahead</strong>
-      </div>
-
-      <div class="bfg-turn-slider-labels" aria-hidden="true">
-        <span>Port {{maximumTurnDegrees}} degrees</span>
-        <span>Straight</span>
-        <span>Starboard {{maximumTurnDegrees}} degrees</span>
-      </div>
-
-      <input
-        class="bfg-turn-slider"
-        type="range"
-        name="signedTurnDegrees"
-        min="-{{turnSliderMaximum}}"
-        max="{{turnSliderMaximum}}"
-        value="{{defaultSignedTurnDegrees}}"
-        step="1"
-        aria-label="Turn angle: port through straight ahead to starboard"
-        {{#if turningUnavailable}}disabled{{/if}}
-      >
-
-      <div class="bfg-turn-slider-scale" aria-hidden="true">
-        <span>-{{maximumTurnDegrees}} degrees</span>
-        <span>0 degrees</span>
-        <span>+{{maximumTurnDegrees}} degrees</span>
-      </div>
-      {{#if turningUnavailable}}
-        <div class="bfg-turn-slider-lock-overlay">
-          <i class="fa-solid fa-crosshairs"></i>
-          <strong>{{turningLockTitle}}</strong>
-          <span>{{turningLockMessage}}</span>
-        </div>
-      {{/if}}
-    </section>
-
-    {{#if allowsSecondTurn}}
-      <div class="bfg-movement-fields">
-        <label>
-          <span>Distance after first turn before second turn (cm)</span>
-          <input type="number" name="beforeSecondTurnCm" min="0" max="{{speedCm}}" value="{{defaultBeforeSecondTurnCm}}" step="0.5">
-        </label>
-      </div>
-      <section class="bfg-turn-slider-section">
-        <div class="bfg-turn-slider-heading">
-          <span>Second turn</span>
-          <strong data-bfg-second-turn-slider-value data-direction="straight">Straight ahead</strong>
-        </div>
-        <div class="bfg-turn-slider-labels" aria-hidden="true">
-          <span>Port {{maximumTurnDegrees}} degrees</span><span>Straight</span><span>Starboard {{maximumTurnDegrees}} degrees</span>
-        </div>
-        <input class="bfg-turn-slider" type="range" name="secondSignedTurnDegrees" min="-{{maximumTurnDegrees}}" max="{{maximumTurnDegrees}}" value="{{defaultSecondSignedTurnDegrees}}" step="1" aria-label="Second turn angle">
-      </section>
-    {{/if}}
-
-    <p class="bfg-movement-status" data-bfg-movement-status data-status="normal">
-      {{previewSummary}}
-    </p>
-
-    <div class="bfg-movement-actions">
-      <button type="button" data-bfg-action="preview-movement" class="bfg-primary-button">
-        <i class="fa-solid fa-route"></i>
-        Preview movement
+    <div class="bfg-interactive-movement-actions">
+      <button type="button" data-bfg-action="reset-movement">
+        <i class="fa-solid fa-arrow-rotate-left"></i> Reset path
       </button>
-      <button type="button" data-bfg-action="clear-movement-preview">
-        <i class="fa-solid fa-eraser"></i>
-        Clear preview
+      <button type="button" data-bfg-action="cancel-movement">
+        <i class="fa-solid fa-xmark"></i> Cancel
+      </button>
+      <button type="button" data-bfg-action="execute-movement" class="bfg-primary-button">
+        <i class="fa-solid fa-check"></i> Confirm movement
       </button>
     </div>
-
-    <button
-      type="button"
-      data-bfg-action="execute-movement"
-      class="bfg-primary-button bfg-full-width"
-      {{#unless canExecute}}disabled{{/unless}}
-    >
-      <i class="fa-solid fa-check"></i>
-      Execute movement
-    </button>
-
-    <button type="button" data-bfg-action="reset-movement" class="bfg-full-width">
-      <i class="fa-solid fa-arrow-rotate-left"></i>
-      Reset planner
-    </button>
-
-    <p class="notes bfg-movement-preview-note">
-      Execute movement commits the currently plotted route. Changing an input or closing the planner clears the preview.
-    </p>
   {{/if}}
 </div>

@@ -115,6 +115,18 @@ function offsetPoint(point, perpendicular, amount) {
   return { x: point.x + perpendicular.x * amount, y: point.y + perpendicular.y * amount };
 }
 
+const EFFECT_SIZE = 1.65;
+const EFFECT_OUTLINE = 0x071018;
+
+function drawContrastingLine(graphics, start, end, colour, alpha, width) {
+  graphics.lineStyle(width + 5, EFFECT_OUTLINE, alpha * 0.8);
+  graphics.moveTo(start.x, start.y);
+  graphics.lineTo(end.x, end.y);
+  graphics.lineStyle(width, colour, alpha);
+  graphics.moveTo(start.x, start.y);
+  graphics.lineTo(end.x, end.y);
+}
+
 function projectileDestination(start, target, index, hit) {
   const dx = target.x - start.x;
   const dy = target.y - start.y;
@@ -127,8 +139,8 @@ function projectileDestination(start, target, index, hit) {
 }
 
 function drawTeardrop(graphics, point, angle, colour, alpha) {
-  const length = 15;
-  const width = 4.5;
+  const length = 15 * EFFECT_SIZE;
+  const width = 4.5 * EFFECT_SIZE;
   const cos = Math.cos(angle);
   const sin = Math.sin(angle);
   const transform = (forward, side) => [
@@ -139,16 +151,20 @@ function drawTeardrop(graphics, point, angle, colour, alpha) {
   const left = transform(-length * 0.45, width);
   const tail = transform(-length * 0.75, 0);
   const right = transform(-length * 0.45, -width);
+  graphics.lineStyle(3, EFFECT_OUTLINE, alpha * 0.9);
   graphics.beginFill(colour, alpha);
   graphics.drawPolygon([...nose, ...left, ...tail, ...right]);
   graphics.endFill();
 }
 
 function drawImpact(graphics, centre, radius, colour, alpha, width = 3) {
-  graphics.lineStyle(width, colour, alpha);
-  graphics.drawCircle(centre.x, centre.y, radius);
+  const visibleRadius = radius * 1.4;
+  graphics.lineStyle(width + 5, EFFECT_OUTLINE, alpha * 0.72);
+  graphics.drawCircle(centre.x, centre.y, visibleRadius);
+  graphics.lineStyle(width + 2, colour, alpha);
+  graphics.drawCircle(centre.x, centre.y, visibleRadius);
   graphics.beginFill(colour, alpha * 0.35);
-  graphics.drawCircle(centre.x, centre.y, Math.max(2, radius * 0.3));
+  graphics.drawCircle(centre.x, centre.y, Math.max(4, visibleRadius * 0.34));
   graphics.endFill();
 }
 
@@ -197,10 +213,8 @@ function drawLances(graphics, attacker, target, resolution, progress, counts) {
     const destination = projectileDestination(attacker.center, target.center, index, hit);
     const end = pointAlong(attacker.center, destination, travel);
     const opacity = 0.35 + 0.55 * Math.sin(Math.min(1, travel) * Math.PI * 0.75);
-    graphics.lineStyle(index % 2 ? 2 : 4, hit ? 0x33ccff : 0x2288ff, opacity);
-    graphics.moveTo(attacker.center.x, attacker.center.y);
-    graphics.lineTo(end.x, end.y);
-    graphics.lineStyle(1, 0xccf6ff, opacity);
+    drawContrastingLine(graphics, attacker.center, end, hit ? 0x28bfff : 0x167ddd, opacity, index % 2 ? 6 : 9);
+    graphics.lineStyle(2.5, 0xe8fbff, opacity);
     graphics.moveTo(attacker.center.x, attacker.center.y);
     graphics.lineTo(end.x, end.y);
   }
@@ -280,8 +294,8 @@ function novaScale() {
 }
 
 function drawNovaShell(graphics, point, angle, alpha) {
-  const length = 28;
-  const width = 7;
+  const length = 28 * 1.5;
+  const width = 7 * 1.5;
   const cos = Math.cos(angle);
   const sin = Math.sin(angle);
   const transform = (forward, side) => [
@@ -292,12 +306,16 @@ function drawNovaShell(graphics, point, angle, alpha) {
   const left = transform(-length * 0.25, width);
   const tail = transform(-length * 0.6, 0);
   const right = transform(-length * 0.25, -width);
+  graphics.lineStyle(4, EFFECT_OUTLINE, alpha * 0.9);
   graphics.beginFill(0xeafcff, alpha);
   graphics.drawPolygon([...nose, ...left, ...tail, ...right]);
   graphics.endFill();
-  graphics.lineStyle(4, 0x55ccff, alpha * 0.7);
+  graphics.lineStyle(7, EFFECT_OUTLINE, alpha * 0.7);
   graphics.moveTo(...tail);
   const trail = transform(-length * 1.3, 0);
+  graphics.lineTo(...trail);
+  graphics.lineStyle(4, 0x55ccff, alpha * 0.95);
+  graphics.moveTo(...tail);
   graphics.lineTo(...trail);
 }
 
@@ -376,9 +394,7 @@ export async function playNovaCannonAnimation(outcome) {
           const point = pointAlong(aim, final, travel);
           const angle = Math.atan2(final.y - aim.y, final.x - aim.x);
           drawNovaShell(graphics, point, angle, 1);
-          graphics.lineStyle(2, 0x99ddff, 0.55);
-          graphics.moveTo(aim.x, aim.y);
-          graphics.lineTo(point.x, point.y);
+          drawContrastingLine(graphics, aim, point, 0x99ddff, 0.7, 4);
         }
         const detonationStart = outcome.directHit ? 0.52 : 0.64;
         drawNovaDetonation(graphics, final, Math.max(0, (progress - detonationStart) / (1 - detonationStart)), contacted);
@@ -446,12 +462,8 @@ export async function playOrdnanceAttackAnimation({ attackers = [], target, outc
           const approach = Math.min(1, progress / 0.5);
           const first = pointAlong(attackers[0].center, midpoint, approach);
           const second = pointAlong(target.center, midpoint, approach);
-          graphics.lineStyle(3, 0xffcc66, 0.8);
-          graphics.moveTo(attackers[0].center.x, attackers[0].center.y);
-          graphics.lineTo(first.x, first.y);
-          graphics.lineStyle(3, 0x66ccff, 0.8);
-          graphics.moveTo(target.center.x, target.center.y);
-          graphics.lineTo(second.x, second.y);
+          drawContrastingLine(graphics, attackers[0].center, first, 0xffcc66, 0.9, 6);
+          drawContrastingLine(graphics, target.center, second, 0x66ccff, 0.9, 6);
           if (outcome?.removed) drawImpact(graphics, midpoint, 8 + Math.max(0, progress - 0.4) * 45, 0xff8844, Math.sin(Math.max(0, progress - 0.35) / 0.65 * Math.PI), 4);
         } else {
           const defenseProgress = Math.min(1, progress / 0.34);
@@ -459,9 +471,7 @@ export async function playOrdnanceAttackAnimation({ attackers = [], target, outc
           for (let index = 0; index < defenseCount; index += 1) {
             const craft = attackers[index % attackers.length];
             const end = pointAlong(target.center, craft.center, defenseProgress);
-            graphics.lineStyle(2, index < capKills ? 0x55bbff : 0xff5555, 0.8);
-            graphics.moveTo(target.center.x, target.center.y);
-            graphics.lineTo(end.x, end.y);
+            drawContrastingLine(graphics, target.center, end, index < capKills ? 0x55bbff : 0xff5555, 0.9, 5);
             if (index < turretKills + capKills && progress > 0.22) drawImpact(graphics, craft.center, 5 + (progress - 0.22) * 18, 0xff8844, Math.max(0, 1 - progress), 2);
           }
 
@@ -475,9 +485,7 @@ export async function playOrdnanceAttackAnimation({ attackers = [], target, outc
               const angle = Math.atan2(destination.y - source.center.y, destination.x - source.center.x);
               if (kind === "torpedo") drawTeardrop(graphics, point, angle + Math.PI, 0xffaa55, 0.95);
               else {
-                graphics.lineStyle(3, 0xffdd88, 0.85);
-                graphics.moveTo(source.center.x, source.center.y);
-                graphics.lineTo(point.x, point.y);
+                drawContrastingLine(graphics, source.center, point, 0xffdd88, 0.92, 6);
               }
             }
           }
@@ -584,9 +592,14 @@ export async function playTorpedoReplayAnimation({ salvo, target, outcome, speed
           const turretCount = Math.min(PROJECTILE_CAP, Math.max(0, Number(outcome?.turretDice ?? 0)));
           for (let index = 0; index < turretCount; index += 1) {
             const spread = (index - (turretCount - 1) / 2) * 7;
-            graphics.lineStyle(2, 0xff5555, Math.sin(defense * Math.PI));
-            graphics.moveTo(target.center.x - position.x, target.center.y - position.y);
-            graphics.lineTo(spread, 0);
+            drawContrastingLine(
+              graphics,
+              { x: target.center.x - position.x, y: target.center.y - position.y },
+              { x: spread, y: 0 },
+              0xff5555,
+              Math.sin(defense * Math.PI),
+              5
+            );
           }
           for (let index = 0; index < Math.min(PROJECTILE_CAP, Number(outcome?.shotDown ?? 0)); index += 1) {
             drawImpact(graphics, { x: (index - 2) * 8, y: (index % 2 ? 7 : -7) }, 5 + defense * 13, 0xff8844, Math.sin(defense * Math.PI), 2);

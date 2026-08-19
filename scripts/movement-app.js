@@ -200,6 +200,17 @@ export class BFGMovementPlannerApplication extends HandlebarsApplicationMixin(Ap
       minimumBeforeTurnCm: Number(movementContext.movement.minimumBeforeTurnCm ?? 0),
       maximumTurnDegrees: Number(movementContext.movement.maximumTurnDegrees ?? 0),
       maximumTurns: Number(movementContext.movement.maximumTurns ?? 1),
+      turningUnavailable: Number(movementContext.movement.maximumTurnDegrees ?? 0) <= 0,
+      turningLockTitle: movementContext.specialOrder?.id === "lock-on"
+        ? "Locked On"
+        : movementContext.specialOrder?.id === "all-ahead-full"
+          ? "All Ahead Full"
+          : "Turning unavailable",
+      turningLockMessage: movementContext.specialOrder?.id === "lock-on"
+        ? "This order requires the ship to maintain its current heading."
+        : movementContext.specialOrder?.id === "all-ahead-full"
+          ? "This order prevents the ship from turning while moving at full thrust."
+          : "The ship cannot turn because of its current critical damage.",
       moveThroughBlastMarker: this.moveThroughBlastMarker,
       hasWarnings: movementContext.warnings.length > 0,
       warnings: movementContext.warnings

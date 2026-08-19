@@ -486,6 +486,9 @@ export async function resolveDirectFire(analysis, {
   const priorityLabel = priorityCheck
     ? `Target-priority test: ${priorityCheck.dice.join(", ")} = ${priorityCheck.total} against Leadership ${priorityCheck.leadership}: ${priorityCheck.passed ? "passed" : `failed; redirected to ${escape(analysis.targetName)}`}.<br>`
     : "";
+  const braceLabel = brace.dice.length
+    ? `<br>Brace for Impact saves (${brace.dice.length}d6, needing 4+): <strong>${escape(brace.dice.join(", "))}</strong>; Saved: <strong>${brace.saved}</strong>; Failed: <strong>${brace.unsaved}</strong>`
+    : "";
   await ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ token: attacker.document }),
     content: `
@@ -496,7 +499,7 @@ export async function resolveDirectFire(analysis, {
         Dice (${attackDice}d6): <strong>${escape(diceLabel)}</strong><br>
         Required: <strong>${hitTarget}+</strong>; Hits: <strong>${hits}</strong>
         <br>Shield damage: <strong>${damage.shieldHits}</strong>; Hull damage: <strong>${damage.hullHits}</strong>
-        <br>Brace saves: <strong>${escape(brace.dice.join(", ") || "None")}</strong>; Damage saved: <strong>${brace.saved}</strong>
+        ${braceLabel}
         <br>Critical checks: <strong>${escape(critical.checkResults.join(", ") || "None")}</strong>
         <br>Critical effects: <strong>${escape(criticalLabel)}</strong>
         <br>Catastrophic damage: <strong>${escape(catastrophicLabel)}</strong>

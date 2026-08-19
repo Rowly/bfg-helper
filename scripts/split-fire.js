@@ -226,7 +226,11 @@ export async function resolveSplitFire({ attackerId, weaponId, entries }) {
   const summary = results.map(result => {
     const base = `${foundry.utils.escapeHTML(result.targetName)}: allocation ${result.allocatedStrength}, ${result.attackDice}d6, ${result.hits} hit(s)`;
     if (result.isOrdnance) return base;
-    return `${base}, shield damage ${result.damage.shieldHits}, hull damage ${result.damage.hullHits}, remaining shields ${result.damage.after.currentShields}, remaining hull ${result.damage.after.currentHits}`;
+    const brace = result.damage.brace;
+    const braceSummary = brace?.dice?.length
+      ? `, Brace for Impact saves (${brace.dice.length}d6, needing 4+): ${brace.dice.join(", ")}, saved ${brace.saved}, failed ${brace.unsaved}`
+      : "";
+    return `${base}, shield damage ${result.damage.shieldHits}, hull damage ${result.damage.hullHits}${braceSummary}, remaining shields ${result.damage.after.currentShields}, remaining hull ${result.damage.after.currentHits}`;
   }).join("<br>");
   await ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ token: attacker.document }),

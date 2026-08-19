@@ -8,6 +8,24 @@
   font-weight: 600;
 }
 
+.bfg-optional-action {
+  padding: 0.75rem;
+  border: 2px solid #d6a64d;
+  border-radius: 6px;
+  background: rgba(178, 124, 36, 0.18);
+  box-shadow: 0 0 10px rgba(214, 166, 77, 0.22);
+}
+
+.bfg-optional-action strong {
+  display: block;
+  color: #f2cf86;
+  font-size: 1.05rem;
+}
+
+.bfg-optional-action p {
+  margin: 0.4rem 0 0;
+}
+
 .bfg-dialog select,
 .bfg-dialog input {
   width: 100%;
@@ -641,6 +659,20 @@
   border-color: rgba(255, 204, 102, 0.7);
   border-left-color: #ffcc66;
   background: rgba(255, 204, 102, 0.08);
+}
+
+.bfg-interactive-movement-instruction-red {
+  display: grid;
+  gap: 0.25rem;
+  border-color: rgba(255, 92, 92, 0.85);
+  border-left-color: #ff5c5c;
+  background: rgba(150, 24, 24, 0.22);
+  box-shadow: inset 0 0 12px rgba(255, 60, 60, 0.08);
+}
+
+.bfg-interactive-movement-instruction-red strong {
+  color: #ff9a9a;
+  font-size: 1.02rem;
 }
 
 .bfg-interactive-movement-rules {

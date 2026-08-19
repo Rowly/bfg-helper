@@ -26,6 +26,11 @@
   margin: 0.4rem 0 0;
 }
 
+.bfg-ram-declaration {
+  width: 100%;
+  max-width: 380px;
+}
+
 .bfg-dialog select,
 .bfg-dialog input {
   width: 100%;

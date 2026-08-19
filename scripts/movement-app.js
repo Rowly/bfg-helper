@@ -274,11 +274,6 @@ export class BFGMovementPlannerApplication extends HandlebarsApplicationMixin(Ap
     const point = this.canvasPoint(event);
     if (this.interaction.mode === "turn") {
       this.consumeCanvasEvent(event);
-      const angle = this.interaction.pendingTurn === 1 ? this.values.signedTurnDegrees : this.values.secondSignedTurnDegrees;
-      if (Math.abs(Number(angle)) < 1) {
-        ui.notifications.warn("Choose a turn of at least 1 degree, or right-click to cancel the turn.");
-        return;
-      }
       this.interaction.mode = "segment";
       this.interaction.pendingTurn = 0;
       this.updateInteractivePath();
@@ -397,10 +392,10 @@ export class BFGMovementPlannerApplication extends HandlebarsApplicationMixin(Ap
   beginTurn(index, atStart) {
     if (index === 1) {
       this.values.beforeTurnCm = atStart ? 0 : this.values.distanceCm;
-      this.values.signedTurnDegrees = 1;
+      this.values.signedTurnDegrees = 0;
     } else {
       this.values.beforeSecondTurnCm = this.values.distanceCm - this.values.beforeTurnCm;
-      this.values.secondSignedTurnDegrees = 1;
+      this.values.secondSignedTurnDegrees = 0;
     }
     this.interaction.mode = "turn";
     this.interaction.pendingTurn = index;

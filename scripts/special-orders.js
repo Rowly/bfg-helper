@@ -56,13 +56,14 @@ export async function rollBraceSaves(tokenOrDocument, damage, flavor = "Brace fo
   if (getSpecialOrder(tokenOrDocument)?.id !== "brace-for-impact" || count === 0) return { dice: [], saved: 0, unsaved: count };
   const document = tokenOrDocument?.document ?? tokenOrDocument;
   const roll = await new Roll(`${count}d6`).evaluate();
+  const dice = diceFaces(roll);
+  const saved = dice.filter(value => value >= 4).length;
   await publishBFGDice(roll, {
     speaker: ChatMessage.getSpeaker({ token: document }),
     rollerUser: getFleetController(getTokenFleetId(document)) ?? game.user,
-    flavor: `${document.name}: ${flavor}`
+    flavor: `${document.name}: ${flavor}`,
+    details: `Needs 4+: ${dice.map(value => `${value >= 4 ? "PASS" : "FAIL"}`).join(", ")}. Saved ${saved}; failed ${count - saved}.`
   });
-  const dice = diceFaces(roll);
-  const saved = dice.filter(value => value >= 4).length;
   return { dice, saved, unsaved: count - saved };
 }
 

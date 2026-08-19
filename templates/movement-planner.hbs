@@ -25,9 +25,16 @@
     <p class="bfg-interactive-movement-instruction bfg-interactive-movement-instruction-green">
       <strong>Movement:</strong> Click the green disk to pick it up. Left-click to place it or right-click to drop it without turning.
     </p>
-    <p class="bfg-interactive-movement-instruction bfg-interactive-movement-instruction-gold">
-      <strong>Turning:</strong> After placing the disk, move the pointer within the gold arc and click to set the heading. Escorts may click the gold disk at the ship to turn immediately.
-    </p>
+    {{#if turningUnavailable}}
+      <div class="bfg-interactive-movement-instruction bfg-interactive-movement-instruction-red">
+        <strong><i class="fa-solid fa-ban"></i> {{turningLockTitle}}</strong>
+        <span>{{turningLockMessage}}</span>
+      </div>
+    {{else}}
+      <p class="bfg-interactive-movement-instruction bfg-interactive-movement-instruction-gold">
+        <strong>Turning:</strong> After placing the disk, move the pointer within the gold arc and click to set the heading. Escorts may click the gold disk at the ship to turn immediately.
+      </p>
+    {{/if}}
 
     <section class="bfg-interactive-movement-rules">
       <span>Minimum <strong>{{minimumMovementCm}} cm</strong></span>

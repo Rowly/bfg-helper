@@ -22,19 +22,29 @@ function endPhaseActivationKey(state = getTurnState()) {
   return `${state.battleId ?? "no-battle"}:${state.round}:${state.activeFleetIndex}:end`;
 }
 
-/** Ships whose mandatory end-of-phase Fire! damage has not been resolved. */
-export function unresolvedFireDamageShips(state = getTurnState()) {
+/** Ships with repairable critical damage whose Damage Control has not been resolved. */
+export function unresolvedRepairableDamageShips(state = getTurnState()) {
   if (!state.battleStarted || state.phase !== "end") return [];
   const activeFleetId = state.fleets?.[state.activeFleetIndex]?.id;
   const activation = endPhaseActivationKey(state);
   return (canvas.tokens?.placeables ?? []).filter(token => {
     const combat = getCombatState(token);
+    const criticalState = getCriticalState(token);
+    const hasRepairableDamage = Object.values(CRITICAL_RESULTS)
+      .some(result => result.repairable && criticalCount(criticalState, result.id) > 0);
     return getTokenFleetId(token) === activeFleetId
       && combat
       && !combat.outOfAction
-      && combat.fires > 0
+      && hasRepairableDamage
       && token.document.getFlag(MODULE_ID, DAMAGE_CONTROL_FLAG)?.activation !== activation;
   });
+}
+
+export const unresolvedFireDamageShips = unresolvedRepairableDamageShips;
+
+export function blastMarkerRemovalResolved(state = getTurnState()) {
+  if (!state.battleStarted || state.phase !== "end" || !canvas.scene) return false;
+  return canvas.scene.getFlag(MODULE_ID, BLAST_REMOVAL_FLAG)?.activation === endPhaseActivationKey(state);
 }
 
 function selectedShip() {

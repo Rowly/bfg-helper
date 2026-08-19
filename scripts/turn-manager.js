@@ -169,10 +169,14 @@ export async function nextPhase() {
   }
 
   if (state.phase === "end") {
-    const { unresolvedFireDamageShips } = await import("./end-phase.js");
-    const unresolved = unresolvedFireDamageShips(state);
+    const { unresolvedRepairableDamageShips, blastMarkerRemovalResolved } = await import("./end-phase.js");
+    const unresolved = unresolvedRepairableDamageShips(state);
     if (unresolved.length) {
-      ui.notifications.warn(`Resolve Damage Control for ships with active fires before leaving the End Phase: ${unresolved.map(token => token.name).join(", ")}.`);
+      ui.notifications.warn(`Resolve Damage Control for ships with repairable critical damage before leaving the End Phase: ${unresolved.map(token => token.name).join(", ")}.`);
+      return false;
+    }
+    if (!blastMarkerRemovalResolved(state)) {
+      ui.notifications.warn("Complete and confirm the Remove Blast Markers step before leaving the End Phase.");
       return false;
     }
     const { clearFleetOrders } = await import("./special-orders.js");

@@ -77,10 +77,25 @@ export async function prepareRammingDeclaration(rammer) {
   const targetedId = [...(game.user?.targets ?? [])]
     .find(target => targets.some(candidate => candidate.document.id === target.document.id))?.document.id;
   const options = targets.map(target => `<option value="${target.document.id}" ${target.document.id === targetedId ? "selected" : ""}>${foundry.utils.escapeHTML(target.name)}</option>`).join("");
-  const choice = await foundry.applications.api.DialogV2.input({
+  const choice = await foundry.applications.api.DialogV2.wait({
     window: { title: `Declare Ram: ${rammer.name}` },
-    content: `<div class="bfg-dialog"><label>Ram target</label><select name="targetId">${options}</select><p>Select the enemy vessel this ship will attempt to ram. The target cannot be changed after the Leadership test.</p></div>`,
-    ok: { label: "Declare Ram", icon: "fa-solid fa-angles-up" },
+    content: `<form><div class="bfg-dialog"><div class="bfg-optional-action"><strong><i class="fa-solid fa-triangle-exclamation"></i> Ramming is optional</strong><p>This ship has passed its All Ahead Full Command check. You may declare one enemy vessel as its ram target, or continue the order without attempting a ram.</p></div><label>Ram target</label><select name="targetId">${options}</select><p>If you declare a ram, the target cannot be changed after the Leadership test.</p></div></form>`,
+    buttons: [
+      {
+        action: "ram",
+        label: "Declare Ram",
+        icon: "fa-solid fa-angles-up",
+        default: true,
+        callback: (_event, button) => new foundry.applications.ux.FormDataExtended(button.form).object
+      },
+      {
+        action: "no-ram",
+        label: "No Ram",
+        icon: "fa-solid fa-ban",
+        callback: () => null
+      }
+    ],
+    close: () => null,
     rejectClose: false,
     modal: true
   });

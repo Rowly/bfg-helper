@@ -1,0 +1,34 @@
+<div class="bfg-fleet-status-panel">
+  {{#each fleetCards}}
+    <section class="bfg-fleet-status-group{{#if active}} active{{/if}}">
+      <header><h2>{{name}}</h2></header>
+      {{#if hasShips}}
+        <div class="bfg-fleet-status-card-row">
+          {{#each ships}}
+            <article class="bfg-fleet-ship-card{{#if combatState.outOfAction}} out-of-action{{else if combatState.crippled}} crippled{{/if}}">
+              <header><strong>{{actorName}}</strong><small>{{shipClass}}</small></header>
+              {{#if hasCombatState}}
+                <div class="bfg-fleet-compact-stats bfg-combat-summary{{#if combatState.crippled}} crippled{{/if}}{{#if combatState.outOfAction}} out-of-action{{/if}}">
+                  <span title="{{#if hasLeadership}}{{leadership.rating}}, Leadership {{leadership.value}}{{#if leadershipAdjusted}}, effective Leadership {{effectiveLeadership}}{{/if}}{{else}}Leadership not assigned{{/if}}"><i class="fa-solid fa-user-shield"></i> {{#if hasLeadership}}{{effectiveLeadership}}{{else}}-{{/if}}</span>
+                  <span title="Current and maximum hull"><i class="fa-solid fa-heart"></i> {{combatState.currentHits}}/{{combatState.maximumHits}}</span>
+                  <span title="Current and maximum shields"><i class="fa-solid fa-shield-halved"></i> {{combatState.currentShields}}/{{combatState.maximumShields}}</span>
+                  <strong>{{combatStatus}}</strong>
+                </div>
+                {{#if hasTextStatuses}}<div class="bfg-fleet-status-effects">
+                  {{#if hasSpecialOrder}}<span class="order" title="{{specialOrderTooltip}}"><i class="fa-solid fa-scroll"></i> {{specialOrderName}}</span>{{/if}}
+                  {{#each criticalItems}}<span class="critical" title="{{tooltip}}"><i class="fa-solid fa-burst"></i> {{label}}</span>{{/each}}
+                  {{#if hasCatastrophicDamage}}<span class="catastrophic" title="{{catastrophicTooltip}}"><i class="fa-solid fa-explosion"></i> {{combatState.catastrophicState.name}}</span>{{/if}}
+                  {{#each nonOrderPendingActions}}<span class="pending" title="{{this}}"><i class="fa-solid fa-hourglass-half"></i> {{this}}</span>{{/each}}
+                </div>{{/if}}
+              {{else}}
+                <div class="bfg-fleet-compact-stats"><span title="Leadership"><i class="fa-solid fa-user-shield"></i> {{#if hasLeadership}}{{effectiveLeadership}}{{else}}-{{/if}}</span><strong>Uninitialised</strong></div>
+              {{/if}}
+            </article>
+          {{/each}}
+        </div>
+      {{else}}
+        <p class="notes">No ships assigned.</p>
+      {{/if}}
+    </section>
+  {{/each}}
+</div>

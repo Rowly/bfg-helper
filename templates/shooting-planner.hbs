@@ -277,9 +277,9 @@
       Select a weapon and check the firing solution before resolving the attack.
     </p>
 
-    <button type="button" data-bfg-action="clear-firing-solution" class="bfg-full-width">
+    <button type="button" data-bfg-action="clear-firing-solution" class="bfg-full-width" {{#if mustApplyBeforeClear}}disabled title="Apply or confirm the attack result first"{{/if}}>
       <i class="fa-solid fa-eraser"></i>
-      Clear firing solution
+      {{#if mustApplyBeforeClear}}Apply result before clearing{{else}}Clear firing solution{{/if}}
     </button>
   {{/if}}
 </div>

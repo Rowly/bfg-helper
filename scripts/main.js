@@ -111,6 +111,7 @@ import {
   syncAllFleetTokenOwnership,
   syncFleetTokenOwnership
 } from "./fleet-control.js";
+import { openFleetStatus, refreshFleetStatusApplication } from "./fleet-status-app.js";
 
 Hooks.once("init", () => {
   console.log("BFG Helper | Initialising");
@@ -174,6 +175,10 @@ Hooks.once("ready", () => {
       clearAssignment: clearSelectedShipFleet,
       getShips: getFleetShips,
       getTokenFleetId
+    },
+    fleetStatus: {
+      open: openFleetStatus,
+      refresh: refreshFleetStatusApplication
     },
     weaponArcs: {
       toggle: toggleWeaponDialog,
@@ -270,42 +275,50 @@ Hooks.on("bfgHelperTurnStateChanged", async () => {
   const { refreshTurnManagerApplication } = await import("./turn-manager-app.js");
   const { refreshShootingPlannerApplication } = await import("./shooting-app.js");
   refreshTurnManagerApplication();
+  refreshFleetStatusApplication();
   refreshShootingPlannerApplication({ clear: true });
 });
 
 Hooks.on("bfgHelperFleetAssignmentsChanged", async () => {
   const { refreshTurnManagerApplication } = await import("./turn-manager-app.js");
   refreshTurnManagerApplication();
+  refreshFleetStatusApplication();
 });
 
 Hooks.on("bfgHelperCombatStateChanged", async () => {
   const { refreshTurnManagerApplication } = await import("./turn-manager-app.js");
   refreshTurnManagerApplication();
+  refreshFleetStatusApplication();
 });
 
 Hooks.on("bfgHelperCriticalStateChanged", async () => {
   const { refreshTurnManagerApplication } = await import("./turn-manager-app.js");
   refreshTurnManagerApplication();
+  refreshFleetStatusApplication();
 });
 
 Hooks.on("bfgHelperCatastrophicStateChanged", async () => {
   const { refreshTurnManagerApplication } = await import("./turn-manager-app.js");
   refreshTurnManagerApplication();
+  refreshFleetStatusApplication();
 });
 
 Hooks.on("bfgHelperPendingActionsChanged", async () => {
   const { refreshTurnManagerApplication } = await import("./turn-manager-app.js");
   refreshTurnManagerApplication();
+  refreshFleetStatusApplication();
 });
 
 Hooks.on("bfgHelperSpecialOrdersChanged", async () => {
   const { refreshTurnManagerApplication } = await import("./turn-manager-app.js");
   refreshTurnManagerApplication();
+  refreshFleetStatusApplication();
 });
 
 Hooks.on("bfgHelperLeadershipChanged", async () => {
   const { refreshTurnManagerApplication } = await import("./turn-manager-app.js");
   refreshTurnManagerApplication();
+  refreshFleetStatusApplication();
 });
 
 Hooks.on("targetToken", async (user) => {
@@ -324,6 +337,7 @@ async function refreshTurnManagerForTokenStateChange(_tokenDocument, changes) {
   if (!hasBFGHelperFlagChanges(changes)) return;
   const { refreshTurnManagerApplication } = await import("./turn-manager-app.js");
   refreshTurnManagerApplication();
+  refreshFleetStatusApplication();
 }
 
 Hooks.on("preUpdateToken", preventLockedTokenRotation);
@@ -353,15 +367,21 @@ Hooks.on("canvasReady", async () => {
 Hooks.on("deleteToken", (tokenDocument) => {
   clearWeaponArc(tokenDocument);
   removeEngine(tokenDocument);
-  import("./turn-manager-app.js").then(({ refreshTurnManagerApplication }) => refreshTurnManagerApplication());
+  if (getTokenFleetId(tokenDocument)) {
+    import("./turn-manager-app.js").then(({ refreshTurnManagerApplication }) => refreshTurnManagerApplication());
+    refreshFleetStatusApplication();
+  }
 });
 
 Hooks.on("createToken", async tokenDocument => {
   if (game.user?.isGM && getTurnState().battleStarted) {
     await syncFleetTokenOwnership(tokenDocument, getTurnState());
   }
-  const { refreshTurnManagerApplication } = await import("./turn-manager-app.js");
-  refreshTurnManagerApplication();
+  if (getTokenFleetId(tokenDocument)) {
+    const { refreshTurnManagerApplication } = await import("./turn-manager-app.js");
+    refreshTurnManagerApplication();
+    refreshFleetStatusApplication();
+  }
 });
 
 Hooks.on("canvasTearDown", () => {

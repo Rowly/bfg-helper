@@ -5,6 +5,29 @@ import { syncTokenRotationLock } from "./rotation-locking.js";
 import { getCombatState, initialiseCombatState } from "./combat-state.js";
 import { getLeadership, getEffectiveLeadership } from "./leadership.js";
 
+const ORDER_TOOLTIPS = Object.freeze({
+  "all-ahead-full": "All Ahead Full: move at full cruising speed plus the rolled bonus. The ship cannot turn, and weapon strength is halved.",
+  "burn-retros": "Burn Retros: move from zero to half cruising speed and make one turn without first moving forward. Weapon strength is halved.",
+  "come-to-new-heading": "Come to New Heading: the ship may make up to two turns. Weapon strength is halved.",
+  "lock-on": "Lock On: re-roll missed lance and weapons battery hit rolls. The ship cannot turn.",
+  "reload-ordnance": "Reload Ordnance: expended torpedoes and attack craft are ready to launch again.",
+  "brace-for-impact": "Brace for Impact: gain a 4+ save against hull damage. Weapon and ordnance strength are halved."
+});
+
+const CRITICAL_TOOLTIPS = Object.freeze({
+  "dorsal-armament": "Dorsal Armament Damaged: dorsal weapons cannot fire until every instance is repaired.",
+  "starboard-armament": "Starboard Armament Damaged: starboard weapons cannot fire until every instance is repaired.",
+  "port-armament": "Port Armament Damaged: port weapons cannot fire until every instance is repaired.",
+  "prow-armament": "Prow Armament Damaged: prow weapons cannot fire until every instance is repaired.",
+  "engine-room": "Engine Room Damaged: the ship cannot turn until every instance is repaired.",
+  "fire": "Fire!: each unrepaired fire inflicts 1 hull damage during Damage Control.",
+  "thrusters": "Thrusters Damaged: speed is reduced by 10 cm. Every instance must be repaired to restore normal speed.",
+  "bridge-smashed": "Bridge Smashed: Leadership is permanently reduced by 3.",
+  "shields-collapse": "Shields Collapse: shield strength is permanently reduced to zero.",
+  "hull-breach": "Hull Breach: the critical hit inflicted additional hull damage.",
+  "bulkhead-collapse": "Bulkhead Collapse: the critical hit inflicted additional hull damage."
+});
+
 function selectedShip() {
   const controlled = canvas.tokens.controlled;
   if (controlled.length !== 1) {
@@ -166,6 +189,15 @@ export function getFleetShips(fleetId) {
       if (pendingHitAndRun > 0) pendingActions.push(`Pending Hit-and-Run x${pendingHitAndRun}`);
       if (specialOrder?.name) pendingActions.push(`Special Order: ${specialOrder.name}`);
       const effectiveLeadership = leadership ? getEffectiveLeadership(token) : null;
+      const criticalItems = (combatState?.criticals ?? []).map(item => ({
+        ...item,
+        label: `${item.name}${item.count ? ` x${item.count}` : ""}`,
+        tooltip: CRITICAL_TOOLTIPS[item.id] ?? item.name
+      }));
+      const criticalTooltip = criticalItems.map(item => item.label).join("; ") || "No critical damage";
+      const catastrophicTooltip = combatState?.catastrophicState?.name
+        ? `${combatState.catastrophicState.name}${combatState.catastrophicState.instruction ? `: ${combatState.catastrophicState.instruction}` : ""}`
+        : "No catastrophic damage";
       return {
         tokenId: token.document.id,
         actorId: actor?.id ?? null,
@@ -178,6 +210,23 @@ export function getFleetShips(fleetId) {
         leadershipAdjusted: Boolean(leadership && effectiveLeadership !== leadership.value),
         hasLeadership: Boolean(leadership),
         pendingActions,
+        specialOrderName: specialOrder?.name ?? "No special order",
+        hasSpecialOrder: Boolean(specialOrder?.name),
+        specialOrderTooltip: specialOrder?.id
+          ? ORDER_TOOLTIPS[specialOrder.id] ?? specialOrder.name
+          : "No special order",
+        nonOrderPendingActions: pendingActions.filter(item => !item.startsWith("Special Order:")),
+        criticalItems,
+        criticalTooltip,
+        hasCriticalDamage: Boolean(combatState?.criticals?.length),
+        catastrophicTooltip,
+        hasCatastrophicDamage: Boolean(combatState?.catastrophicState?.name),
+        hasTextStatuses: Boolean(
+          specialOrder?.name
+          || criticalItems.length
+          || combatState?.catastrophicState?.name
+          || pendingActions.some(item => !item.startsWith("Special Order:"))
+        ),
         hasCombatState: Boolean(combatState),
         combatStatus: combatState?.catastrophicState?.name
           ?? (combatState?.outOfAction

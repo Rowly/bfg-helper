@@ -39,6 +39,8 @@ import {
   rollSelectedShipLeadership
 } from "./leadership.js";
 import { canUserControlActingFleet, getFleetControllerName } from "./fleet-control.js";
+import { getShipData } from "./ship-data.js";
+import { openFleetStatus } from "./fleet-status-app.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -153,16 +155,55 @@ export class BFGTurnManagerApplication extends HandlebarsApplicationMixin(Applic
     bind('[data-bfg-action="weapon-arcs"]', () => toggleWeaponDialog());
     bind('[data-bfg-action="clear-weapon-arcs"]', () => clearAllWeaponArcs());
     bind('[data-bfg-action="launch-ordnance"]', async () => {
-      const choice = await foundry.applications.api.DialogV2.input({
-        window: { title: "Launch Ordnance" },
-        content: `<div class="bfg-dialog"><label>Ordnance type</label><select name="type"><option value="attack-craft">Attack craft</option><option value="torpedoes">Torpedoes</option></select></div>`,
-        ok: { label: "Continue", icon: "fa-solid fa-rocket" },
-        rejectClose: false,
-        modal: true
-      });
-      if (choice?.type === "attack-craft") await launchSelectedShipAttackCraft();
-      if (choice?.type === "torpedoes") await launchSelectedShipTorpedoes();
+      const selected = canvas.tokens?.controlled ?? [];
+      if (selected.length !== 1) {
+        ui.notifications.warn("Select exactly one configured ship before launching ordnance.");
+        return;
+      }
+      const token = selected[0];
+      const profile = getShipData(token);
+      if (!profile) {
+        ui.notifications.warn(`${token.name} is not configured as a BFG ship.`);
+        return;
+      }
+      const canLaunchCraft = Array.isArray(profile.attackCraft) && profile.attackCraft.length > 0;
+      const canLaunchTorpedoes = (profile.ordnance ?? []).some(item => String(item.type ?? "").toLowerCase() === "torpedo");
+      if (!canLaunchCraft && !canLaunchTorpedoes) {
+        ui.notifications.warn(`${token.name} has neither launch bays nor torpedo launchers.`);
+        return;
+      }
+
+      let type = canLaunchCraft ? "attack-craft" : "torpedoes";
+      if (canLaunchCraft && canLaunchTorpedoes) {
+        const choice = await foundry.applications.api.DialogV2.input({
+          window: { title: `Launch Ordnance: ${token.name}` },
+          content: `<div class="bfg-dialog"><p>Confirm the single ordnance type to launch.</p><label><input type="checkbox" name="attackCraft"> Attack craft</label><label><input type="checkbox" name="torpedoes"> Torpedoes</label></div>`,
+          ok: { label: "Continue", icon: "fa-solid fa-rocket" },
+          rejectClose: false,
+          modal: true
+        });
+        if (!choice) return;
+        const selectedTypes = [choice.attackCraft && "attack-craft", choice.torpedoes && "torpedoes"].filter(Boolean);
+        if (selectedTypes.length !== 1) {
+          ui.notifications.warn("Select exactly one ordnance type to launch.");
+          return;
+        }
+        [type] = selectedTypes;
+      } else {
+        const label = canLaunchCraft ? "attack craft" : "torpedoes";
+        const confirmed = await foundry.applications.api.DialogV2.confirm({
+          window: { title: `Launch Ordnance: ${token.name}` },
+          content: `<div class="bfg-dialog"><p>${foundry.utils.escapeHTML(token.name)} can launch <strong>${label}</strong>. Confirm this launch type?</p></div>`,
+          yes: { label: `Launch ${label}`, icon: "fa-solid fa-rocket" },
+          no: { label: "Cancel" },
+          modal: true
+        });
+        if (!confirmed) return;
+      }
+      if (type === "attack-craft") await launchSelectedShipAttackCraft();
+      else await launchSelectedShipTorpedoes();
     });
+    bind('[data-bfg-action="open-fleet-status"]', () => openFleetStatus());
     bind('[data-bfg-action="move-ordnance"]', () => moveSelectedOrdnance());
     bind('[data-bfg-action="assign-cap"]', () => assignSelectedFighterToCAP());
     bind('[data-bfg-action="clear-ordnance-paths"]', () => clearAllOrdnanceTrails());

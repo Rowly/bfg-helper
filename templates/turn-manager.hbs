@@ -75,28 +75,10 @@
         <article class="bfg-fleet-card{{#if active}} active{{/if}}">
           <header><strong>{{name}}</strong><span>{{shipCount}} assigned</span></header>
           <p class="notes"><i class="fa-solid fa-user"></i> {{controllerName}}</p>
-          {{#if hasShips}}
-            <ul>{{#each ships}}<li>
-              <span>{{actorName}}</span><small>{{shipClass}}</small>
-              {{#if hasLeadership}}
-                <div class="bfg-leadership-summary"><i class="fa-solid fa-user-shield"></i> {{leadership.rating}} (Leadership {{leadership.value}}){{#if leadershipAdjusted}}; effective {{effectiveLeadership}}{{/if}}</div>
-              {{else}}
-                <div class="bfg-leadership-summary bfg-leadership-missing"><i class="fa-solid fa-triangle-exclamation"></i> Leadership not assigned</div>
-              {{/if}}
-              {{#if hasCombatState}}
-                <div class="bfg-combat-summary{{#if combatState.crippled}} crippled{{/if}}{{#if combatState.outOfAction}} out-of-action{{/if}}">
-                  <span title="Current and maximum hits"><i class="fa-solid fa-heart"></i> {{combatState.currentHits}}/{{combatState.maximumHits}}</span>
-                  <span title="Current and maximum shields"><i class="fa-solid fa-shield-halved"></i> {{combatState.currentShields}}/{{combatState.maximumShields}}</span>
-                  <strong>{{combatStatus}}</strong>
-                </div>
-                {{#if combatState.criticals.length}}<div class="bfg-critical-summary"><i class="fa-solid fa-burst"></i> {{#each combatState.criticals}}{{name}}{{#if count}} x{{count}}{{/if}}{{#unless @last}}; {{/unless}}{{/each}}</div>{{/if}}
-                {{#if pendingActions.length}}<div class="bfg-pending-action-summary"><i class="fa-solid fa-hourglass-half"></i> {{#each pendingActions}}{{this}}{{#unless @last}}; {{/unless}}{{/each}}</div>{{/if}}
-              {{/if}}
-            </li>{{/each}}</ul>
-          {{else}}<p class="notes">No ships assigned.</p>{{/if}}
         </article>
       {{/each}}
     </section>
+    <button type="button" data-bfg-action="open-fleet-status" class="bfg-full-width"><i class="fa-solid fa-table-list"></i> Open Fleet Status</button>
     {{#if canManage}}
       <div class="bfg-turn-secondary-actions">
         <button type="button" data-bfg-action="assign-fleet"><i class="fa-solid fa-people-group"></i> Assign selected ship</button>

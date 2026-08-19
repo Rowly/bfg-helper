@@ -189,10 +189,14 @@ export async function resetCombatState(tokenOrDocument, { notify = true } = {}) 
 
   await clearCriticalState(document);
   await clearCatastrophicState(document);
-  const result = await setCombatState(document, {
+  // Restore both values in one document update. Using setCombatState here
+  // clamps shields against the ship's pre-reset crippled or destroyed state.
+  await document.setFlag(MODULE_ID, COMBAT_STATE_FLAG, {
     currentHits: current.maximumHits,
     currentShields: current.profileMaximumShields
   });
+  const result = getCombatState(document);
+  Hooks.callAll("bfgHelperCombatStateChanged", document, result);
 
   if (result && notify) {
     ui.notifications.info(`${document.name} combat state restored.`);

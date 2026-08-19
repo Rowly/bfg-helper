@@ -135,6 +135,8 @@ export async function resetBattle() {
   await restoreAllFleetTokenOwnership();
   await setBattleShipRotationLocks(false);
   await resetAllCombatStates();
+  const { clearAllLeadership } = await import("./leadership.js");
+  await clearAllLeadership();
   const { resetOrdnance } = await import("./ordnance.js");
   await resetOrdnance();
   const { resetBoardingState } = await import("./boarding.js");

@@ -79,27 +79,31 @@ export async function prepareRammingDeclaration(rammer) {
   const options = targets.map(target => `<option value="${target.document.id}" ${target.document.id === targetedId ? "selected" : ""}>${foundry.utils.escapeHTML(target.name)}</option>`).join("");
   const choice = await foundry.applications.api.DialogV2.wait({
     window: { title: `Declare Ram: ${rammer.name}` },
-    content: `<form><div class="bfg-dialog"><div class="bfg-optional-action"><strong><i class="fa-solid fa-triangle-exclamation"></i> Ramming is optional</strong><p>This ship has passed its All Ahead Full Command check. You may declare one enemy vessel as its ram target, or continue the order without attempting a ram.</p></div><label>Ram target</label><select name="targetId">${options}</select><p>If you declare a ram, the target cannot be changed after the Leadership test.</p></div></form>`,
+    position: { width: 420 },
+    content: `<form class="bfg-ram-declaration"><div class="bfg-dialog"><div class="bfg-optional-action"><strong><i class="fa-solid fa-triangle-exclamation"></i> Ramming is optional</strong><p>This ship has passed its All Ahead Full Command check. You may declare one enemy vessel as its ram target, or continue the order without attempting a ram.</p></div><label>Ram target</label><select name="targetId">${options}</select><p>If you declare a ram, the target cannot be changed after the Leadership test.</p></div></form>`,
     buttons: [
       {
         action: "ram",
         label: "Declare Ram",
         icon: "fa-solid fa-angles-up",
         default: true,
-        callback: (_event, button) => new foundry.applications.ux.FormDataExtended(button.form).object
+        callback: (_event, button) => ({
+          declared: true,
+          ...new foundry.applications.ux.FormDataExtended(button.form).object
+        })
       },
       {
         action: "no-ram",
         label: "No Ram",
         icon: "fa-solid fa-ban",
-        callback: () => null
+        callback: () => ({ declared: false })
       }
     ],
-    close: () => null,
+    close: () => ({ declared: false }),
     rejectClose: false,
     modal: true
   });
-  if (!choice) return null;
+  if (!choice?.declared) return { declared: false };
   const target = targets.find(candidate => candidate.document.id === String(choice.targetId ?? ""));
   if (!target) throw new Error("The selected ram target is no longer available.");
   const dice = ramLeadershipDice(rammer, target);

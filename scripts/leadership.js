@@ -127,6 +127,19 @@ export async function clearSelectedShipLeadership() {
   return true;
 }
 
+export async function clearAllLeadership() {
+  if (!requireGM() || !canvas?.ready) return false;
+  let count = 0;
+  for (const token of canvas.tokens?.placeables ?? []) {
+    if (!getShipData(token)) continue;
+    if (token.document.getFlag(MODULE_ID, LEADERSHIP_FLAG) === undefined) continue;
+    await token.document.unsetFlag(MODULE_ID, LEADERSHIP_FLAG);
+    count += 1;
+  }
+  Hooks.callAll("bfgHelperLeadershipChanged", null, null);
+  return count;
+}
+
 export async function rollAllUnassignedLeadership() {
   if (!requireGM()) return false;
   const ships = (canvas.tokens?.placeables ?? []).filter(token => getShipData(token) && token.document.getFlag(MODULE_ID, "fleetId") && !getLeadership(token));

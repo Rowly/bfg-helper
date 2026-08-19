@@ -203,6 +203,7 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
       hasResolution: Boolean(resolution),
       isRolling: this.isRolling,
       canCommitDamage: Boolean(resolution && !this.damageCommitted),
+      mustApplyBeforeClear: Boolean(resolution && !this.damageCommitted),
       damageCommitted: this.damageCommitted,
       interveningBlastMarkers: this.interveningBlastMarkers,
       countsAsDefences: this.countsAsDefences,
@@ -224,7 +225,22 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
     element.dataset.status = type;
   }
 
+  hasPendingResult() {
+    return Boolean(this.resolution && !this.damageCommitted);
+  }
+
+  warnPendingResult() {
+    const message = "Apply or confirm the attack result before changing or clearing the firing solution.";
+    ui.notifications.warn(message);
+    this.updateStatus(message, "error");
+  }
+
   async refreshTarget() {
+    if (this.hasPendingResult()) {
+      this.warnPendingResult();
+      await this.render({ force: true });
+      return false;
+    }
     this.analysis = null;
     this.resolution = null;
     this.damageCommitted = false;
@@ -242,7 +258,12 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
     });
 
     const weaponSelect = this.element.querySelector('[name="weaponIndex"]');
-    weaponSelect?.addEventListener("change", () => {
+    weaponSelect?.addEventListener("change", async () => {
+      if (this.hasPendingResult()) {
+        this.warnPendingResult();
+        await this.render({ force: true });
+        return;
+      }
       this.weaponIndex = Number(weaponSelect.value ?? 0);
       this.analysis = null;
       this.resolution = null;
@@ -268,6 +289,11 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
 
     const splitToggle = this.element.querySelector('[name="splitFire"]');
     splitToggle?.addEventListener("change", async () => {
+      if (this.hasPendingResult()) {
+        this.warnPendingResult();
+        await this.render({ force: true });
+        return;
+      }
       this.splitFire = Boolean(splitToggle.checked);
       this.analysis = null;
       this.splitAnalysis = null;
@@ -457,6 +483,10 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
     });
 
     bind('[data-bfg-action="clear-firing-solution"]', async () => {
+      if (this.hasPendingResult()) {
+        this.warnPendingResult();
+        return;
+      }
       clearWeaponArc(this.token);
       this.analysis = null;
       this.splitAnalysis = null;
@@ -467,6 +497,10 @@ export class BFGShootingPlannerApplication extends HandlebarsApplicationMixin(Ap
   }
 
   async close(options = {}) {
+    if (this.hasPendingResult() && !options.force) {
+      this.warnPendingResult();
+      return this;
+    }
     if (this.token) clearWeaponArc(this.token);
     this.analysis = null;
     this.splitAnalysis = null;

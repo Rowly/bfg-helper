@@ -26,6 +26,11 @@
   margin: 0.4rem 0 0;
 }
 
+.bfg-ram-declaration {
+  width: 100%;
+  max-width: 380px;
+}
+
 .bfg-dialog select,
 .bfg-dialog input {
   width: 100%;
@@ -1170,6 +1175,102 @@
 .bfg-leadership-missing {
   color: #f0ad4e;
 }
+
+.bfg-fleet-status-panel {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.18rem 0.45rem;
+}
+
+.bfg-fleet-status-group > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.bfg-fleet-status-group {
+  min-width: 0;
+}
+
+.bfg-fleet-status-group h2 {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1;
+}
+
+.bfg-fleet-status-card-row {
+  display: flex;
+  gap: 0.35rem;
+  padding-top: 0.1rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-gutter: stable;
+}
+
+.bfg-fleet-ship-card {
+  flex: 0 0 180px;
+  min-width: 180px;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid var(--color-border-light-primary, #777);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.bfg-fleet-ship-card > header {
+  display: grid;
+  padding-bottom: 0.1rem;
+  border-bottom: 1px solid rgba(127, 127, 127, 0.28);
+}
+
+.bfg-fleet-ship-card > header strong,
+.bfg-fleet-ship-card > header small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bfg-fleet-ship-card > header small { opacity: 0.67; }
+.bfg-fleet-ship-card > header strong { font-size: 0.82rem; line-height: 1.05; }
+.bfg-fleet-ship-card > header small { font-size: 0.66rem; line-height: 1.05; }
+.bfg-fleet-ship-card.crippled { border-color: rgba(255, 204, 102, 0.75); }
+.bfg-fleet-ship-card.out-of-action { border-color: rgba(255, 102, 102, 0.75); opacity: 0.82; }
+
+.bfg-fleet-compact-stats {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.1rem;
+  font-size: 0.65rem;
+}
+
+.bfg-fleet-compact-stats strong {
+  margin-left: auto;
+  color: rgba(102, 255, 153, 0.9);
+}
+
+.bfg-fleet-status-effects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.12rem 0.35rem;
+  margin-top: 0.1rem;
+  padding-top: 0.1rem;
+  border-top: 1px solid rgba(127, 127, 127, 0.18);
+  font-size: 0.65rem;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.bfg-fleet-status-effects:empty { display: none; }
+.bfg-fleet-status-effects span {
+  cursor: help;
+}
+
+.bfg-fleet-status-effects .order { color: rgba(117, 205, 255, 0.98); }
+.bfg-fleet-status-effects .critical { color: rgba(255, 184, 77, 0.98); }
+.bfg-fleet-status-effects .catastrophic { color: rgba(255, 102, 102, 0.98); }
+.bfg-fleet-status-effects .pending { color: rgba(210, 190, 255, 0.98); }
 
 @media (max-width: 420px) {
   .bfg-shooting-actions,

@@ -436,6 +436,56 @@
   opacity: 0.67;
 }
 
+.bfg-squadron-management {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.15rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid rgba(127, 127, 127, 0.35);
+}
+
+.bfg-squadron-management > header,
+.bfg-squadron-card > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.bfg-squadron-management > header span,
+.bfg-squadron-card > header span {
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+
+.bfg-squadron-rosters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+}
+
+.bfg-squadron-fleet {
+  min-width: 0;
+}
+
+.bfg-squadron-fleet > p {
+  margin: 0.25rem 0 0;
+}
+
+.bfg-squadron-card {
+  margin-top: 0.25rem;
+  padding: 0.4rem;
+  border: 1px solid rgba(127, 127, 127, 0.45);
+  border-radius: 5px;
+}
+
+.bfg-squadron-card p {
+  margin: 0.2rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
 .bfg-combat-summary {
   display: flex;
   align-items: center;

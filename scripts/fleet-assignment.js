@@ -117,6 +117,11 @@ export async function assignSelectedShipToFleet() {
     return false;
   }
 
+  const squadronId = token.document.getFlag(MODULE_ID, "squadronId");
+  if (squadronId) {
+    const { getSquadron, clearTokenSquadronMembership } = await import("./squadrons.js");
+    if (getSquadron(squadronId)?.fleetId !== fleet.id) await clearTokenSquadronMembership(token);
+  }
   await token.document.setFlag(MODULE_ID, "fleetId", fleet.id);
   await token.document.setFlag(MODULE_ID, "fleetName", fleet.name);
   await initialiseCombatState(token);
@@ -147,6 +152,8 @@ export async function clearSelectedShipFleet() {
     return false;
   }
 
+  const { clearTokenSquadronMembership } = await import("./squadrons.js");
+  await clearTokenSquadronMembership(token);
   await token.document.unsetFlag(MODULE_ID, "fleetId");
   await token.document.unsetFlag(MODULE_ID, "fleetName");
   const { restoreFleetTokenOwnership } = await import("./fleet-control.js");

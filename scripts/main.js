@@ -112,11 +112,23 @@ import {
   syncFleetTokenOwnership
 } from "./fleet-control.js";
 import { openFleetStatus, refreshFleetStatusApplication } from "./fleet-status-app.js";
+import {
+  assignSelectedShipsToSquadron,
+  createSquadronFromSelectedShips,
+  disbandSquadron,
+  getSquadron,
+  getSquadronMembers,
+  getSquadronRegistry,
+  getTokenSquadronId,
+  registerSquadronSettings,
+  removeSelectedShipsFromSquadrons
+} from "./squadrons.js";
 
 Hooks.once("init", () => {
   console.log("BFG Helper | Initialising");
   registerTurnManagerSettings();
   registerShootingEffectSettings();
+  registerSquadronSettings();
 });
 
 async function configureProfile(profileFactory) {
@@ -179,6 +191,16 @@ Hooks.once("ready", () => {
     fleetStatus: {
       open: openFleetStatus,
       refresh: refreshFleetStatusApplication
+    },
+    squadrons: {
+      getRegistry: getSquadronRegistry,
+      get: getSquadron,
+      getMembers: getSquadronMembers,
+      getTokenSquadronId,
+      createFromSelected: createSquadronFromSelectedShips,
+      assignSelected: assignSelectedShipsToSquadron,
+      removeSelected: removeSelectedShipsFromSquadrons,
+      disband: disbandSquadron
     },
     weaponArcs: {
       toggle: toggleWeaponDialog,
@@ -280,6 +302,12 @@ Hooks.on("bfgHelperTurnStateChanged", async () => {
 });
 
 Hooks.on("bfgHelperFleetAssignmentsChanged", async () => {
+  const { refreshTurnManagerApplication } = await import("./turn-manager-app.js");
+  refreshTurnManagerApplication();
+  refreshFleetStatusApplication();
+});
+
+Hooks.on("bfgHelperSquadronsChanged", async () => {
   const { refreshTurnManagerApplication } = await import("./turn-manager-app.js");
   refreshTurnManagerApplication();
   refreshFleetStatusApplication();

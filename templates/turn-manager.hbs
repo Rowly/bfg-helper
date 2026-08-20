@@ -92,6 +92,32 @@
         <button type="button" data-bfg-action="edit-leadership"><i class="fa-solid fa-pen"></i> Edit selected Leadership</button>
         <button type="button" data-bfg-action="clear-leadership"><i class="fa-solid fa-eraser"></i> Clear selected Leadership</button>
       </div>
+      <section class="bfg-squadron-management" aria-label="Squadron management">
+        <header><strong>Squadrons</strong><span>Setup and membership</span></header>
+        <div class="bfg-turn-secondary-actions">
+          <button type="button" data-bfg-action="create-squadron"><i class="fa-solid fa-object-group"></i> Create from selected</button>
+          <button type="button" data-bfg-action="assign-squadron"><i class="fa-solid fa-link"></i> Assign selected</button>
+        </div>
+        <div class="bfg-turn-secondary-actions">
+          <button type="button" data-bfg-action="remove-squadron"><i class="fa-solid fa-link-slash"></i> Remove selected</button>
+          <button type="button" data-bfg-action="disband-squadron"><i class="fa-solid fa-object-ungroup"></i> Disband squadron</button>
+        </div>
+        <div class="bfg-squadron-rosters">
+          {{#each squadronFleetCards}}
+            <div class="bfg-squadron-fleet">
+              <strong>{{name}}</strong>
+              {{#if hasSquadrons}}
+                {{#each squadrons}}
+                  <article class="bfg-squadron-card">
+                    <header><strong>{{name}}</strong><span>{{typeLabel}}, {{memberCount}} ship(s)</span></header>
+                    {{#if hasMembers}}<p>{{#each members}}{{name}}{{#unless @last}}, {{/unless}}{{/each}}</p>{{else}}<p class="notes">No deployed members.</p>{{/if}}
+                  </article>
+                {{/each}}
+              {{else}}<p class="notes">No squadrons configured.</p>{{/if}}
+            </div>
+          {{/each}}
+        </div>
+      </section>
     {{else}}<p class="notes bfg-turn-viewer-note">Only a Gamemaster can change fleet assignments.</p>{{/if}}
   {{/if}}
 

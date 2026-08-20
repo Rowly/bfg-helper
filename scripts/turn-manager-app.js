@@ -41,6 +41,13 @@ import {
 import { canUserControlActingFleet, getFleetControllerName } from "./fleet-control.js";
 import { getShipData } from "./ship-data.js";
 import { openFleetStatus } from "./fleet-status-app.js";
+import {
+  assignSelectedShipsToSquadron,
+  createSquadronFromSelectedShips,
+  disbandSquadron,
+  getSquadronCards,
+  removeSelectedShipsFromSquadrons
+} from "./squadrons.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -86,6 +93,7 @@ export class BFGTurnManagerApplication extends HandlebarsApplicationMixin(Applic
     const activeFleet = state.fleets[actingFleetIndex] ?? null;
     const currentPhase = PHASES.find(phase => phase.id === state.phase) ?? PHASES[0];
     const canAct = canUserControlActingFleet(game.user, state);
+    const squadronCards = getSquadronCards();
 
     return foundry.utils.mergeObject(context, {
       state,
@@ -118,6 +126,12 @@ export class BFGTurnManagerApplication extends HandlebarsApplicationMixin(Applic
           controllerName: getFleetControllerName(fleet)
         };
       }),
+      squadronFleetCards: state.fleets.map(fleet => ({
+        id: fleet.id,
+        name: fleet.name,
+        squadrons: squadronCards.filter(squadron => squadron.fleetId === fleet.id),
+        hasSquadrons: squadronCards.some(squadron => squadron.fleetId === fleet.id)
+      })),
       canManage: Boolean(game.user?.isGM)
     }, { inplace: false });
   }
@@ -251,6 +265,19 @@ export class BFGTurnManagerApplication extends HandlebarsApplicationMixin(Applic
 
     bind('[data-bfg-action="clear-fleet"]', async () => {
       if (await clearSelectedShipFleet()) await this.render({ force: true });
+    });
+
+    bind('[data-bfg-action="create-squadron"]', async () => {
+      if (await createSquadronFromSelectedShips()) await this.render({ force: true });
+    });
+    bind('[data-bfg-action="assign-squadron"]', async () => {
+      if (await assignSelectedShipsToSquadron()) await this.render({ force: true });
+    });
+    bind('[data-bfg-action="remove-squadron"]', async () => {
+      if (await removeSelectedShipsFromSquadrons()) await this.render({ force: true });
+    });
+    bind('[data-bfg-action="disband-squadron"]', async () => {
+      if (await disbandSquadron()) await this.render({ force: true });
     });
 
     bind('[data-bfg-action="roll-leadership"]', async () => {
